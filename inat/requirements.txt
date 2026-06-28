@@ -1,9 +1,16 @@
-numpy>=1.24
-pillow>=10.0
+# Supply chain: for a tamper-proof, reproducible install, pin versions AND
+# hashes and install with --require-hashes (pip then rejects any wheel whose
+# hash doesn't match). Generate a lock from this file with, e.g.:
+#   pip install pip-tools
+#   pip-compile --generate-hashes -o inat/requirements.lock inat/requirements.txt
+#   pip install --require-hashes -r inat/requirements.lock
+numpy==2.5.0
+pillow==12.2.0
+ai-edge-litert==2.1.5            # native LiteRT runtime (the server prefers this)
 
-# TFLite runtime — install ONE of these:
-#   pip install ai-edge-litert     # lightweight (Linux/macOS; limited Windows wheels)
-#   pip install tensorflow         # works on Windows; bundles tf.lite.Interpreter
+# Heavier alternative runtime — bundles tf.lite.Interpreter; use instead of
+# ai-edge-litert only if LiteRT has no wheel for your platform:
+#   pip install tensorflow
 
 # Optional GPU/NPU acceleration (convert first: python convert_to_onnx.py):
 #   pip install tf2onnx onnx           # TFLite -> ONNX conversion (needs tensorflow)

@@ -195,11 +195,38 @@ _vcache = VerdictCache(CACHE_PATH)
 
 
 # ---- Model (lazy + reloadable) ---------------------------------------------
+def _verify_pinned(path):
+    """Refuse a model/taxonomy file that doesn't match its pinned SHA-256.
+
+    Files whose name has no pin (a custom IMGEDGE_MODEL, or the locally generated
+    ONNX) pass through; only a *known* filename with altered bytes is rejected,
+    so a tampered download can't be handed to the interpreter.
+    """
+    try:
+        from download_models import CHECKSUMS, sha256_of  # type: ignore
+    except Exception:
+        return True  # verifier unavailable -> don't hard-fail the server
+    expected = CHECKSUMS.get(path.name)
+    if not expected:
+        return True
+    actual = sha256_of(path)
+    if actual != expected:
+        print(f"[imgedge] INTEGRITY FAIL: {path.name} does not match its pinned hash")
+        print(f"[imgedge]   expected {expected}")
+        print(f"[imgedge]   got      {actual}")
+        print("[imgedge] refusing to load it; re-download with python inat/download_models.py")
+        print("[imgedge] (or update CHECKSUMS in inat/download_models.py if intended).")
+        return False
+    return True
+
+
 def load_filter():
     if not TAXONOMY_PATH.exists():
         print(f"[imgedge] taxonomy not found at {TAXONOMY_PATH}")
         print("[imgedge] run: python inat/download_models.py")
         print("[imgedge] running in fail-open mode (nothing will be blocked).")
+        return None
+    if not _verify_pinned(TAXONOMY_PATH):
         return None
     # Prefer the ONNX backend (GPU/NPU) when a converted model + runtime exist.
     if ONNX_PATH.exists():
@@ -212,6 +239,8 @@ def load_filter():
         except Exception as e:
             print(f"[imgedge] ONNX backend unavailable ({e}); falling back to TFLite.")
     if MODEL_PATH.exists():
+        if not _verify_pinned(MODEL_PATH):
+            return None
         try:
             from inat_filter import TaxonFilter  # type: ignore
             flt = TaxonFilter(MODEL_PATH, TAXONOMY_PATH, target=TARGET, pool_size=POOL_SIZE)
