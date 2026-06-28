@@ -31,6 +31,8 @@ Environment overrides:
   IMGEDGE_EP         execution provider: auto|npu|ovgpu|cuda|dml|cpu (default: auto)
   IMGEDGE_POOL       TFLite interpreter pool size (default: min(4, cpus))
   IMGEDGE_CACHE_FILE verdict cache path, or "none" to disable
+  IMGEDGE_LOG_FILE   log path, or "none" (default: ~/.imgedge.log; size-capped + rotated)
+  IMGEDGE_LOG_LEVEL  DEBUG|INFO|WARNING|ERROR (default: INFO)
   IMGEDGE_VOTE       policy: evidence|any|all|majority|weighted (default: evidence)
   IMGEDGE_TIMM_MODEL HF/timm model id (default: mobilenetv3_large_100.ra_in1k)
   IMGEDGE_TIMM_EXCLUDE   comma-separated ImageNet terms to BLOCK (arachnids)
@@ -44,6 +46,7 @@ import base64
 import hashlib
 import ipaddress
 import json
+import logging
 import os
 import secrets
 import socket
@@ -53,6 +56,7 @@ import urllib.request
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -85,6 +89,60 @@ LOAD_RETRY_SEC = 30
 # stores only the verdict, so no image data or browsing URLs touch the disk.
 _cache_env = os.environ.get("IMGEDGE_CACHE_FILE", str(Path.home() / ".imgedge_cache.json"))
 CACHE_PATH = None if _cache_env == "none" else Path(_cache_env)
+
+# Logging. The file is bounded (maxBytes * (backups+1)) so a stuck/erroring
+# extension hammering /classify can never grow it without limit.
+LOG_LEVEL = os.environ.get("IMGEDGE_LOG_LEVEL", "INFO").upper()
+_log_env = os.environ.get("IMGEDGE_LOG_FILE", str(Path.home() / ".imgedge.log"))
+LOG_FILE = None if _log_env == "none" else Path(_log_env)
+LOG_MAX_BYTES = int(os.environ.get("IMGEDGE_LOG_MAX_BYTES", str(1024 * 1024)))
+LOG_BACKUPS = int(os.environ.get("IMGEDGE_LOG_BACKUPS", "3"))
+log = logging.getLogger("imgedge")
+
+
+class _Dedupe(logging.Filter):
+    """Collapse a burst of identical messages so a stuck client can't flood the log."""
+
+    def __init__(self, window=10.0):
+        super().__init__()
+        self.window = window
+        self._last = None
+        self._at = 0.0
+        self._suppressed = 0
+
+    def filter(self, record):
+        msg = record.getMessage()
+        now = time.monotonic()
+        if msg == self._last and now - self._at < self.window:
+            self._suppressed += 1
+            return False
+        if self._suppressed:
+            record.msg = f"{record.msg} (+{self._suppressed} repeats suppressed)"
+            record.args = ()
+        self._last, self._at, self._suppressed = msg, now, 0
+        return True
+
+
+def _setup_logging():
+    if log.handlers:
+        return
+    log.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
+    log.addFilter(_Dedupe())
+    fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", "%H:%M:%S")
+    stream = logging.StreamHandler()
+    stream.setFormatter(fmt)
+    log.addHandler(stream)
+    if LOG_FILE:
+        try:
+            fh = RotatingFileHandler(LOG_FILE, maxBytes=LOG_MAX_BYTES,
+                                     backupCount=LOG_BACKUPS, encoding="utf-8")
+            fh.setFormatter(fmt)
+            log.addHandler(fh)
+        except OSError:
+            pass  # never let logging setup stop the server
+
+
+_setup_logging()
 
 _ensemble = None            # VoteEnsemble (None if no voters are available)
 _load_lock = threading.Lock()
@@ -207,20 +265,18 @@ def _verify_pinned(path):
         return True
     actual = sha256_of(path)
     if actual != expected:
-        print(f"[imgedge] INTEGRITY FAIL: {path.name} does not match its pinned hash")
-        print(f"[imgedge]   expected {expected}")
-        print(f"[imgedge]   got      {actual}")
-        print("[imgedge] refusing to load it; re-download with python inat/download_models.py")
-        print("[imgedge] (or update CHECKSUMS in inat/download_models.py if intended).")
+        log.error("INTEGRITY FAIL: %s does not match its pinned hash", path.name)
+        log.error("  expected %s", expected)
+        log.error("  got      %s", actual)
+        log.error("refusing to load it; re-download with: imgedge-download-models")
         return False
     return True
 
 
 def load_filter():
     if not TAXONOMY_PATH.exists():
-        print(f"[imgedge] taxonomy not found at {TAXONOMY_PATH}")
-        print("[imgedge] run: python inat/download_models.py")
-        print("[imgedge] running in fail-open mode (nothing will be blocked).")
+        log.warning("taxonomy not found at %s; run: imgedge-download-models", TAXONOMY_PATH)
+        log.warning("running in fail-open mode (nothing will be blocked).")
         return None
     if not _verify_pinned(TAXONOMY_PATH):
         return None
@@ -229,26 +285,26 @@ def load_filter():
         try:
             from imgedge.inat.onnx_filter import OnnxTaxonFilter
             flt = OnnxTaxonFilter(ONNX_PATH, TAXONOMY_PATH, target=TARGET, ep=EP_PREF)
-            print(f"[imgedge] model loaded (ONNX): {flt.match_count} '{TARGET}' taxa, "
-                  f"threshold={THRESHOLD}, provider={flt.provider}")
+            log.info("model loaded (ONNX): %d '%s' taxa, threshold=%s, provider=%s",
+                     flt.match_count, TARGET, THRESHOLD, flt.provider)
             return flt
         except Exception as e:
-            print(f"[imgedge] ONNX backend unavailable ({e}); falling back to TFLite.")
+            log.warning("ONNX backend unavailable (%s); falling back to TFLite.", e)
     if MODEL_PATH.exists():
         if not _verify_pinned(MODEL_PATH):
             return None
         try:
             from imgedge.inat.inat_filter import TaxonFilter
             flt = TaxonFilter(MODEL_PATH, TAXONOMY_PATH, target=TARGET, pool_size=POOL_SIZE)
-            print(f"[imgedge] model loaded (TFLite): {flt.match_count} '{TARGET}' taxa, "
-                  f"threshold={THRESHOLD}, pool={POOL_SIZE}")
+            log.info("model loaded (TFLite): %d '%s' taxa, threshold=%s, pool=%s",
+                     flt.match_count, TARGET, THRESHOLD, POOL_SIZE)
             return flt
         except Exception as e:
-            print(f"[imgedge] failed to load TFLite model ({e}); fail-open mode.")
+            log.error("failed to load TFLite model (%s); fail-open mode.", e)
             return None
-    print(f"[imgedge] no model found in {MODEL_PATH.parent}")
-    print("[imgedge] run: python inat/download_models.py  (and install a runtime)")
-    print("[imgedge] running in fail-open mode (nothing will be blocked).")
+    log.warning("no model found in %s; run: imgedge-download-models (and install a runtime)",
+                MODEL_PATH.parent)
+    log.warning("running in fail-open mode (nothing will be blocked).")
     return None
 
 
@@ -263,22 +319,21 @@ def load_ensemble():
             inat_voter = InatVoter(inat_model, threshold=THRESHOLD)
             voters.append(inat_voter)
         except Exception as e:
-            print(f"[imgedge] iNat voter unavailable ({e}).")
+            log.warning("iNat voter unavailable (%s).", e)
     try:
         from imgedge.voters.timm_voter import TimmVoter
         tv = TimmVoter(threshold=TIMM_THRESHOLD, weight=TIMM_WEIGHT)
         voters.append(tv)
-        print(f"[imgedge] timm voter: {tv.name} on {tv.provider}, "
-              f"{tv.matched} block / {tv.contrast_matched} contrast class(es)")
+        log.info("timm voter: %s on %s, %d block / %d contrast class(es)",
+                 tv.name, tv.provider, tv.matched, tv.contrast_matched)
     except Exception as e:
-        print(f"[imgedge] timm voter skipped ({e}); "
-              f"pip install -r voters/requirements.txt to enable it.")
+        log.info("timm voter skipped (%s); pip install -e \".[voters]\" to enable it.", e)
     if not voters:
         return None
     from imgedge.voters.base import VoteEnsemble
     ens = VoteEnsemble(voters, policy=VOTE_POLICY, threshold=THRESHOLD)
     ens.inat = inat_voter
-    print(f"[imgedge] ensemble ready: policy={VOTE_POLICY}, voters={ens.names}")
+    log.info("ensemble ready: policy=%s, voters=%s", VOTE_POLICY, ens.names)
     return ens
 
 
@@ -458,7 +513,7 @@ class PooledHTTPServer(HTTPServer):
 
 def main():
     ensure_ensemble()
-    print(f"ImgEdge classifier on http://{HOST}:{PORT}  (blocking: {TARGET})")
+    log.info("ImgEdge classifier on http://%s:%s  (blocking: %s)", HOST, PORT, TARGET)
     print(f"[imgedge] access token (paste into the ImgEdge popup):\n    {TOKEN}")
     PooledHTTPServer((HOST, PORT), Handler).serve_forever()
 

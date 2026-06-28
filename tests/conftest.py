@@ -6,3 +6,4 @@ import os
 
 os.environ.setdefault("IMGEDGE_TOKEN", "test-token")
 os.environ.setdefault("IMGEDGE_CACHE_FILE", "none")
+os.environ.setdefault("IMGEDGE_LOG_FILE", "none")
