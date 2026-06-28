@@ -10,6 +10,6 @@
 # Supply chain: pin exact versions and install with --require-hashes for a
 # verified, reproducible env (see inat/requirements.txt for the lock recipe).
 timm>=1.0.0
-torch>=2.2.0
+torch>=2.12.1
 numpy>=1.24
 pillow>=10.0
