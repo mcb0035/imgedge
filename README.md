@@ -145,7 +145,10 @@ backgrounds*, and the whitelist / allowed-sites / blocklist.
 | `IMGEDGE_WORKERS` | `8` | Max concurrent HTTP request workers |
 | `IMGEDGE_TOKEN` / `IMGEDGE_TOKEN_FILE` | generated → `~/.imgedge_token` | Access token |
 | `IMGEDGE_CACHE_FILE` | `~/.imgedge_cache.json` | Verdict cache (`none` to disable) |
-| `IMGEDGE_MODEL` / `IMGEDGE_ONNX` / `IMGEDGE_TAXONOMY` | under `inat/models/` | Model/taxonomy paths |
+| `IMGEDGE_LOG_FILE` | `~/.imgedge.log` | Rotating log (1MB×3 ≈ 4MB cap; `none` to disable) |
+| `IMGEDGE_LOG_LEVEL` | `INFO` | `DEBUG\|INFO\|WARNING\|ERROR` |
+| `IMGEDGE_PROFILE` | `1` | Expose rolling latency stats in `/health` (`0` = off) |
+| `IMGEDGE_MODEL` / `IMGEDGE_ONNX` / `IMGEDGE_TAXONOMY` | under `src/imgedge/inat/models/` | Model/taxonomy paths |
 
 ## Security model
 
@@ -159,6 +162,10 @@ backgrounds*, and the whitelist / allowed-sites / blocklist.
   loopback / private / link-local / reserved targets and follows no redirects.
 - **Decode hardening.** Pillow is capped to a max pixel count (decompression-bomb
   guard) and only parses an allowlist of raster formats.
+- **Pinned model integrity.** Each downloaded asset is verified against a pinned
+  SHA-256; the server refuses to load a model/taxonomy that doesn't match.
+- **Bounded inputs.** `/classify` rejects bodies over 16 MB, images cap at 8 MB,
+  and the logfile is size-capped + rotated (and never records the token).
 - **Fail-open by default.** If the classifier is down or the model isn't loaded,
   images are shown (toggle *Block when classifier unreachable* / Strict mode to
   flip this). The toolbar badge turns into a grey `!` when the classifier is
@@ -191,6 +198,6 @@ the extension ID stays stable (`dist/`, `*.crx`, `*.pem` are git-ignored).
   async classifier).
 - The iNaturalist model only recognizes organisms, so non-creature images score
   ≈ 0 — good for precision, but verify preprocessing/threshold for your needs
-  (`python inat/inat_vision.py <photo>` ranks the top taxa).
+  (`python -m imgedge.inat.inat_vision <photo>` ranks the top taxa).
 - Dynamic backgrounds swapped in later (via JS class/style changes) aren't
   re-scanned, to avoid the CPU storm that pegging on those mutations caused.

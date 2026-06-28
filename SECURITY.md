@@ -52,7 +52,12 @@ Hardening that is implemented today:
 - **SSRF guard.** When the server fetches an image URL it resolves the host and
   refuses loopback, private, link-local, multicast, reserved, and unspecified
   addresses; allows only `http(s)`; **follows no redirects**; accepts only
-  `200`; and caps the body at 8 MB with a short timeout.
+  `200`; and caps the body at 8 MB with a short timeout. The `/classify`
+  request body itself is capped at 16 MB.
+- **Pinned model integrity.** Model/taxonomy downloads are pinned to a SHA-256
+  and verified on download *and* before load; a mismatched file is refused.
+  Python deps ship as hash-pinned lock files (`pip install --require-hashes`).
+  The logfile is size-capped + rotated and never contains the token.
 - **Decode hardening.** Image decoding caps pixels
   (`Image.MAX_IMAGE_PIXELS`, a decompression-bomb guard) and restricts the
   parsed formats to a raster allowlist (`JPEG, PNG, WEBP, GIF, BMP`), checking
@@ -85,7 +90,9 @@ These are deliberately documented rather than hidden:
   *displayed*, but the browser may have already issued the initial network
   request; ImgEdge does not block at the network layer by default.
 - **Model files.** The iNaturalist model is downloaded over HTTPS from GitHub
-  Releases without checksum pinning. Verify the source if integrity matters.
+  Releases and verified against a pinned SHA-256, and the server refuses a
+  mismatched model. The pins were captured on first download (trust-on-first-
+  use), so cross-check them independently if you need stronger provenance.
 
 ## Hardening recommendations for users
 
