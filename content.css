@@ -1,0 +1,48 @@
+/* Hide any surface until ImgEdge has a verdict, and after a block. */
+[data-imgedge="pending"] {
+  visibility: hidden !important;
+}
+
+[data-imgedge="blocked"] {
+  display: none !important;
+}
+
+/* CSS background / list images: drop the image only, keep the element box. */
+.imgedge-bg-pending,
+.imgedge-bg-blocked {
+  background-image: none !important;
+  list-style-image: none !important;
+}
+
+/* Clickable placeholder shown in place of a blocked <img>/<input type=image>. */
+.imgedge-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 64px;
+  min-height: 32px;
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 1px dashed #c0392b;
+  border-radius: 4px;
+  background: #fff5f5;
+  color: #c0392b;
+  font: 12px/1.35 system-ui, "Segoe UI", sans-serif;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
+  cursor: pointer;
+  vertical-align: middle;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.imgedge-placeholder:hover {
+  background: #ffe9e9;
+}
+
+.imgedge-placeholder:focus {
+  outline: 2px solid #c0392b;
+  outline-offset: 1px;
+}

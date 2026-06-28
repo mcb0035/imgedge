@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "ImgEdge",
+  "version": "0.1.0",
+  "description": "Intercepts <img> loads, classifies them with a local server, blocks or shows the result, and supports per-image whitelist overrides.",
+  "permissions": ["storage", "contextMenus"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "ImgEdge"
+  }
+}

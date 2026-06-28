@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Models & datasets (downloaded or generated — large, not source)
+models/
+data/
+runs/
+*.tflite
+*.onnx
+*.mlmodel
+*.pt
+
+# ImgEdge local state (defaults live in $HOME; ignored here in case they're
+# pointed at the repo via IMGEDGE_TOKEN_FILE / IMGEDGE_CACHE_FILE)
+.imgedge_token
+.imgedge_cache.json
+*.part
+
+# OS / editor
+.DS_Store
+Thumbs.db

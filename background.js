@@ -1,0 +1,302 @@
+/* ImgEdge background service worker.
+ * Owns settings + lists (whitelist URLs, allowed domains, blocklist URLs) and
+ * talks to the local classifier. Also wires the right-click context menu so the
+ * user can allow/block any image or allow a whole site. It only returns a
+ * verdict { allow, reason, score } — content scripts decide how to render.
+ */
+
+const KEYS = {
+  settings: "imgedge:settings",
+  whitelist: "imgedge:whitelist",
+  domains: "imgedge:domains",
+  blocklist: "imgedge:blocklist",
+};
+
+const DEFAULTS = {
+  enabled: true,
+  endpoint: "http://localhost:8723/classify",
+  token: "", // shared secret the local classifier requires (from its console)
+  sendData: false, // POST base64 image bytes in addition to the URL
+  failClosed: false, // block when the classifier can't be reached
+  strict: false, // block by default; show only what the classifier explicitly allows
+  scanBackgrounds: true, // also filter CSS background / list images
+};
+
+const MENUS = [
+  { id: "imgedge-allow", title: "ImgEdge: Allow this image" },
+  { id: "imgedge-block", title: "ImgEdge: Block this image" },
+  { id: "imgedge-allow-domain", title: "ImgEdge: Allow all images from this site" },
+];
+
+chrome.runtime.onInstalled.addListener(async () => {
+  const cur = await chrome.storage.local.get(Object.values(KEYS));
+  const patch = {};
+  if (!cur[KEYS.settings]) patch[KEYS.settings] = DEFAULTS;
+  if (!cur[KEYS.whitelist]) patch[KEYS.whitelist] = [];
+  if (!cur[KEYS.domains]) patch[KEYS.domains] = [];
+  if (!cur[KEYS.blocklist]) patch[KEYS.blocklist] = [];
+  if (Object.keys(patch).length) await chrome.storage.local.set(patch);
+  setupMenus();
+});
+
+if (chrome.runtime.onStartup) chrome.runtime.onStartup.addListener(setupMenus);
+
+function setupMenus() {
+  if (!chrome.contextMenus) return;
+  chrome.contextMenus.removeAll(() => {
+    for (const m of MENUS) {
+      chrome.contextMenus.create({ id: m.id, title: m.title, contexts: ["all"] });
+    }
+  });
+}
+
+if (chrome.contextMenus) {
+  chrome.contextMenus.onClicked.addListener((info, tab) => {
+    if (!tab || tab.id < 0) return;
+    const action =
+      info.menuItemId === "imgedge-allow" ? "allow" :
+      info.menuItemId === "imgedge-block" ? "block" :
+      info.menuItemId === "imgedge-allow-domain" ? "allow-domain" : null;
+    if (!action) return;
+    const payload = { type: "context", action, srcUrl: info.srcUrl || null };
+    const opts = info.frameId != null ? { frameId: info.frameId } : undefined;
+    chrome.tabs.sendMessage(tab.id, payload, opts, () => void chrome.runtime.lastError);
+  });
+}
+
+// ---- Badge counters + classifier health -----------------------------------
+const CLASSIFY_TIMEOUT_MS = 15000; // headroom for a slow classifier (server fetch is 6s)
+const BADGE_COLOR = "#c0392b";       // blocked-count badge
+const HEALTH_BAD_COLOR = "#5f6368";  // classifier error / model missing
+const tabCounts = new Map(); // tabId -> Map<frameId, { allow, block }>
+
+// "unknown" until the first classify call; then "ok" | "model-missing" | "error".
+let health = "unknown";
+
+if (chrome.action && chrome.action.setBadgeBackgroundColor) {
+  chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR });
+}
+
+function healthBad() {
+  return health === "error" || health === "model-missing";
+}
+
+function sumTab(tabId) {
+  const frames = tabCounts.get(tabId);
+  const total = { allow: 0, block: 0 };
+  if (frames) for (const c of frames.values()) { total.allow += c.allow; total.block += c.block; }
+  return total;
+}
+
+function badgeTitle(tabId) {
+  if (health === "error") return "ImgEdge \u2014 classifier unreachable; not filtering";
+  if (health === "model-missing") return "ImgEdge \u2014 model not loaded; not filtering";
+  const { allow, block } = sumTab(tabId);
+  return `ImgEdge \u2014 allowed ${allow}, blocked ${block}`;
+}
+
+function applyBadge(tabId) {
+  if (!chrome.action) return;
+  let text;
+  if (healthBad()) text = "!";
+  else { const b = sumTab(tabId).block; text = b ? String(b) : ""; }
+  chrome.action.setBadgeText({ tabId, text });
+  chrome.action.setTitle({ tabId, title: badgeTitle(tabId) });
+}
+
+function setHealth(next) {
+  if (next === health || !chrome.action) { health = next; return; }
+  health = next;
+  chrome.action.setBadgeBackgroundColor({ color: healthBad() ? HEALTH_BAD_COLOR : BADGE_COLOR });
+  // Default badge covers tabs with no per-tab text; then refresh known tabs.
+  chrome.action.setBadgeText({ text: healthBad() ? "!" : "" });
+  for (const tabId of tabCounts.keys()) applyBadge(tabId);
+}
+
+function recordTally(tabId, frameId, counts) {
+  let frames = tabCounts.get(tabId);
+  if (!frames) { frames = new Map(); tabCounts.set(tabId, frames); }
+  frames.set(frameId, { allow: counts.allow | 0, block: counts.block | 0 });
+  applyBadge(tabId);
+}
+
+function clearTab(tabId) {
+  tabCounts.delete(tabId);
+  applyBadge(tabId);
+}
+
+if (chrome.tabs && chrome.tabs.onUpdated) {
+  chrome.tabs.onUpdated.addListener((tabId, info) => { if (info.status === "loading") clearTab(tabId); });
+}
+if (chrome.tabs && chrome.tabs.onRemoved) {
+  chrome.tabs.onRemoved.addListener((tabId) => tabCounts.delete(tabId));
+}
+
+// ---- Storage helpers -------------------------------------------------------
+async function getSettings() {
+  const r = await chrome.storage.local.get([KEYS.settings]);
+  return Object.assign({}, DEFAULTS, r[KEYS.settings] || {});
+}
+
+async function getList(key) {
+  const r = await chrome.storage.local.get([key]);
+  return r[key] || [];
+}
+
+async function addTo(key, value) {
+  const list = await getList(key);
+  if (!list.includes(value)) {
+    list.push(value);
+    await chrome.storage.local.set({ [key]: list });
+  }
+}
+
+async function removeFrom(key, value) {
+  const list = (await getList(key)).filter((v) => v !== value);
+  await chrome.storage.local.set({ [key]: list });
+}
+
+function hostOf(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
+
+// ---- Image bytes -----------------------------------------------------------
+function bufferToBase64(buf) {
+  let binary = "";
+  const bytes = new Uint8Array(buf);
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function fetchAsDataUrl(url) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const buf = await r.arrayBuffer();
+    const type = r.headers.get("Content-Type") || "application/octet-stream";
+    return `data:${type};base64,${bufferToBase64(buf)}`;
+  } catch {
+    return null;
+  }
+}
+
+// ---- Classification --------------------------------------------------------
+async function classify(url, data) {
+  const s = await getSettings();
+  if (!s.enabled) return { allow: true };
+  const strict = s.strict === true;
+
+  const [whitelist, domains, blocklist] = await Promise.all([
+    getList(KEYS.whitelist),
+    getList(KEYS.domains),
+    getList(KEYS.blocklist),
+  ]);
+
+  if (blocklist.includes(url)) return { allow: false, reason: "blocklist" };
+  if (whitelist.includes(url)) return { allow: true };
+  const host = hostOf(url);
+  if (host && domains.includes(host)) return { allow: true };
+
+  const body = { url };
+  if (data) body.data = data;
+  else if (s.sendData && /^https?:/i.test(url)) {
+    const d = await fetchAsDataUrl(url);
+    if (d) body.data = d;
+  }
+
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), CLASSIFY_TIMEOUT_MS);
+    const headers = { "Content-Type": "application/json" };
+    if (s.token) headers["X-ImgEdge-Token"] = s.token;
+    let resp;
+    try {
+      resp = await fetch(s.endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const json = await resp.json();
+    setHealth(json && json.reason === "model-unavailable" ? "model-missing" : "ok");
+    // Strict mode allows only an explicit "not blocked" answer.
+    const allow = strict ? json.block === false : !json.block;
+    return { allow, reason: json.reason, score: json.score };
+  } catch (e) {
+    setHealth("error");
+    // Classifier unreachable / timed out: strict blocks, otherwise honor failClosed.
+    return {
+      allow: strict ? false : !s.failClosed,
+      reason: strict ? "strict-blocked" : "classifier-error",
+      error: String(e),
+    };
+  }
+}
+
+// ---- Messaging -------------------------------------------------------------
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  (async () => {
+    try {
+      switch (msg && msg.type) {
+        case "getConfig":
+          sendResponse({
+            settings: await getSettings(),
+            whitelist: await getList(KEYS.whitelist),
+            domains: await getList(KEYS.domains),
+            blocklist: await getList(KEYS.blocklist),
+          });
+          break;
+        case "classify":
+          sendResponse(await classify(msg.url, msg.data));
+          break;
+        case "tally":
+          if (sender && sender.tab) recordTally(sender.tab.id, sender.frameId || 0, { allow: msg.allow, block: msg.block });
+          sendResponse({ ok: true });
+          break;
+        case "getCounts":
+          sendResponse(sumTab(msg.tabId));
+          break;
+        case "whitelistAdd":
+          await addTo(KEYS.whitelist, msg.url);
+          sendResponse({ ok: true });
+          break;
+        case "whitelistRemove":
+          await removeFrom(KEYS.whitelist, msg.url);
+          sendResponse({ ok: true });
+          break;
+        case "blocklistAdd":
+          await addTo(KEYS.blocklist, msg.url);
+          sendResponse({ ok: true });
+          break;
+        case "blocklistRemove":
+          await removeFrom(KEYS.blocklist, msg.url);
+          sendResponse({ ok: true });
+          break;
+        case "domainAdd":
+          await addTo(KEYS.domains, msg.host);
+          sendResponse({ ok: true });
+          break;
+        case "domainRemove":
+          await removeFrom(KEYS.domains, msg.host);
+          sendResponse({ ok: true });
+          break;
+        default:
+          sendResponse({ error: "unknown-message" });
+      }
+    } catch (e) {
+      sendResponse({ error: String(e), allow: true });
+    }
+  })();
+  return true; // keep the message channel open for the async response
+});

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ImgEdge</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        width: 320px;
+        margin: 0;
+        padding: 12px 14px;
+        font: 13px/1.4 system-ui, "Segoe UI", sans-serif;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 15px;
+      }
+      .counts {
+        margin: 0 0 4px;
+        color: #555;
+        font-size: 12px;
+      }
+      .health {
+        margin: 0 0 10px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #777;
+      }
+      .health::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #bbb;
+        flex: none;
+      }
+      .health.ok { color: #2e7d32; }
+      .health.ok::before { background: #2e7d32; }
+      .health.warn { color: #b8860b; }
+      .health.warn::before { background: #b8860b; }
+      .health.bad { color: #c0392b; }
+      .health.bad::before { background: #c0392b; }
+      h2 {
+        margin: 14px 0 6px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      label.row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 6px 0;
+      }
+      label.field {
+        display: block;
+        margin: 8px 0;
+      }
+      input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 4px 6px;
+        margin-top: 3px;
+      }
+      button {
+        cursor: pointer;
+        padding: 4px 10px;
+      }
+      #save {
+        margin-top: 8px;
+      }
+      ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        max-height: 160px;
+        overflow: auto;
+        border: 1px solid #8884;
+        border-radius: 4px;
+      }
+      li {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 6px;
+        border-bottom: 1px solid #8882;
+      }
+      li:last-child {
+        border-bottom: 0;
+      }
+      li.empty {
+        color: #888;
+        justify-content: center;
+      }
+      .url {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px;
+      }
+      li button {
+        padding: 2px 6px;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ImgEdge</h1>
+
+    <div id="counts" class="counts">Allowed 0 &middot; Blocked 0</div>
+    <div id="health" class="health">Classifier: checking&hellip;</div>
+
+    <label class="row">
+      <input type="checkbox" id="enabled" />
+      Filtering enabled
+    </label>
+
+    <label class="field">
+      Classifier endpoint
+      <input type="text" id="endpoint" placeholder="http://localhost:8723/classify" />
+    </label>
+
+    <label class="field">
+      Server token
+      <input type="text" id="token" placeholder="paste from the server console" />
+    </label>
+
+    <label class="row">
+      <input type="checkbox" id="sendData" />
+      Send image bytes (base64) too
+    </label>
+
+    <label class="row">
+      <input type="checkbox" id="failClosed" />
+      Block when classifier is unreachable
+    </label>
+
+    <label class="row">
+      <input type="checkbox" id="strict" />
+      Strict mode (block until classifier allows)
+    </label>
+
+    <label class="row">
+      <input type="checkbox" id="scanBackgrounds" />
+      Scan CSS background images
+    </label>
+
+    <button id="save">Save settings</button>
+
+    <h2>Whitelisted images</h2>
+    <ul id="whitelist"></ul>
+
+    <h2>Allowed sites</h2>
+    <ul id="domains"></ul>
+
+    <h2>Blocked images</h2>
+    <ul id="blocklist"></ul>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

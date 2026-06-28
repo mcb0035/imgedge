@@ -1,0 +1,12 @@
+numpy>=1.24
+pillow>=10.0
+
+# TFLite runtime — install ONE of these:
+#   pip install ai-edge-litert     # lightweight (Linux/macOS; limited Windows wheels)
+#   pip install tensorflow         # works on Windows; bundles tf.lite.Interpreter
+
+# Optional GPU/NPU acceleration (convert first: python convert_to_onnx.py):
+#   pip install tf2onnx onnx           # TFLite -> ONNX conversion (needs tensorflow)
+#   pip install onnxruntime-openvino   # Intel NPU / GPU  (server default: NPU)
+#   pip install onnxruntime-directml   # any DX12 GPU (NVIDIA / Intel / AMD)
+#   pip install onnxruntime-gpu        # NVIDIA CUDA

@@ -1,0 +1,6 @@
+# Datasets and training artifacts shouldn't be committed.
+data/
+runs/
+__pycache__/
+*.pt
+*.onnx
