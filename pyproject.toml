@@ -1,0 +1,26 @@
+# Tooling configuration only. ImgEdge runs in place (the MV3 extension loads
+# from this folder; the classifier runs as scripts), so this is intentionally
+# NOT an installable package — it just centralizes ruff + pytest settings.
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+extend-exclude = ["training", "dist", "inat/models"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.ruff.lint.isort]
+# These are loose, in-place modules (no package), so tell isort they're ours to
+# keep the stdlib / third-party / local import grouping the code already uses.
+known-first-party = [
+    "server", "base", "salience", "inat_voter", "timm_voter",
+    "inat_vision", "inat_filter", "onnx_filter", "download_models",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["E402"]  # tests wire sys.path (in conftest) before importing modules
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

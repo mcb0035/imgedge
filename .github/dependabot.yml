@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # Python runtime deps (Dependabot updates the requirements.txt files; then
+  # regenerate the *.lock with pip-compile --generate-hashes).
+  - package-ecosystem: "pip"
+    directory: "/inat"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "pip"
+    directory: "/voters"
+    schedule:
+      interval: "weekly"
+  # Extension lint toolchain.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  # Keep the CI actions current.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

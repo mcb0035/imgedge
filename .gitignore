@@ -26,6 +26,9 @@ dist/
 *.crx
 *.pem
 
+# JS tooling (ESLint)
+node_modules/
+
 # OS / editor
 .DS_Store
 Thumbs.db
