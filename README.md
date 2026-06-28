@@ -34,8 +34,8 @@ flowchart LR
    allow/block lists, draws the toolbar badge + health state, wires the
    right-click menu, and forwards each image URL to the local classifier with a
    shared token.
-3. **Local classifier** ([classifier/server.py](classifier/server.py)) decodes
-   each image once and runs a **voting ensemble** ([voters/](voters/)):
+3. **Local classifier** ([src/imgedge/classifier/server.py](src/imgedge/classifier/server.py))
+   decodes each image once and runs a **voting ensemble** ([src/imgedge/voters/](src/imgedge/voters/)):
    - the **iNaturalist** taxon model blocks when the predicted taxon descends
      from the target (default **Arachnida** — spiders, scorpions, ticks, mites…);
    - an optional second **timm / ImageNet** voter adds *signed* evidence — it
@@ -50,24 +50,24 @@ flowchart LR
 | Path | What it is |
 |------|------------|
 | `manifest.json`, `background.js`, `content.js`, `content.css`, `popup.*`, `icons/` | The extension |
-| `classifier/server.py` | Local HTTP classifier (`/classify`, `/health`) |
-| `voters/` | Voting ensemble: base classes, iNaturalist + timm voters, image-salience weighting |
-| `inat/` | iNaturalist model: download, TFLite + ONNX backends, taxonomy filter |
-| `training/` | **Optional / not used by default** — a from-scratch MobileNetV3 fine-tune pipeline (an alternative to the iNaturalist model) |
+| `src/imgedge/classifier/server.py` | Local HTTP classifier (`/classify`, `/health`) |
+| `src/imgedge/voters/` | Voting ensemble: base classes, iNaturalist + timm voters, image-salience weighting |
+| `src/imgedge/inat/` | iNaturalist model: download, TFLite + ONNX backends, taxonomy filter |
+| `tests/` | pytest suite (SSRF, integrity, cache, voting, salience) |
+| `training/` | **Optional / not used by default** — a from-scratch MobileNetV3 fine-tune pipeline |
 | `package.ps1` | Build a store-ready ZIP (and optional `.crx`) of the extension |
 
 ## Quick start
 
 ```powershell
-# 1. Install a model runtime (CPU baseline)
-pip install -r inat/requirements.txt
-pip install tensorflow            # or: pip install ai-edge-litert
+# 1. Install the classifier (CPU baseline: numpy, pillow, ai-edge-litert)
+pip install -e .
 
-# 2. Download the iNaturalist vision model + taxonomy (~21 MB)
-python inat/download_models.py
+# 2. Download + verify the iNaturalist vision model + taxonomy (~21 MB)
+imgedge-download-models
 
 # 3. Start the classifier — it prints an access token
-python classifier/server.py
+imgedge-server
 
 # 4. Load the extension: edge://extensions → Developer mode → Load unpacked → this folder
 # 5. Open the ImgEdge popup, paste the token into "Server token", Save.
@@ -82,9 +82,9 @@ The model is tiny, so the CPU pool is usually plenty. To offload to the Intel
 NPU (default), a GPU, etc.:
 
 ```powershell
-pip install tf2onnx onnx onnxruntime-openvino   # NPU/GPU via OpenVINO
-python inat/convert_to_onnx.py                  # TFLite → ONNX
-python classifier/server.py                     # auto-prefers ONNX; prints provider
+pip install -e ".[onnx]"; pip install tf2onnx onnx onnxruntime-openvino  # OpenVINO NPU/GPU
+python -m imgedge.inat.convert_to_onnx          # TFLite → ONNX
+imgedge-server                                  # auto-prefers ONNX; prints provider
 ```
 
 The server picks a provider in this order by default: **NPU (OpenVINO)** → GPU
@@ -93,7 +93,7 @@ The server picks a provider in this order by default: **NPU (OpenVINO)** → GPU
 
 ## Voting ensemble (optional second model)
 
-The classifier combines one or more voters ([voters/](voters/)) under the
+The classifier combines one or more voters ([src/imgedge/voters/](src/imgedge/voters/)) under the
 default **`evidence`** policy: each voter contributes a *signed* score, the
 positive part is scaled by image salience, and the image is blocked when the
 total crosses the threshold.
@@ -105,7 +105,7 @@ total crosses the threshold.
   drawings (push *against*). Enable it with:
 
   ```powershell
-  pip install -r voters/requirements.txt   # timm + torch (uses CUDA if present)
+  pip install -e ".[voters]"   # timm + torch (uses CUDA if present)
   ```
 
   Without these packages the voter is skipped and the ensemble runs
@@ -118,7 +118,7 @@ total crosses the threshold.
   surface kind for this.
 
 Tune with the `IMGEDGE_VOTE` / `IMGEDGE_TIMM_*` variables below, or edit the
-block / contrast term lists in [voters/timm_voter.py](voters/timm_voter.py).
+block / contrast term lists in [src/imgedge/voters/timm_voter.py](src/imgedge/voters/timm_voter.py).
 
 ## Configuration
 

@@ -18,7 +18,7 @@ import queue
 import numpy as np
 from PIL import Image
 
-from inat_vision import dequantize, get_interpreter_cls
+from imgedge.inat.inat_vision import dequantize, get_interpreter_cls
 
 DEFAULT_TARGET = "Arachnida"
 

@@ -3,11 +3,11 @@ updates:
   # Python runtime deps (Dependabot updates the requirements.txt files; then
   # regenerate the *.lock with pip-compile --generate-hashes).
   - package-ecosystem: "pip"
-    directory: "/inat"
+    directory: "/src/imgedge/inat"
     schedule:
       interval: "weekly"
   - package-ecosystem: "pip"
-    directory: "/voters"
+    directory: "/src/imgedge/voters"
     schedule:
       interval: "weekly"
   # Extension lint toolchain.

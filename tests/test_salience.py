@@ -3,7 +3,7 @@
 import numpy as np
 from PIL import Image
 
-from salience import S_MAX, S_MIN, image_salience
+from imgedge.voters.salience import S_MAX, S_MIN, image_salience
 
 
 def _noise(seed, size):

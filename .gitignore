@@ -4,6 +4,8 @@ __pycache__/
 .venv/
 venv/
 .env
+*.egg-info/
+build/
 
 # Models & datasets (downloaded or generated — large, not source)
 models/

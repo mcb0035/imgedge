@@ -8,7 +8,7 @@
 # https://pytorch.org/get-started/locally/ if you want CUDA/XPU acceleration.
 #
 # Supply chain: pin exact versions and install with --require-hashes for a
-# verified, reproducible env (see inat/requirements.txt for the lock recipe).
+# verified, reproducible env (see src/imgedge/inat/requirements.txt for the recipe).
 timm>=1.0.0
 torch>=2.2.0
 numpy>=1.24

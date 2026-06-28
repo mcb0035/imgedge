@@ -2,7 +2,7 @@
 
 import base64
 
-import server
+import imgedge.classifier.server as server
 
 
 def test_public_ip_allowed():

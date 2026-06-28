@@ -21,8 +21,8 @@ The image is decoded once (with the same hardening as the single-model path)
 and the open PIL image is handed to each voter, so codecs run only once.
 """
 
-from inat_filter import open_guarded  # type: ignore  # reuse decode hardening
-from salience import image_salience  # type: ignore
+from imgedge.inat.inat_filter import open_guarded  # reuse decode hardening
+from imgedge.voters.salience import image_salience
 
 
 class Voter:

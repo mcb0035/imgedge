@@ -17,11 +17,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: python -m pip install --upgrade pip ruff pytest numpy pillow
+      - run: python -m pip install --upgrade pip && pip install -e . ruff pytest
       - name: Lint (ruff)
         run: ruff check .
       - name: Compile
-        run: python -m py_compile classifier/server.py inat/*.py voters/*.py
+        run: python -m py_compile src/imgedge/classifier/server.py src/imgedge/inat/*.py src/imgedge/voters/*.py
       - name: Tests
         run: pytest
 
@@ -47,7 +47,7 @@ jobs:
           python-version: "3.13"
       - run: python -m pip install --upgrade pip pip-audit
       - name: Audit required runtime (gating)
-        run: pip-audit --requirement inat/requirements.lock
+        run: pip-audit --requirement src/imgedge/inat/requirements.lock
       - name: Audit optional voters (report-only)
-        run: pip-audit --requirement voters/requirements.lock
+        run: pip-audit --requirement src/imgedge/voters/requirements.lock
         continue-on-error: true

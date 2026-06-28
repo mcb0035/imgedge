@@ -2,8 +2,8 @@
 
 import hashlib
 
-import download_models
-import server
+import imgedge.classifier.server as server
+import imgedge.inat.download_models as download_models
 
 
 def test_default_checksums_pinned():

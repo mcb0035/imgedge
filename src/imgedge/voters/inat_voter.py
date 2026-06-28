@@ -1,6 +1,6 @@
 """Wrap the iNaturalist taxon filter (TFLite/ONNX backend) as an ensemble voter."""
 
-from base import Voter  # type: ignore
+from imgedge.voters.base import Voter
 
 
 class InatVoter(Voter):

@@ -47,7 +47,6 @@ import json
 import os
 import secrets
 import socket
-import sys
 import threading
 import time
 import urllib.request
@@ -57,11 +56,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-ROOT = Path(__file__).resolve().parent.parent
-INAT_DIR = ROOT / "inat"
-VOTERS_DIR = ROOT / "voters"
-sys.path.insert(0, str(INAT_DIR))
-sys.path.insert(0, str(VOTERS_DIR))
+PKG_DIR = Path(__file__).resolve().parent.parent
+INAT_DIR = PKG_DIR / "inat"
 
 HOST = "127.0.0.1"
 PORT = 8723
@@ -203,7 +199,7 @@ def _verify_pinned(path):
     so a tampered download can't be handed to the interpreter.
     """
     try:
-        from download_models import CHECKSUMS, sha256_of  # type: ignore
+        from imgedge.inat.download_models import CHECKSUMS, sha256_of
     except Exception:
         return True  # verifier unavailable -> don't hard-fail the server
     expected = CHECKSUMS.get(path.name)
@@ -231,7 +227,7 @@ def load_filter():
     # Prefer the ONNX backend (GPU/NPU) when a converted model + runtime exist.
     if ONNX_PATH.exists():
         try:
-            from onnx_filter import OnnxTaxonFilter  # type: ignore
+            from imgedge.inat.onnx_filter import OnnxTaxonFilter
             flt = OnnxTaxonFilter(ONNX_PATH, TAXONOMY_PATH, target=TARGET, ep=EP_PREF)
             print(f"[imgedge] model loaded (ONNX): {flt.match_count} '{TARGET}' taxa, "
                   f"threshold={THRESHOLD}, provider={flt.provider}")
@@ -242,7 +238,7 @@ def load_filter():
         if not _verify_pinned(MODEL_PATH):
             return None
         try:
-            from inat_filter import TaxonFilter  # type: ignore
+            from imgedge.inat.inat_filter import TaxonFilter
             flt = TaxonFilter(MODEL_PATH, TAXONOMY_PATH, target=TARGET, pool_size=POOL_SIZE)
             print(f"[imgedge] model loaded (TFLite): {flt.match_count} '{TARGET}' taxa, "
                   f"threshold={THRESHOLD}, pool={POOL_SIZE}")
@@ -263,13 +259,13 @@ def load_ensemble():
     inat_model = load_filter()
     if inat_model is not None:
         try:
-            from inat_voter import InatVoter  # type: ignore
+            from imgedge.voters.inat_voter import InatVoter
             inat_voter = InatVoter(inat_model, threshold=THRESHOLD)
             voters.append(inat_voter)
         except Exception as e:
             print(f"[imgedge] iNat voter unavailable ({e}).")
     try:
-        from timm_voter import TimmVoter  # type: ignore
+        from imgedge.voters.timm_voter import TimmVoter
         tv = TimmVoter(threshold=TIMM_THRESHOLD, weight=TIMM_WEIGHT)
         voters.append(tv)
         print(f"[imgedge] timm voter: {tv.name} on {tv.provider}, "
@@ -279,7 +275,7 @@ def load_ensemble():
               f"pip install -r voters/requirements.txt to enable it.")
     if not voters:
         return None
-    from base import VoteEnsemble  # type: ignore
+    from imgedge.voters.base import VoteEnsemble
     ens = VoteEnsemble(voters, policy=VOTE_POLICY, threshold=THRESHOLD)
     ens.inat = inat_voter
     print(f"[imgedge] ensemble ready: policy={VOTE_POLICY}, voters={ens.names}")
@@ -460,8 +456,12 @@ class PooledHTTPServer(HTTPServer):
         _vcache.flush()
 
 
-if __name__ == "__main__":
+def main():
     ensure_ensemble()
     print(f"ImgEdge classifier on http://{HOST}:{PORT}  (blocking: {TARGET})")
     print(f"[imgedge] access token (paste into the ImgEdge popup):\n    {TOKEN}")
     PooledHTTPServer((HOST, PORT), Handler).serve_forever()
+
+
+if __name__ == "__main__":
+    main()

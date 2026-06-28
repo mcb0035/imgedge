@@ -2,8 +2,8 @@
 # hashes and install with --require-hashes (pip then rejects any wheel whose
 # hash doesn't match). Generate a lock from this file with, e.g.:
 #   pip install pip-tools
-#   pip-compile --generate-hashes -o inat/requirements.lock inat/requirements.txt
-#   pip install --require-hashes -r inat/requirements.lock
+#   pip-compile --generate-hashes -o src/imgedge/inat/requirements.lock src/imgedge/inat/requirements.txt
+#   pip install --require-hashes -r src/imgedge/inat/requirements.lock
 numpy==2.5.0
 pillow==12.2.0
 ai-edge-litert==2.1.5            # native LiteRT runtime (the server prefers this)

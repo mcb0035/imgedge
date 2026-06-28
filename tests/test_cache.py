@@ -1,6 +1,6 @@
 """Verdict cache: LRU eviction, recency, persistence, hashed keys (server.py)."""
 
-import server
+import imgedge.classifier.server as server
 
 
 def test_lru_eviction(tmp_path):

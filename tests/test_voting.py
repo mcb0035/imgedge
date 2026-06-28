@@ -1,7 +1,7 @@
 """Ensemble voting + salience interaction (voters/base.py)."""
 
-import base
-from base import VoteEnsemble, Voter
+from imgedge.voters import base
+from imgedge.voters.base import VoteEnsemble, Voter
 
 
 class _Stub(Voter):

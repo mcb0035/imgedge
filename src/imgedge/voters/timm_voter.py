@@ -36,7 +36,7 @@ import timm  # type: ignore
 import torch  # type: ignore
 from timm.data import create_transform, resolve_model_data_config  # type: ignore
 
-from base import Voter  # type: ignore
+from imgedge.voters.base import Voter
 
 DEFAULT_MODEL = os.environ.get("IMGEDGE_TIMM_MODEL", "mobilenetv3_large_100.ra_in1k")
 CONTRAST_WEIGHT = float(os.environ.get("IMGEDGE_TIMM_CONTRAST_WEIGHT", "1.0"))

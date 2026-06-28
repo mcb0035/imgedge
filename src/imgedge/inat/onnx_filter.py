@@ -15,7 +15,7 @@ Install a runtime + provider, e.g.:
 import numpy as np
 import onnxruntime as ort  # type: ignore
 
-from inat_filter import (
+from imgedge.inat.inat_filter import (
     DEFAULT_TARGET,
     build_mask,
     open_guarded,

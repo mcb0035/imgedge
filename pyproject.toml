@@ -1,11 +1,30 @@
-# Tooling configuration only. ImgEdge runs in place (the MV3 extension loads
-# from this folder; the classifier runs as scripts), so this is intentionally
-# NOT an installable package — it just centralizes ruff + pytest settings.
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "imgedge"
+version = "0.1.0"
+description = "Local image-classifier backend for the ImgEdge MV3 extension."
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.24", "pillow>=10.0", "ai-edge-litert>=2.1"]
+
+[project.optional-dependencies]
+voters = ["timm>=1.0", "torch>=2.2"]
+onnx = ["onnxruntime>=1.17"]
+dev = ["pytest>=8", "ruff>=0.8", "pip-audit>=2.7", "pre-commit>=4"]
+
+[project.scripts]
+imgedge-server = "imgedge.classifier.server:main"
+imgedge-download-models = "imgedge.inat.download_models:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py39"
-extend-exclude = ["training", "dist", "inat/models"]
+extend-exclude = ["training", "dist"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
@@ -13,10 +32,7 @@ select = ["E", "F", "W", "I", "B", "UP"]
 [tool.ruff.lint.isort]
 # These are loose, in-place modules (no package), so tell isort they're ours to
 # keep the stdlib / third-party / local import grouping the code already uses.
-known-first-party = [
-    "server", "base", "salience", "inat_voter", "timm_voter",
-    "inat_vision", "inat_filter", "onnx_filter", "download_models",
-]
+known-first-party = ["imgedge"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["E402"]  # tests wire sys.path (in conftest) before importing modules
