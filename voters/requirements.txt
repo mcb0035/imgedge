@@ -11,5 +11,5 @@
 # verified, reproducible env (see inat/requirements.txt for the lock recipe).
 timm>=1.0.0
 torch>=2.2.0
-numpy>=1.24
+numpy>=2.5.0
 pillow>=10.0
