@@ -6,9 +6,9 @@ ones you don't want to see — so you can keep a category of image (by default
 **arachnids**) from ever showing, without leaking your browsing to a cloud
 service.
 
-Built for a specific goal: *block all images of a chosen type using a local
-model so you don't pollute your ads/recommendations.* Nothing about image
-content ever leaves your machine.
+Built for a specific goal: keep images of a chosen category (by default
+**arachnids**) out of sight — for comfort, phobia, or focus — using a local
+model. Nothing about image content ever leaves your machine.
 
 ```mermaid
 flowchart LR
