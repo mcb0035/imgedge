@@ -107,14 +107,14 @@
     );
   }
 
-  async function getVerdict(url) {
+  async function getVerdict(url, meta) {
     const lv = localVerdict(url);
     if (lv) return { allow: lv === "allow", reason: lv === "block" ? "blocklist" : undefined };
     if (verdicts.has(url)) return verdicts.get(url);
     const p = (async () => {
       let data;
       if (url.startsWith("blob:")) data = await blobToDataUrl(url).catch(() => null);
-      try { return await chrome.runtime.sendMessage({ type: "classify", url, data }); }
+      try { return await chrome.runtime.sendMessage({ type: "classify", url, data, meta }); }
       catch { return { allow: !lists.strict }; }
     })();
     verdicts.set(url, p);
@@ -254,8 +254,20 @@
     tracked.set(d.el, d);
     d.pending();
     await ready;
-    const v = await getVerdict(d.url);
+    const v = await getVerdict(d.url, { kind: d.kind, ...sizeOf(d.el) });
     applyVerdict(d, !!(v && v.allow), v && v.reason);
+  }
+
+  // Rendered-size hint for salience weighting (bigger/closer -> higher block
+  // chance). Falls back to width/height attributes, then the natural size.
+  function sizeOf(el) {
+    let w = 0, h = 0;
+    try { const r = el.getBoundingClientRect(); w = Math.round(r.width); h = Math.round(r.height); } catch {}
+    if (!(w > 0)) { const a = parseInt((el.getAttribute && el.getAttribute("width")) || "", 10); if (a > 0) w = a; }
+    if (!(h > 0)) { const a = parseInt((el.getAttribute && el.getAttribute("height")) || "", 10); if (a > 0) h = a; }
+    if (!(w > 0) && el.naturalWidth) w = el.naturalWidth;
+    if (!(h > 0) && el.naturalHeight) h = el.naturalHeight;
+    return { w: w || 0, h: h || 0 };
   }
 
   function imgUrl(el) {

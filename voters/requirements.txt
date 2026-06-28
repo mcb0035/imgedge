@@ -1,0 +1,13 @@
+# Optional second voter: Hugging Face / timm ImageNet model (MobileNetV3-Large).
+# Install these to enable the timm voter. The server runs fine without them --
+# the voter is detected at load time and skipped if torch/timm are missing.
+#
+#   pip install -r voters/requirements.txt
+#
+# torch is large; pick the build that matches your hardware from
+# https://pytorch.org/get-started/locally/ if you want CUDA/XPU acceleration.
+
+timm>=1.0.0
+torch>=2.2.0
+numpy>=1.24
+pillow>=10.0

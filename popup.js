@@ -63,7 +63,8 @@ async function checkHealth() {
       setHealthLine(el, "warn", "Classifier: token required \u2014 paste server token");
     } else if (j.status === "ok") {
       const prov = j.provider ? ` \u00B7 ${j.provider}` : "";
-      setHealthLine(el, "ok", `Classifier: connected \u00B7 ${j.target} (${j.taxa} taxa)${prov}`);
+      const vote = j.voters && j.voters.length > 1 ? ` \u00B7 vote:${j.policy} \u00d7${j.voters.length}` : "";
+      setHealthLine(el, "ok", `Classifier: connected \u00B7 ${j.target} (${j.taxa} taxa)${prov}${vote}`);
     } else {
       setHealthLine(el, "warn", "Classifier: model not loaded");
     }

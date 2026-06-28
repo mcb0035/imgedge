@@ -20,6 +20,12 @@ runs/
 .imgedge_cache.json
 *.part
 
+# Extension packaging output (package.ps1). *.pem is the CRX signing key —
+# never commit it.
+dist/
+*.crx
+*.pem
+
 # OS / editor
 .DS_Store
 Thumbs.db

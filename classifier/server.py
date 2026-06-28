@@ -6,10 +6,11 @@ about image content leaves the machine.
 Protocol
 --------
 POST /classify  (JSON, header X-ImgEdge-Token: <token>):
-    { "url": "<image url>", "data": "data:image/...;base64,..."? }
+    { "url": "<image url>", "data": "data:image/...;base64,..."?,
+      "meta": { "kind": "img|input|svg|poster|bg", "w": <px>, "h": <px> }? }
   -> { "block": <bool>, "reason": "<text>", "score": <0..1> }
 GET  /health    (no auth):
-    -> { "status", "target", "threshold", "taxa", "model", "auth_required" }
+    -> { "status", "target", "taxa", "voters", "policy", "provider", "auth_required" }
 
 Setup:
   pip install -r ../inat/requirements.txt
@@ -30,6 +31,13 @@ Environment overrides:
   IMGEDGE_EP         execution provider: auto|npu|ovgpu|cuda|dml|cpu (default: auto)
   IMGEDGE_POOL       TFLite interpreter pool size (default: min(4, cpus))
   IMGEDGE_CACHE_FILE verdict cache path, or "none" to disable
+  IMGEDGE_VOTE       policy: evidence|any|all|majority|weighted (default: evidence)
+  IMGEDGE_TIMM_MODEL HF/timm model id (default: mobilenetv3_large_100.ra_in1k)
+  IMGEDGE_TIMM_EXCLUDE   comma-separated ImageNet terms to BLOCK (arachnids)
+  IMGEDGE_TIMM_CONTRAST  comma-separated ImageNet terms that argue AGAINST a block
+  IMGEDGE_TIMM_CONTRAST_WEIGHT  weight of contrast (look-alike) evidence (default: 1.0)
+  IMGEDGE_TIMM_THRESHOLD timm voter block threshold (default: 0.5)
+  IMGEDGE_TIMM_WEIGHT    timm evidence weight in the ensemble (default: 0.5)
 """
 
 import base64
@@ -51,7 +59,9 @@ from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent.parent
 INAT_DIR = ROOT / "inat"
+VOTERS_DIR = ROOT / "voters"
 sys.path.insert(0, str(INAT_DIR))
+sys.path.insert(0, str(VOTERS_DIR))
 
 HOST = "127.0.0.1"
 PORT = 8723
@@ -64,6 +74,9 @@ TAXONOMY_PATH = Path(os.environ.get("IMGEDGE_TAXONOMY", INAT_DIR / "models" / "t
 ONNX_PATH = Path(os.environ.get(
     "IMGEDGE_ONNX", INAT_DIR / "models" / "INatVision_Small_2_fact256_8bit.onnx"))
 EP_PREF = os.environ.get("IMGEDGE_EP", "auto")  # auto|npu|ovgpu|cuda|dml|cpu
+VOTE_POLICY = os.environ.get("IMGEDGE_VOTE", "evidence")  # evidence|any|all|majority|weighted
+TIMM_THRESHOLD = float(os.environ.get("IMGEDGE_TIMM_THRESHOLD", "0.5"))
+TIMM_WEIGHT = float(os.environ.get("IMGEDGE_TIMM_WEIGHT", "0.5"))
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 # Keep the fetch budget under the extension's 15s classify timeout so a slow
@@ -77,7 +90,7 @@ LOAD_RETRY_SEC = 30
 _cache_env = os.environ.get("IMGEDGE_CACHE_FILE", str(Path.home() / ".imgedge_cache.json"))
 CACHE_PATH = None if _cache_env == "none" else Path(_cache_env)
 
-_filter = None              # TaxonFilter instance (None if model unavailable)
+_ensemble = None            # VoteEnsemble (None if no voters are available)
 _load_lock = threading.Lock()
 _last_load_attempt = float("-inf")
 
@@ -214,20 +227,50 @@ def load_filter():
     return None
 
 
-def ensure_filter():
-    """Return the loaded filter, retrying if the model was downloaded later."""
-    global _filter, _last_load_attempt
-    if _filter is not None:
-        return _filter
+def load_ensemble():
+    """Build the voting ensemble: iNaturalist voter + optional timm voter."""
+    voters = []
+    inat_voter = None
+    inat_model = load_filter()
+    if inat_model is not None:
+        try:
+            from inat_voter import InatVoter  # type: ignore
+            inat_voter = InatVoter(inat_model, threshold=THRESHOLD)
+            voters.append(inat_voter)
+        except Exception as e:
+            print(f"[imgedge] iNat voter unavailable ({e}).")
+    try:
+        from timm_voter import TimmVoter  # type: ignore
+        tv = TimmVoter(threshold=TIMM_THRESHOLD, weight=TIMM_WEIGHT)
+        voters.append(tv)
+        print(f"[imgedge] timm voter: {tv.name} on {tv.provider}, "
+              f"{tv.matched} block / {tv.contrast_matched} contrast class(es)")
+    except Exception as e:
+        print(f"[imgedge] timm voter skipped ({e}); "
+              f"pip install -r voters/requirements.txt to enable it.")
+    if not voters:
+        return None
+    from base import VoteEnsemble  # type: ignore
+    ens = VoteEnsemble(voters, policy=VOTE_POLICY, threshold=THRESHOLD)
+    ens.inat = inat_voter
+    print(f"[imgedge] ensemble ready: policy={VOTE_POLICY}, voters={ens.names}")
+    return ens
+
+
+def ensure_ensemble():
+    """Return the loaded ensemble, retrying if models appeared later."""
+    global _ensemble, _last_load_attempt
+    if _ensemble is not None:
+        return _ensemble
     with _load_lock:
-        if _filter is not None:
-            return _filter
+        if _ensemble is not None:
+            return _ensemble
         now = time.monotonic()
         if now - _last_load_attempt < LOAD_RETRY_SEC:
             return None
         _last_load_attempt = now
-        _filter = load_filter()
-        return _filter
+        _ensemble = load_ensemble()
+        return _ensemble
 
 
 # ---- SSRF-guarded image fetch ----------------------------------------------
@@ -280,10 +323,11 @@ def fetch_image_bytes(url, data):
         return None
 
 
-def classify(url, data):
-    """Return a verdict dict. `data` is a base64 data URL or None."""
-    flt = ensure_filter()
-    if flt is None:
+def classify(url, data, meta=None):
+    """Return a verdict dict. `data` is a base64 data URL or None; `meta` carries
+    page hints (rendered size, element kind) used for salience weighting."""
+    ens = ensure_ensemble()
+    if ens is None:
         return {"block": False, "reason": "model-unavailable", "score": 0.0}
 
     cached = _vcache.get(url)
@@ -295,13 +339,7 @@ def classify(url, data):
         return {"block": False, "reason": "fetch-failed", "score": 0.0}  # transient: don't cache
 
     try:
-        score = flt.score_bytes(raw)
-        blocked = score >= THRESHOLD
-        verdict = {
-            "block": blocked,
-            "reason": TARGET.lower() if blocked else "ok",
-            "score": round(score, 4),
-        }
+        verdict = ens.classify_bytes(raw, meta)  # {block, reason, score, votes}
     except Exception as e:
         # Can't decode/classify (e.g. SVG, bomb, crafted bytes) -> don't block, don't cache.
         return {"block": False, "reason": f"error:{e}", "score": 0.0}
@@ -312,16 +350,19 @@ def classify(url, data):
 
 def health_payload():
     """Status for the popup's /health check (no auth required)."""
-    flt = ensure_filter()
-    ok = flt is not None
+    ens = ensure_ensemble()
+    ok = ens is not None
+    inat = getattr(ens, "inat", None) if ok else None
     return {
         "status": "ok" if ok else "model-missing",
-        "target": TARGET,
+        "target": getattr(inat, "target", TARGET),
         "threshold": THRESHOLD,
-        "taxa": flt.match_count if ok else 0,
+        "taxa": getattr(inat, "match_count", 0) if ok else 0,
         "model": ok,
-        "backend": getattr(flt, "backend", None) if ok else None,
-        "provider": getattr(flt, "provider", None) if ok else None,
+        "backend": getattr(inat, "backend", None) if inat else None,
+        "provider": getattr(inat, "provider", None) if inat else None,
+        "voters": ens.names if ok else [],
+        "policy": getattr(ens, "policy", None) if ok else None,
         "auth_required": True,
     }
 
@@ -358,7 +399,8 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length) or b"{}")
         except (ValueError, TypeError):
             payload = {}
-        self._send_json(200, classify(payload.get("url"), payload.get("data")))
+        self._send_json(200, classify(payload.get("url"), payload.get("data"),
+                                      payload.get("meta")))
 
     def log_message(self, *_):
         pass  # quiet
@@ -390,7 +432,7 @@ class PooledHTTPServer(HTTPServer):
 
 
 if __name__ == "__main__":
-    ensure_filter()
+    ensure_ensemble()
     print(f"ImgEdge classifier on http://{HOST}:{PORT}  (blocking: {TARGET})")
     print(f"[imgedge] access token (paste into the ImgEdge popup):\n    {TOKEN}")
     PooledHTTPServer((HOST, PORT), Handler).serve_forever()

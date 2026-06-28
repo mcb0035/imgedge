@@ -5,6 +5,11 @@
   "description": "Intercepts <img> loads, classifies them with a local server, blocks or shows the result, and supports per-image whitelist overrides.",
   "permissions": ["storage", "contextMenus"],
   "host_permissions": ["<all_urls>"],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "background": {
     "service_worker": "background.js"
   },
@@ -19,6 +24,11 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "ImgEdge"
+    "default_title": "ImgEdge",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   }
 }

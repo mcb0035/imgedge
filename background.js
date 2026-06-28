@@ -188,7 +188,7 @@ async function fetchAsDataUrl(url) {
 }
 
 // ---- Classification --------------------------------------------------------
-async function classify(url, data) {
+async function classify(url, data, meta) {
   const s = await getSettings();
   if (!s.enabled) return { allow: true };
   const strict = s.strict === true;
@@ -205,6 +205,7 @@ async function classify(url, data) {
   if (host && domains.includes(host)) return { allow: true };
 
   const body = { url };
+  if (meta) body.meta = meta;
   if (data) body.data = data;
   else if (s.sendData && /^https?:/i.test(url)) {
     const d = await fetchAsDataUrl(url);
@@ -258,7 +259,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           });
           break;
         case "classify":
-          sendResponse(await classify(msg.url, msg.data));
+          sendResponse(await classify(msg.url, msg.data, msg.meta));
           break;
         case "tally":
           if (sender && sender.tab) recordTally(sender.tab.id, sender.frameId || 0, { allow: msg.allow, block: msg.block });

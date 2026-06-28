@@ -13,8 +13,11 @@ content ever leaves your machine.
 ```mermaid
 flowchart LR
     A[Web page images] -->|content.js hides each<br/>until a verdict| B[background.js<br/>service worker]
-    B -->|POST /classify + token| C[Local classifier<br/>127.0.0.1:8723]
-    C -->|iNaturalist vision model| D{Under target taxon<br/>e.g. Arachnida?}
+    B -->|POST /classify + token<br/>+ image size and kind| C[Local classifier<br/>127.0.0.1:8723]
+    C --> G[Voting ensemble]
+    G -->|iNaturalist taxon model| H[Block evidence]
+    G -->|optional timm ImageNet model<br/>arachnid vs look-alike| H
+    H -->|scaled by image salience| D{"score ≥ threshold?"}
     D -->|yes| E[block → placeholder]
     D -->|no| F[show]
 ```
@@ -31,19 +34,27 @@ flowchart LR
    allow/block lists, draws the toolbar badge + health state, wires the
    right-click menu, and forwards each image URL to the local classifier with a
    shared token.
-3. **Local classifier** ([classifier/server.py](classifier/server.py)) runs the
-   iNaturalist vision model, walks the taxonomy, and returns `block: true` when
-   the image's predicted taxon descends from the target (default **Arachnida** —
-   spiders, scorpions, ticks, mites…).
+3. **Local classifier** ([classifier/server.py](classifier/server.py)) decodes
+   each image once and runs a **voting ensemble** ([voters/](voters/)):
+   - the **iNaturalist** taxon model blocks when the predicted taxon descends
+     from the target (default **Arachnida** — spiders, scorpions, ticks, mites…);
+   - an optional second **timm / ImageNet** voter adds *signed* evidence — it
+     pushes toward a block when it recognizes a real arachnid and *against* one
+     when it sees a mere look-alike (other insects, webs, geometric patterns,
+     drawings);
+   - the combined evidence is scaled by **image salience** so large, detailed,
+     photorealistic images block more readily than tiny, flat, or fleeting ones.
 
 ## Project layout
 
 | Path | What it is |
 |------|------------|
-| `manifest.json`, `background.js`, `content.js`, `content.css`, `popup.*` | The extension |
+| `manifest.json`, `background.js`, `content.js`, `content.css`, `popup.*`, `icons/` | The extension |
 | `classifier/server.py` | Local HTTP classifier (`/classify`, `/health`) |
+| `voters/` | Voting ensemble: base classes, iNaturalist + timm voters, image-salience weighting |
 | `inat/` | iNaturalist model: download, TFLite + ONNX backends, taxonomy filter |
 | `training/` | **Optional / not used by default** — a from-scratch MobileNetV3 fine-tune pipeline (an alternative to the iNaturalist model) |
+| `package.ps1` | Build a store-ready ZIP (and optional `.crx`) of the extension |
 
 ## Quick start
 
@@ -80,6 +91,35 @@ The server picks a provider in this order by default: **NPU (OpenVINO)** → GPU
 → CPU. Force one with `IMGEDGE_EP=npu|ovgpu|cuda|dml|cpu`. Other runtimes:
 `onnxruntime-directml` (any DX12 GPU) or `onnxruntime-gpu` (NVIDIA CUDA).
 
+## Voting ensemble (optional second model)
+
+The classifier combines one or more voters ([voters/](voters/)) under the
+default **`evidence`** policy: each voter contributes a *signed* score, the
+positive part is scaled by image salience, and the image is blocked when the
+total crosses the threshold.
+
+- **iNaturalist voter** (always on) — the taxon model described above.
+- **timm / ImageNet voter** (optional) — `mobilenetv3_large_100.ra_in1k`. It
+  sums probability over real arachnid classes (push *toward* a block) minus
+  look-alike classes — other insects/arthropods, webs, geometric patterns,
+  drawings (push *against*). Enable it with:
+
+  ```powershell
+  pip install -r voters/requirements.txt   # timm + torch (uses CUDA if present)
+  ```
+
+  Without these packages the voter is skipped and the ensemble runs
+  iNaturalist-only.
+
+- **Image salience** scales the positive evidence into `[0.35 … 1.30]`: larger,
+  more detailed / photorealistic, foreground `<img>` images block more readily;
+  small, flat or stylized, and "fleeting" (video poster / CSS background) images
+  are weighted down. The content script reports each image's rendered size and
+  surface kind for this.
+
+Tune with the `IMGEDGE_VOTE` / `IMGEDGE_TIMM_*` variables below, or edit the
+block / contrast term lists in [voters/timm_voter.py](voters/timm_voter.py).
+
 ## Configuration
 
 **Popup (per-browser):** enable/disable, classifier endpoint + token, *Send
@@ -92,7 +132,14 @@ backgrounds*, and the whitelist / allowed-sites / blocklist.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `IMGEDGE_TARGET` | `Arachnida` | Taxon to block (any iNaturalist name, e.g. `Araneae` for spiders only) |
-| `IMGEDGE_THRESHOLD` | `0.5` | Block when P(target) ≥ this |
+| `IMGEDGE_THRESHOLD` | `0.5` | Block when the (salience-scaled) ensemble score ≥ this |
+| `IMGEDGE_VOTE` | `evidence` | Ensemble policy: `evidence\|any\|all\|majority\|weighted` |
+| `IMGEDGE_TIMM_MODEL` | `mobilenetv3_large_100.ra_in1k` | timm/HF model id for the second voter |
+| `IMGEDGE_TIMM_EXCLUDE` | arachnid set | ImageNet terms (comma-sep) to **block** |
+| `IMGEDGE_TIMM_CONTRAST` | look-alike set | ImageNet terms that argue **against** a block |
+| `IMGEDGE_TIMM_CONTRAST_WEIGHT` | `1.0` | How hard look-alike evidence counts |
+| `IMGEDGE_TIMM_THRESHOLD` | `0.5` | timm voter's own block threshold |
+| `IMGEDGE_TIMM_WEIGHT` | `0.5` | timm evidence weight in the ensemble |
 | `IMGEDGE_EP` | `auto` | ONNX provider: `auto\|npu\|ovgpu\|cuda\|dml\|cpu` |
 | `IMGEDGE_POOL` | `min(4, cpus)` | TFLite interpreter pool size |
 | `IMGEDGE_WORKERS` | `8` | Max concurrent HTTP request workers |
@@ -116,6 +163,25 @@ backgrounds*, and the whitelist / allowed-sites / blocklist.
   images are shown (toggle *Block when classifier unreachable* / Strict mode to
   flip this). The toolbar badge turns into a grey `!` when the classifier is
   broken so "not filtering" looks different from "nothing matched".
+
+## Packaging for distribution
+
+[`package.ps1`](package.ps1) stages only the extension front-end (the Python
+server, training assets, and docs are excluded) and builds a store-ready ZIP:
+
+```powershell
+.\package.ps1          # -> dist\imgedge-<version>.zip  (Chrome Web Store / Edge Add-ons)
+.\package.ps1 -Crx     # also dist\imgedge.crx (+ dist\imgedge.pem on first run)
+```
+
+Upload the ZIP to the [Chrome Web Store](https://chrome.google.com/webstore/devconsole)
+or [Edge Add-ons](https://partner.microsoft.com/dashboard/microsoftedge). For a
+self-hosted `.crx`, keep `imgedge.pem` secret and reuse it for every update so
+the extension ID stays stable (`dist/`, `*.crx`, `*.pem` are git-ignored).
+
+> The extension needs the local classifier running and the token pasted into the
+> popup, so it isn't functional on its own — note that for anyone you share the
+> package with.
 
 ## Limitations
 
