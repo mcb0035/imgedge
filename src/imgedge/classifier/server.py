@@ -80,6 +80,7 @@ TIMM_THRESHOLD = float(os.environ.get("IMGEDGE_TIMM_THRESHOLD", "0.5"))
 TIMM_WEIGHT = float(os.environ.get("IMGEDGE_TIMM_WEIGHT", "0.5"))
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
+MAX_BODY_BYTES = 16 * 1024 * 1024  # request-body cap (8MB image -> ~11MB base64 + JSON)
 # Keep the fetch budget under the extension's 15s classify timeout so a slow
 # image doesn't make the extension abort and fail open.
 FETCH_TIMEOUT = 6
@@ -394,7 +395,11 @@ def ensure_ensemble():
         if now - _last_load_attempt < LOAD_RETRY_SEC:
             return None
         _last_load_attempt = now
-        _ensemble = load_ensemble()
+        try:
+            _ensemble = load_ensemble()
+        except Exception as e:
+            log.error("ensemble load failed (%s); fail-open mode.", e)
+            _ensemble = None
         return _ensemble
 
 
@@ -530,6 +535,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             length = int(self.headers.get("Content-Length", 0))
+        except (TypeError, ValueError):
+            length = 0
+        if length > MAX_BODY_BYTES:
+            self._send_json(413, {"error": "payload too large"})
+            return
+        try:
             payload = json.loads(self.rfile.read(length) or b"{}")
         except (ValueError, TypeError):
             payload = {}
