@@ -165,6 +165,8 @@ function hostOf(url) {
 }
 
 // ---- Image bytes -----------------------------------------------------------
+const MAX_FETCH_BYTES = 8 * 1024 * 1024; // match the server's MAX_IMAGE_BYTES
+
 function bufferToBase64(buf) {
   let binary = "";
   const bytes = new Uint8Array(buf);
@@ -179,7 +181,10 @@ async function fetchAsDataUrl(url) {
   try {
     const r = await fetch(url);
     if (!r.ok) return null;
+    const len = parseInt(r.headers.get("Content-Length") || "", 10);
+    if (len > MAX_FETCH_BYTES) return null;            // skip oversized before buffering
     const buf = await r.arrayBuffer();
+    if (buf.byteLength > MAX_FETCH_BYTES) return null;  // and after, if no header
     const type = r.headers.get("Content-Type") || "application/octet-stream";
     return `data:${type};base64,${bufferToBase64(buf)}`;
   } catch {
