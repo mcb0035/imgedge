@@ -33,6 +33,7 @@ Environment overrides:
   IMGEDGE_CACHE_FILE verdict cache path, or "none" to disable
   IMGEDGE_LOG_FILE   log path, or "none" (default: ~/.imgedge.log; size-capped + rotated)
   IMGEDGE_LOG_LEVEL  DEBUG|INFO|WARNING|ERROR (default: INFO)
+  IMGEDGE_PROFILE    expose rolling latency stats in /health (default: 1; 0=off)
   IMGEDGE_VOTE       policy: evidence|any|all|majority|weighted (default: evidence)
   IMGEDGE_TIMM_MODEL HF/timm model id (default: mobilenetv3_large_100.ra_in1k)
   IMGEDGE_TIMM_EXCLUDE   comma-separated ImageNet terms to BLOCK (arachnids)
@@ -97,6 +98,7 @@ _log_env = os.environ.get("IMGEDGE_LOG_FILE", str(Path.home() / ".imgedge.log"))
 LOG_FILE = None if _log_env == "none" else Path(_log_env)
 LOG_MAX_BYTES = int(os.environ.get("IMGEDGE_LOG_MAX_BYTES", str(1024 * 1024)))
 LOG_BACKUPS = int(os.environ.get("IMGEDGE_LOG_BACKUPS", "3"))
+PROFILE = os.environ.get("IMGEDGE_PROFILE", "1") != "0"
 log = logging.getLogger("imgedge")
 
 
@@ -246,6 +248,49 @@ class VerdictCache:
 
 
 _vcache = VerdictCache(CACHE_PATH)
+
+
+class Stats:
+    """Thread-safe rolling latency stats (cheap; resettable). Avg is over all
+    model-run requests since start/reset; cache hits are counted separately."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self.n = self.blocked = self.hits = 0
+        self.fetch_ms = self.infer_ms = self.max_ms = 0.0
+
+    def record(self, fetch_ms, infer_ms, blocked):
+        with self._lock:
+            self.n += 1
+            self.fetch_ms += fetch_ms
+            self.infer_ms += infer_ms
+            self.max_ms = max(self.max_ms, fetch_ms + infer_ms)
+            self.blocked += 1 if blocked else 0
+
+    def hit(self):
+        with self._lock:
+            self.hits += 1
+
+    def snapshot(self):
+        with self._lock:
+            n = self.n
+            return {
+                "n": n,
+                "blocked": self.blocked,
+                "cache_hits": self.hits,
+                "avg_ms": round((self.fetch_ms + self.infer_ms) / n, 1) if n else 0,
+                "infer_ms": round(self.infer_ms / n, 1) if n else 0,
+                "fetch_ms": round(self.fetch_ms / n, 1) if n else 0,
+                "max_ms": round(self.max_ms, 1),
+            }
+
+    def reset(self):
+        with self._lock:
+            self.n = self.blocked = self.hits = 0
+            self.fetch_ms = self.infer_ms = self.max_ms = 0.0
+
+
+_stats = Stats()
 
 
 # ---- Model (lazy + reloadable) ---------------------------------------------
@@ -412,17 +457,22 @@ def classify(url, data, meta=None):
 
     cached = _vcache.get(url)
     if cached is not None:
+        _stats.hit()
         return cached
 
+    t0 = time.perf_counter()
     raw = fetch_image_bytes(url, data)
     if not raw:
         return {"block": False, "reason": "fetch-failed", "score": 0.0}  # transient: don't cache
+    fetch_ms = (time.perf_counter() - t0) * 1000
 
+    t1 = time.perf_counter()
     try:
         verdict = ens.classify_bytes(raw, meta)  # {block, reason, score, votes}
     except Exception as e:
         # Can't decode/classify (e.g. SVG, bomb, crafted bytes) -> don't block, don't cache.
         return {"block": False, "reason": f"error:{e}", "score": 0.0}
+    _stats.record(fetch_ms, (time.perf_counter() - t1) * 1000, verdict.get("block"))
 
     _vcache.put(url, verdict)  # only stable, model-derived verdicts are cached
     return verdict
@@ -443,6 +493,7 @@ def health_payload():
         "provider": getattr(inat, "provider", None) if inat else None,
         "voters": ens.names if ok else [],
         "policy": getattr(ens, "policy", None) if ok else None,
+        "stats": _stats.snapshot() if PROFILE else None,
         "auth_required": True,
     }
 
@@ -453,11 +504,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def _send_json(self, status, obj):
         body = json.dumps(obj).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionError, OSError):
+            pass  # client (extension) aborted or timed out -> ignore, no traceback
 
     def do_GET(self):
         if self.path.split("?", 1)[0] != "/health":
@@ -496,6 +550,9 @@ class PooledHTTPServer(HTTPServer):
 
     def process_request(self, request, client_address):
         self._pool.submit(self._handle, request, client_address)
+
+    def handle_error(self, request, client_address):
+        log.debug("client %s disconnected mid-request", client_address)
 
     def _handle(self, request, client_address):
         try:
