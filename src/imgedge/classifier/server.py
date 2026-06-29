@@ -33,6 +33,8 @@ Environment overrides:
   IMGEDGE_LOG_FILE   log path, or "none" (default: ~/.imgedge.log; size-capped + rotated)
   IMGEDGE_LOG_LEVEL  DEBUG|INFO|WARNING|ERROR (default: INFO)
   IMGEDGE_PROFILE    expose rolling latency stats in /health (default: 1; 0=off)
+  IMGEDGE_SANDBOX    decode images in a recycled worker pool (default: 0; 1=on)
+  IMGEDGE_SANDBOX_APPCONTAINER  decode in a no-network Windows AppContainer (default: 0)
   IMGEDGE_VOTE       policy: evidence|any|all|majority|weighted (default: evidence)
   IMGEDGE_TIMM_MODEL HF/timm model id (default: mobilenetv3_large_100.ra_in1k)
   IMGEDGE_TIMM_EXCLUDE   comma-separated ImageNet terms to BLOCK (arachnids)
@@ -50,6 +52,7 @@ import logging
 import os
 import secrets
 import socket
+import sys
 import threading
 import time
 import urllib.request
@@ -99,6 +102,18 @@ LOG_FILE = None if _log_env == "none" else Path(_log_env)
 LOG_MAX_BYTES = int(os.environ.get("IMGEDGE_LOG_MAX_BYTES", str(1024 * 1024)))
 LOG_BACKUPS = int(os.environ.get("IMGEDGE_LOG_BACKUPS", "3"))
 PROFILE = os.environ.get("IMGEDGE_PROFILE", "1") != "0"
+SANDBOX = os.environ.get("IMGEDGE_SANDBOX", "0") != "0"
+SANDBOX_WORKERS = int(os.environ.get("IMGEDGE_SANDBOX_WORKERS", "2"))
+SANDBOX_RECYCLE = int(os.environ.get("IMGEDGE_SANDBOX_RECYCLE", "200"))
+SANDBOX_MEM_MB = int(os.environ.get("IMGEDGE_SANDBOX_MEM_MB", "1024"))
+SANDBOX_CONFINE = os.environ.get("IMGEDGE_SANDBOX_CONFINE", "1") != "0"
+# Low-IL is OFF by default: dropping a running worker to Low integrity breaks
+# lazy imports of the (profile-installed) Python stdlib/venv on a typical box.
+# See confine.worker_init. AppContainer is the supported strong-isolation path.
+SANDBOX_LOWIL = os.environ.get("IMGEDGE_SANDBOX_LOWIL", "0") != "0"
+# AppContainer: decode in a no-network, no-write Windows AppContainer (strong
+# isolation). Windows-only; falls back to the plain pool elsewhere.
+SANDBOX_APPCONTAINER = os.environ.get("IMGEDGE_SANDBOX_APPCONTAINER", "0") != "0"
 log = logging.getLogger("imgedge")
 
 
@@ -147,6 +162,7 @@ def _setup_logging():
 _setup_logging()
 
 _ensemble = None            # VoteEnsemble (None if no voters are available)
+_decoder = None             # DecodePool (None unless IMGEDGE_SANDBOX)
 _load_lock = threading.Lock()
 _last_load_attempt = float("-inf")
 
@@ -452,6 +468,31 @@ def fetch_image_bytes(url, data):
         return None
 
 
+def _get_decoder():
+    """Lazily build the out-of-process decode pool when IMGEDGE_SANDBOX is set."""
+    global _decoder
+    if not SANDBOX:
+        return None
+    if _decoder is None:
+        with _load_lock:
+            if _decoder is None:
+                if SANDBOX_APPCONTAINER and sys.platform == "win32":
+                    from imgedge.classifier.ac_pool import AppContainerPool
+                    _decoder = AppContainerPool(
+                        workers=SANDBOX_WORKERS, recycle=SANDBOX_RECYCLE,
+                        confine_os=SANDBOX_CONFINE, mem_mb=SANDBOX_MEM_MB)
+                else:
+                    from imgedge.classifier.decode_pool import DecodePool
+                    _decoder = DecodePool(
+                        workers=SANDBOX_WORKERS, recycle=SANDBOX_RECYCLE,
+                        confine_os=SANDBOX_CONFINE, mem_mb=SANDBOX_MEM_MB,
+                        low_il=SANDBOX_LOWIL)
+                log.info("sandbox decode: kind=%s, %d workers, recycle %d, confined=%s, worker=%s",
+                         getattr(_decoder, "kind", "process"), SANDBOX_WORKERS,
+                         SANDBOX_RECYCLE, _decoder.confined, _decoder.worker_integrity())
+    return _decoder
+
+
 def classify(url, data, meta=None):
     """Return a verdict dict. `data` is a base64 data URL or None; `meta` carries
     page hints (rendered size, element kind) used for salience weighting."""
@@ -473,7 +514,7 @@ def classify(url, data, meta=None):
 
     t1 = time.perf_counter()
     try:
-        verdict = ens.classify_bytes(raw, meta)  # {block, reason, score, votes}
+        verdict = ens.classify_bytes(raw, meta, _get_decoder())  # {block, reason, score, votes}
     except Exception as e:
         # Can't decode/classify (e.g. SVG, bomb, crafted bytes) -> don't block, don't cache.
         return {"block": False, "reason": f"error:{e}", "score": 0.0}
@@ -500,6 +541,9 @@ def health_payload():
         "voters": ens.names if ok else [],
         "policy": getattr(ens, "policy", None) if ok else None,
         "stats": _stats.snapshot() if PROFILE else None,
+        "sandbox": ("appcontainer" if (SANDBOX and SANDBOX_APPCONTAINER
+                                       and sys.platform == "win32")
+                    else "process" if SANDBOX else None),
         "auth_required": True,
     }
 
@@ -577,6 +621,8 @@ class PooledHTTPServer(HTTPServer):
     def server_close(self):
         super().server_close()
         self._pool.shutdown(wait=False)
+        if _decoder is not None:
+            _decoder.close()
         _vcache.flush()
 
 

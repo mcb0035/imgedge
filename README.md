@@ -148,6 +148,8 @@ backgrounds*, and the whitelist / allowed-sites / blocklist.
 | `IMGEDGE_LOG_FILE` | `~/.imgedge.log` | Rotating log (1MB×3 ≈ 4MB cap; `none` to disable) |
 | `IMGEDGE_LOG_LEVEL` | `INFO` | `DEBUG\|INFO\|WARNING\|ERROR` |
 | `IMGEDGE_PROFILE` | `1` | Expose rolling latency stats in `/health` (`0` = off) |
+| `IMGEDGE_SANDBOX` | `0` | Decode images in a recycled worker-process pool (crash isolation + per-worker memory cap) |
+| `IMGEDGE_SANDBOX_APPCONTAINER` | `0` | Windows: decode each image in a no-network AppContainer (one-time `icacls` grant on first run) |
 | `IMGEDGE_MODEL` / `IMGEDGE_ONNX` / `IMGEDGE_TAXONOMY` | under `src/imgedge/inat/models/` | Model/taxonomy paths |
 
 ## Security model
@@ -162,6 +164,10 @@ backgrounds*, and the whitelist / allowed-sites / blocklist.
   loopback / private / link-local / reserved targets and follows no redirects.
 - **Decode hardening.** Pillow is capped to a max pixel count (decompression-bomb
   guard) and only parses an allowlist of raster formats.
+- **Optional decode isolation.** `IMGEDGE_SANDBOX=1` runs the Pillow decode in a
+  recycled subprocess pool; on Windows, `IMGEDGE_SANDBOX_APPCONTAINER=1` runs
+  each worker in a capability-less AppContainer that denies the decoder network
+  and writes to your files. Both are off by default — see [SECURITY.md](SECURITY.md).
 - **Pinned model integrity.** Each downloaded asset is verified against a pinned
   SHA-256; the server refuses to load a model/taxonomy that doesn't match.
 - **Bounded inputs.** `/classify` rejects bodies over 16 MB, images cap at 8 MB,
