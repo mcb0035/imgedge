@@ -404,12 +404,42 @@
     return null;
   }
 
+  async function explain(url) {
+    let v;
+    try { v = await getVerdict(url); } catch { v = null; }
+    v = v || {};
+    const votes = v.votes && Object.keys(v.votes).length
+      ? Object.entries(v.votes).map(([k, s]) => `  ${k}: ${s}`)
+      : ["  (no per-voter scores \u2014 lists/uncached)"];
+    const lines = [
+      "ImgEdge \u2014 decision: " + (v.allow ? "ALLOW" : "BLOCK"),
+      "reason: " + (v.reason || "?") + "   score: " + (v.score != null ? v.score : "?"),
+      v.salience != null ? "salience x" + v.salience : null,
+      "voter evidence:", ...votes, "", url.slice(0, 120),
+    ].filter(Boolean);
+    showOverlay(lines.join("\n"));
+  }
+
+  function showOverlay(text) {
+    const o = document.createElement("pre");
+    o.textContent = text;
+    o.style.cssText = "position:fixed;top:12px;right:12px;z-index:2147483647;max-width:90vw;"
+      + "background:#111;color:#eee;font:12px/1.4 monospace;padding:10px 12px;border-radius:6px;"
+      + "box-shadow:0 2px 12px rgba(0,0,0,.5);white-space:pre-wrap;cursor:pointer";
+    o.title = "click to dismiss";
+    o.addEventListener("click", () => o.remove());
+    document.documentElement.appendChild(o);
+    setTimeout(() => o.remove(), 12000);
+  }
+
   function handleContext(action, srcUrl) {
     let url = srcUrl ? abs(srcUrl) : "";
     const d = descriptorFor(lastContextEl);
     if (!url && d) url = d.url;
     if (!url && lastContextEl && lastContextEl.tagName === "IMG") url = lastContextEl.currentSrc || lastContextEl.src;
     if (!usable(url)) return;
+
+    if (action === "explain") { explain(url); return; }
 
     if (action === "allow") {
       lists.whitelist.add(url);

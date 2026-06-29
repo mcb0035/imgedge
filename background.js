@@ -26,6 +26,7 @@ const MENUS = [
   { id: "imgedge-allow", title: "ImgEdge: Allow this image" },
   { id: "imgedge-block", title: "ImgEdge: Block this image" },
   { id: "imgedge-allow-domain", title: "ImgEdge: Allow all images from this site" },
+  { id: "imgedge-explain", title: "ImgEdge: Explain decision (debug)" },
 ];
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -56,7 +57,8 @@ if (chrome.contextMenus) {
     const action =
       info.menuItemId === "imgedge-allow" ? "allow" :
       info.menuItemId === "imgedge-block" ? "block" :
-      info.menuItemId === "imgedge-allow-domain" ? "allow-domain" : null;
+      info.menuItemId === "imgedge-allow-domain" ? "allow-domain" :
+      info.menuItemId === "imgedge-explain" ? "explain" : null;
     if (!action) return;
     const payload = { type: "context", action, srcUrl: info.srcUrl || null };
     const opts = info.frameId != null ? { frameId: info.frameId } : undefined;
@@ -238,7 +240,7 @@ async function classify(url, data, meta) {
     setHealth(json && json.reason === "model-unavailable" ? "model-missing" : "ok");
     // Strict mode allows only an explicit "not blocked" answer.
     const allow = strict ? json.block === false : !json.block;
-    return { allow, reason: json.reason, score: json.score };
+    return { allow, reason: json.reason, score: json.score, votes: json.votes, salience: json.salience };
   } catch (e) {
     setHealth("error");
     // Classifier unreachable / timed out: strict blocks, otherwise honor failClosed.
