@@ -23,7 +23,7 @@ jobs:
       - name: Compile
         run: python -m py_compile src/imgedge/classifier/*.py src/imgedge/inat/*.py src/imgedge/voters/*.py
       - name: Tests
-        run: pytest
+        run: pytest -m "not perf"
 
   javascript:
     name: Extension JS (eslint)
@@ -51,3 +51,15 @@ jobs:
       - name: Audit optional voters (report-only)
         run: pip-audit --requirement src/imgedge/voters/requirements.lock
         continue-on-error: true
+
+  perf:
+    name: Performance guards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: python -m pip install --upgrade pip && pip install -e . pytest
+      - name: Perf regression guards
+        run: pytest -m perf

@@ -47,6 +47,12 @@ def _integrity_probe():
     return confine.current_integrity()
 
 
+def _env_probe():
+    """Report the worker's BLAS/OMP thread caps (used by the perf-regression tests)."""
+    import os
+    return os.environ.get("OPENBLAS_NUM_THREADS"), os.environ.get("OMP_NUM_THREADS")
+
+
 class DecodePool:
     """A recycled ProcessPool that decodes image bytes -> (uint8 RGB array, w, h).
 
