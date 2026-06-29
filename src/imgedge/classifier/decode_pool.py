@@ -7,10 +7,11 @@ replaces it), and workers are recycled every N tasks to bound how long any
 compromised worker lives.
 
 IMPORTANT: this is a CRASH + RECYCLE boundary, not an OS sandbox. The children
-are ordinary processes (no AppContainer / restricted token on Windows, no
-seccomp / namespaces on Linux), so a decoder exploit could still do what the
-user can. True OS confinement is the follow-up; this prototype exists to measure
-the warm-path overhead and provide crash isolation. Enable with IMGEDGE_SANDBOX=1.
+are ordinary processes (no seccomp / namespaces on Linux), so a decoder exploit
+could still do what the user can. For true OS confinement on Windows, the
+AppContainer pool (``ac_pool.py``, ``IMGEDGE_SANDBOX_APPCONTAINER=1``) also
+denies the worker network access and writes to the user's files; this pool
+remains the cross-platform crash boundary. Enable with IMGEDGE_SANDBOX=1.
 """
 
 from concurrent.futures import ProcessPoolExecutor
@@ -50,6 +51,8 @@ class DecodePool:
     The returned width/height are the *original* dimensions (so salience still
     sees the true size even when the array is downscaled to `cap` for cheap IPC).
     """
+
+    kind = "process"
 
     def __init__(self, workers=2, recycle=200, cap=1024, timeout=8.0,
                  confine_os=True, mem_mb=1024, low_il=False):

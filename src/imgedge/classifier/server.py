@@ -34,6 +34,7 @@ Environment overrides:
   IMGEDGE_LOG_LEVEL  DEBUG|INFO|WARNING|ERROR (default: INFO)
   IMGEDGE_PROFILE    expose rolling latency stats in /health (default: 1; 0=off)
   IMGEDGE_SANDBOX    decode images in a recycled worker pool (default: 0; 1=on)
+  IMGEDGE_SANDBOX_APPCONTAINER  decode in a no-network Windows AppContainer (default: 0)
   IMGEDGE_VOTE       policy: evidence|any|all|majority|weighted (default: evidence)
   IMGEDGE_TIMM_MODEL HF/timm model id (default: mobilenetv3_large_100.ra_in1k)
   IMGEDGE_TIMM_EXCLUDE   comma-separated ImageNet terms to BLOCK (arachnids)
@@ -51,6 +52,7 @@ import logging
 import os
 import secrets
 import socket
+import sys
 import threading
 import time
 import urllib.request
@@ -109,6 +111,9 @@ SANDBOX_CONFINE = os.environ.get("IMGEDGE_SANDBOX_CONFINE", "1") != "0"
 # lazy imports of the (profile-installed) Python stdlib/venv on a typical box.
 # See confine.worker_init. AppContainer is the supported strong-isolation path.
 SANDBOX_LOWIL = os.environ.get("IMGEDGE_SANDBOX_LOWIL", "0") != "0"
+# AppContainer: decode in a no-network, no-write Windows AppContainer (strong
+# isolation). Windows-only; falls back to the plain pool elsewhere.
+SANDBOX_APPCONTAINER = os.environ.get("IMGEDGE_SANDBOX_APPCONTAINER", "0") != "0"
 log = logging.getLogger("imgedge")
 
 
@@ -471,13 +476,20 @@ def _get_decoder():
     if _decoder is None:
         with _load_lock:
             if _decoder is None:
-                from imgedge.classifier.decode_pool import DecodePool
-                _decoder = DecodePool(workers=SANDBOX_WORKERS, recycle=SANDBOX_RECYCLE,
-                                      confine_os=SANDBOX_CONFINE, mem_mb=SANDBOX_MEM_MB,
-                                      low_il=SANDBOX_LOWIL)
-                log.info("sandbox decode pool: %d workers, recycle %d, confined=%s, worker=%s",
-                         SANDBOX_WORKERS, SANDBOX_RECYCLE, _decoder.confined,
-                         _decoder.worker_integrity())
+                if SANDBOX_APPCONTAINER and sys.platform == "win32":
+                    from imgedge.classifier.ac_pool import AppContainerPool
+                    _decoder = AppContainerPool(
+                        workers=SANDBOX_WORKERS, recycle=SANDBOX_RECYCLE,
+                        confine_os=SANDBOX_CONFINE, mem_mb=SANDBOX_MEM_MB)
+                else:
+                    from imgedge.classifier.decode_pool import DecodePool
+                    _decoder = DecodePool(
+                        workers=SANDBOX_WORKERS, recycle=SANDBOX_RECYCLE,
+                        confine_os=SANDBOX_CONFINE, mem_mb=SANDBOX_MEM_MB,
+                        low_il=SANDBOX_LOWIL)
+                log.info("sandbox decode: kind=%s, %d workers, recycle %d, confined=%s, worker=%s",
+                         getattr(_decoder, "kind", "process"), SANDBOX_WORKERS,
+                         SANDBOX_RECYCLE, _decoder.confined, _decoder.worker_integrity())
     return _decoder
 
 
@@ -529,6 +541,9 @@ def health_payload():
         "voters": ens.names if ok else [],
         "policy": getattr(ens, "policy", None) if ok else None,
         "stats": _stats.snapshot() if PROFILE else None,
+        "sandbox": ("appcontainer" if (SANDBOX and SANDBOX_APPCONTAINER
+                                       and sys.platform == "win32")
+                    else "process" if SANDBOX else None),
         "auth_required": True,
     }
 

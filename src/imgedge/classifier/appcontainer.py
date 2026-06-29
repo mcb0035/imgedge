@@ -1,28 +1,26 @@
-"""AppContainer feasibility spike (feature/sandbox, Windows only).
+"""AppContainer launch primitives (feature/sandbox, Windows only).
 
-Unlike the Low-integrity drop, an AppContainer cannot be entered by a running
-process — it must be applied at CreateProcess time via SECURITY_CAPABILITIES.
-So this can't ride on ProcessPoolExecutor; it's a separate launcher.
+An AppContainer cannot be entered by a running process -- it must be applied at
+CreateProcess time via SECURITY_CAPABILITIES -- so it can't ride on
+ProcessPoolExecutor. This module holds the low-level pieces the warm decode pool
+(ac_pool.py) builds on:
 
-`demo()` proves the crux before any productionising:
-  1. create/derive an AppContainer SID,
-  2. grant it read/execute on the Python install + venv (AppContainers see an
-     isolated FS view and can't read user files unless explicitly granted),
-  3. launch a probe **inside** the container with NO capabilities (no network),
-  4. the probe imports Pillow/numpy, decodes an in-memory image, and tries a
-     network connection — proving decode works and network is denied.
+  * ensure_sid()      create/derive the per-app AppContainer SID,
+  * grant()           icacls read/execute for that SID on a path (an AppContainer
+                      sees an isolated FS view and can't read paths not granted),
+  * spawn()/launch()  CreateProcess a command *inside* the container with NO
+                      capabilities (no network, no write to the user's files),
+                      inheriting only an explicit handle list (+ NUL stdio).
 
-Run:  python -m imgedge.classifier.appcontainer
+`demo()` (python -m imgedge.classifier.appcontainer) is a standalone check that
+decode works while network + user-file writes are denied.
 Grants are reversible:  icacls <path> /remove:g *<sid>
 """
 
 import ctypes
 import subprocess
 import sys
-import sysconfig
-import time
 from ctypes import wintypes
-from pathlib import Path
 
 _userenv = ctypes.WinDLL("userenv", use_last_error=True)
 _adv = ctypes.WinDLL("advapi32", use_last_error=True)
@@ -30,6 +28,7 @@ _k32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
 _PROFILE_NAME = "imgedge.decode.sandbox"
 _PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES = 0x00020009
+_PROC_THREAD_ATTRIBUTE_HANDLE_LIST = 0x00020002
 _EXTENDED_STARTUPINFO_PRESENT = 0x00080000
 _CREATE_NO_WINDOW = 0x08000000
 _ERROR_ALREADY_EXISTS = 0x800700B7  # HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS)
@@ -100,12 +99,38 @@ def grant(path, sid_str, perm="(RX)"):
     return r.returncode == 0
 
 
-def launch(cmdline, sid, cwd, timeout_s=60):
-    """CreateProcess `cmdline` inside the AppContainer (no capabilities). Returns exit code."""
+_STARTF_USESTDHANDLES = 0x00000100
+_GENERIC_RW = 0xC0000000
+_FILE_SHARE_RW = 0x00000003
+_OPEN_EXISTING = 3
+_INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+
+
+class _SECURITY_ATTRIBUTES(ctypes.Structure):
+    _fields_ = [("nLength", wintypes.DWORD), ("lpSecurityDescriptor", ctypes.c_void_p),
+                ("bInheritHandle", wintypes.BOOL)]
+
+
+_k32.CreateFileW.restype = wintypes.HANDLE
+_k32.CreateFileW.argtypes = [
+    wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
+    wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+
+
+def spawn(cmdline, sid, cwd, inherit_handles=None):
+    """CreateProcess `cmdline` inside the AppContainer (no capabilities -> no
+    network and no write access to the user's files). If `inherit_handles` is
+    given, *exactly* those handles (plus an inheritable NUL for the child's
+    stdio) are inherited via a HANDLE_LIST, so no stray parent handle (a console,
+    a writable file, a socket) can leak into the sandbox -- an inherited writable
+    handle would otherwise bypass the AppContainer's write-deny. Returns
+    PROCESS_INFORMATION; the caller owns and must close hProcess/hThread.
+    """
+    nattr = 2 if inherit_handles else 1
     size = ctypes.c_size_t(0)
-    _k32.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(size))
+    _k32.InitializeProcThreadAttributeList(None, nattr, 0, ctypes.byref(size))
     buf = (ctypes.c_byte * size.value)()
-    if not _k32.InitializeProcThreadAttributeList(buf, 1, 0, ctypes.byref(size)):
+    if not _k32.InitializeProcThreadAttributeList(buf, nattr, 0, ctypes.byref(size)):
         raise ctypes.WinError(ctypes.get_last_error())
     caps = _SECURITY_CAPABILITIES(AppContainerSid=sid, Capabilities=None,
                                   CapabilityCount=0, Reserved=0)
@@ -116,107 +141,79 @@ def launch(cmdline, sid, cwd, timeout_s=60):
     si = _STARTUPINFOEXW()
     si.StartupInfo.cb = ctypes.sizeof(_STARTUPINFOEXW)
     si.lpAttributeList = ctypes.cast(buf, ctypes.c_void_p)
+    nul = None
+    harr = None  # keep the handle array alive until after CreateProcess
+    if inherit_handles:
+        sa = _SECURITY_ATTRIBUTES(nLength=ctypes.sizeof(_SECURITY_ATTRIBUTES),
+                                  lpSecurityDescriptor=None, bInheritHandle=True)
+        nul = _k32.CreateFileW("NUL", _GENERIC_RW, _FILE_SHARE_RW, ctypes.byref(sa),
+                               _OPEN_EXISTING, 0, None)
+        if not nul or nul == _INVALID_HANDLE_VALUE:
+            raise ctypes.WinError(ctypes.get_last_error())
+        si.StartupInfo.dwFlags |= _STARTF_USESTDHANDLES
+        si.StartupInfo.hStdInput = nul
+        si.StartupInfo.hStdOutput = nul
+        si.StartupInfo.hStdError = nul
+        all_h = list(inherit_handles) + [nul]
+        harr = (wintypes.HANDLE * len(all_h))(*[wintypes.HANDLE(h) for h in all_h])
+        if not _k32.UpdateProcThreadAttribute(
+                buf, 0, _PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                harr, ctypes.sizeof(harr), None, None):
+            raise ctypes.WinError(ctypes.get_last_error())
     pi = _PROCESS_INFORMATION()
     cmd = ctypes.create_unicode_buffer(cmdline)
     ok = _k32.CreateProcessW(
-        None, cmd, None, None, False,
+        None, cmd, None, None, bool(inherit_handles),
         _EXTENDED_STARTUPINFO_PRESENT | _CREATE_NO_WINDOW,
         None, str(cwd), ctypes.byref(si), ctypes.byref(pi))
+    err = ctypes.get_last_error()
+    _k32.DeleteProcThreadAttributeList(buf)
+    if nul:
+        _k32.CloseHandle(wintypes.HANDLE(nul))
     if not ok:
-        raise ctypes.WinError(ctypes.get_last_error())
+        raise ctypes.WinError(err)
+    return pi
+
+
+def launch(cmdline, sid, cwd, timeout_s=60):
+    """Spawn inside the AppContainer, wait up to `timeout_s`, return exit code."""
+    pi = spawn(cmdline, sid, cwd)
     _k32.WaitForSingleObject(pi.hProcess, int(timeout_s * 1000))
     code = wintypes.DWORD()
     _k32.GetExitCodeProcess(pi.hProcess, ctypes.byref(code))
     _k32.CloseHandle(pi.hProcess)
     _k32.CloseHandle(pi.hThread)
-    _k32.DeleteProcThreadAttributeList(buf)
     return code.value
 
 
-_PROBE = r'''
-import sys, io, base64
-out = sys.argv[1]
-log = []
-def w(m): log.append(str(m))
-try:
-    import ctypes
-    from imgedge.classifier import confine
-    w("integrity=" + confine.current_integrity())
-except Exception as e:
-    w("integrity_err=" + repr(e))
-try:
-    import socket
-    s = socket.socket(); s.settimeout(3); s.connect(("1.1.1.1", 80)); s.close()
-    w("network=ALLOWED")
-except Exception as e:
-    w("network=DENIED:" + type(e).__name__)
-try:
-    import numpy as np
-    from PIL import Image
-    Image.MAX_IMAGE_PIXELS = 24_000_000
-    px = base64.b64decode("PNG_B64")
-    with Image.open(io.BytesIO(px), formats=["JPEG","PNG","WEBP","GIF","BMP"]) as im:
-        a = np.asarray(im.convert("RGB"), dtype="uint8")
-    w("decode=OK shape=" + str(a.shape))
-except Exception as e:
-    w("decode_err=" + repr(e))
-try:
-    open(r"PROBE_WRITE_TEST", "w").close()
-    w("write_user_dir=ALLOWED")
-except Exception as e:
-    w("write_user_dir=DENIED:" + type(e).__name__)
-open(out, "w", encoding="utf-8").write("\n".join(log))
-'''
+def demo():
+    """Standalone check: decode works, but network + user-file writes are denied.
 
-
-def _png_b64():
-    import base64
+    Builds a one-worker AppContainerPool (which performs the cached icacls grant)
+    and prints its decode result and isolation probe -- the very code the server
+    uses, so there is no separate, divergeable probe to maintain.
+    """
+    if sys.platform != "win32":
+        print("AppContainer is Windows-only")
+        return
     import io
 
     import numpy as np
     from PIL import Image
-    b = io.BytesIO()
-    arr = (np.random.default_rng(0).random((8, 8, 3)) * 255).astype("uint8")
-    Image.fromarray(arr).save(b, "PNG")
-    return base64.b64encode(b.getvalue()).decode()
 
+    from imgedge.classifier.ac_pool import AppContainerPool
 
-def demo():
-    if sys.platform != "win32":
-        print("AppContainer is Windows-only")
-        return
-    py = Path(sys.executable)
-    base = Path(sysconfig.get_paths()["stdlib"]).parent  # base interpreter dir
-    venv = Path(sys.prefix)
-    shared = Path.home() / ".imgedge-ac"
-    shared.mkdir(exist_ok=True)
-    probe = shared / "probe.py"
-    status = shared / "status.txt"
-    write_test = Path.home() / "imgedge_ac_WRITE_TEST.txt"  # a medium-IL path NOT granted
-    code = _PROBE.replace("PROBE_WRITE_TEST", str(write_test).replace("\\", "\\\\"))
-    code = code.replace("PNG_B64", _png_b64())
-    probe.write_text(code, encoding="utf-8")
-    if status.exists():
-        status.unlink()
-
-    sid, sid_str = ensure_sid()
-    print("AppContainer SID:", sid_str)
-    if "--skip-grant" not in sys.argv:
-        print("granting read/execute to the container (this can take a moment)...")
-        t0 = time.perf_counter()
-        grant(base, sid_str, "(RX)")
-        grant(venv, sid_str, "(RX)")
-        grant(shared, sid_str, "(M)")  # the one dir it may write
-        print(f"  grants done in {time.perf_counter() - t0:.1f}s")
-
-    cmd = f'"{py}" "{probe}" "{status}"'
-    print("launching probe inside the AppContainer...")
-    t0 = time.perf_counter()
-    rc = launch(cmd, sid, shared, timeout_s=60)
-    dt = (time.perf_counter() - t0) * 1000
-    print(f"  exit={rc}  wall={dt:.0f}ms")
-    print("--- probe report ---")
-    print(status.read_text(encoding="utf-8") if status.exists() else "(no status written)")
+    buf = io.BytesIO()
+    Image.fromarray(
+        (np.random.default_rng(0).random((16, 16, 3)) * 255).astype("uint8")).save(buf, "PNG")
+    pool = AppContainerPool(workers=1, recycle=10)
+    try:
+        arr, ow, oh = pool.decode(buf.getvalue())
+        print(f"decode:    OK shape={arr.shape} original=({ow}, {oh})")
+        print(f"isolation: {pool.probe()}")
+        print(f"confined:  {pool.confined} (Job object)")
+    finally:
+        pool.close()
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 """OS-level confinement for decode workers (feature/sandbox).
 
-Windows: the workers are placed in a Job object that caps total committed memory
-(beyond the pixel guard, this stops a decompression bomb), limits the active
+Windows: the workers are placed in a Job object that caps each worker's committed
+memory (beyond the pixel guard, this stops a decompression bomb), limits the active
 process count (no fork bombs from a compromised decoder), restricts UI access
 (clipboard / global atoms / handles / desktop / exit-windows), dies on an
 unhandled exception, and kills every worker when the server exits.
@@ -65,7 +65,7 @@ if sys.platform == "win32":
 
     _LIMIT_ACTIVE_PROCESS = 0x00000008
     _LIMIT_DIE_ON_UNHANDLED_EXCEPTION = 0x00000400
-    _LIMIT_JOB_MEMORY = 0x00000200
+    _LIMIT_PROCESS_MEMORY = 0x00000100
     _LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
 
     _UILIMIT_ALL = 0x000000FF  # handles|readclip|writeclip|sysparams|display|atoms|desktop|exit
@@ -125,10 +125,10 @@ if sys.platform == "win32":
                 raise ctypes.WinError(ctypes.get_last_error())
             ext = _EXT_LIMIT()
             ext.BasicLimitInformation.LimitFlags = (
-                _LIMIT_ACTIVE_PROCESS | _LIMIT_JOB_MEMORY
+                _LIMIT_ACTIVE_PROCESS | _LIMIT_PROCESS_MEMORY
                 | _LIMIT_DIE_ON_UNHANDLED_EXCEPTION | _LIMIT_KILL_ON_JOB_CLOSE)
             ext.BasicLimitInformation.ActiveProcessLimit = int(max_procs)
-            ext.JobMemoryLimit = int(mem_bytes)
+            ext.ProcessMemoryLimit = int(mem_bytes)
             if not _k32.SetInformationJobObject(
                     self.handle, _JobObjectExtendedLimitInformation,
                     ctypes.byref(ext), ctypes.sizeof(ext)):

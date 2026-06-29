@@ -62,6 +62,15 @@ Hardening that is implemented today:
   (`Image.MAX_IMAGE_PIXELS`, a decompression-bomb guard) and restricts the
   parsed formats to a raster allowlist (`JPEG, PNG, WEBP, GIF, BMP`), checking
   dimensions before any heavy decode.
+- **Optional decode isolation (opt-in, off by default).** `IMGEDGE_SANDBOX=1`
+  runs the Pillow decode in a recycled worker-process pool, so a decoder crash
+  or exploit is contained to a short-lived child (recycled every N images) and a
+  Job object caps each worker's committed memory and reaps it on exit. On
+  Windows, `IMGEDGE_SANDBOX_APPCONTAINER=1` additionally runs each worker inside
+  a capability-less **AppContainer**: a compromised decoder then cannot open a
+  socket (network denied) or write your files, while Pillow/numpy still work via
+  read-only grants to the Python install. The decoder returns only a trusted
+  pixel array to the parent over an inherited pipe (no shared writable handles).
 - **Bounded concurrency.** Requests are served by a fixed worker pool; failures
   fail open (configurable to fail closed / strict).
 - **Minimal on-disk footprint.** The verdict cache is keyed by a SHA-256 hash of
@@ -74,9 +83,14 @@ These are deliberately documented rather than hidden:
 - **Image-codec memory-safety bugs.** The pixel cap, format allowlist, and byte
   cap reduce exposure, but a crafted image could still trigger a vulnerability
   in an underlying decoder (Pillow / libjpeg / libpng / libwebp / zlib).
-  **Mitigation:** keep `pillow` and other dependencies updated. Decoding images
-  in an isolated subprocess/sandbox is a planned hardening and is **not yet
-  implemented**.
+  **Mitigation:** keep `pillow` and other dependencies updated, and enable
+  decode isolation -- `IMGEDGE_SANDBOX=1` (recycled subprocess pool, all
+  platforms) or, on Windows, `IMGEDGE_SANDBOX_APPCONTAINER=1` (a capability-less
+  AppContainer that denies the decoder network and writes to your files). Both
+  are opt-in and **off by default**; with them disabled the decode runs
+  in-process, so the pixel cap, format allowlist, and byte cap are the only
+  guards. The AppContainer path needs a one-time `icacls` grant of its SID on
+  the Python install (reversible: `icacls <path> /remove:g *<sid>`).
 - **Inline image data (`sendData`).** When enabled, a page can hand image bytes
   directly to the decoder, bypassing the SSRF *fetch* path. Exposure is similar
   to fetched public images and is bounded by the same decode hardening.
@@ -98,6 +112,9 @@ These are deliberately documented rather than hidden:
 
 - Keep Python dependencies current: `pip install -U pillow onnxruntime*`.
 - Leave the access token enabled (don't set an empty `IMGEDGE_TOKEN`).
+- On Windows, consider `IMGEDGE_SANDBOX_APPCONTAINER=1` to decode untrusted
+  images in a no-network AppContainer (the first run does a one-time icacls
+  grant of the container's read access to your Python install).
 - Set `IMGEDGE_CACHE_FILE=none` if you don't want any verdicts persisted.
 - The classifier never needs inbound network or elevated privileges — run it as
   your normal user and don't expose port `8723` beyond `127.0.0.1`.
