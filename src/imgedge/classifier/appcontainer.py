@@ -92,9 +92,13 @@ def ensure_sid():
 
 
 def grant(path, sid_str, perm="(RX)"):
-    """Grant the AppContainer SID `perm` on `path` (recursive) via icacls."""
+    """Grant the AppContainer SID `perm` on `path`'s whole subtree via an
+    INHERITABLE ACE on the root -- no `/T` tree-walk. NTFS propagates the
+    inheritable ACE to existing descendants, so a large venv (e.g. with torch) is
+    granted in milliseconds instead of minutes. (A child with a protected ACL
+    would be missed; that doesn't occur in a normal pip venv.)"""
     r = subprocess.run(
-        ["icacls", str(path), "/grant", f"*{sid_str}:(OI)(CI){perm}", "/T", "/C", "/Q"],
+        ["icacls", str(path), "/grant", f"*{sid_str}:(OI)(CI){perm}", "/C", "/Q"],
         capture_output=True, text=True)
     return r.returncode == 0
 
