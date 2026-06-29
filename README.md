@@ -53,7 +53,8 @@ flowchart LR
 | `src/imgedge/classifier/server.py` | Local HTTP classifier (`/classify`, `/health`) |
 | `src/imgedge/voters/` | Voting ensemble: base classes, iNaturalist + timm voters, image-salience weighting |
 | `src/imgedge/inat/` | iNaturalist model: download, TFLite + ONNX backends, taxonomy filter |
-| `tests/` | pytest suite (SSRF, integrity, cache, voting, salience) |
+| `tests/` | pytest suite (SSRF, integrity, cache, voting, salience, decode sandbox, perf guards) |
+| `benchmark/` | Decode-latency + memory-footprint scripts (see [benchmark/README.md](benchmark/README.md)) |
 | `training/` | **Optional / not used by default** — a from-scratch MobileNetV3 fine-tune pipeline |
 | `package.ps1` | Build a store-ready ZIP (and optional `.crx`) of the extension |
 

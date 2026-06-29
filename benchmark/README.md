@@ -11,6 +11,14 @@ repository root with the project virtualenv active.
 These exercise the real `DecodePool` / `AppContainerPool`, so the numbers reflect
 the shipped code paths (full IPC round-trip, the same `open_guarded` decode).
 
+## Regression guards in CI
+
+These same paths are guarded against regressions by
+[`tests/test_perf_decode.py`](../tests/test_perf_decode.py) — relative/invariant
+checks (warm-pool reuse, IPC overhead, the per-worker `OPENBLAS_NUM_THREADS=1`
+cap) that tolerate CI runner noise. They run as the **Performance guards** CI job
+and locally with `pytest -m perf`. Use the scripts below for actual numbers.
+
 ## bench_decode.py
 
 ```pwsh

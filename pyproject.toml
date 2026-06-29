@@ -40,3 +40,6 @@ known-first-party = ["imgedge"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "perf: performance-regression guards (run via the CI 'perf' job; not in the default gate)",
+]
