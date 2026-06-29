@@ -64,7 +64,15 @@ class VoteEnsemble:
     def names(self):
         return [v.name for v in self.voters]
 
-    def classify_bytes(self, raw, meta=None):
+    def classify_bytes(self, raw, meta=None, decoder=None):
+        if decoder is not None:
+            # Decode out-of-process; reconstruct from a trusted RGB array.
+            from PIL import Image
+            arr, ow, oh = decoder.decode(raw)
+            meta = dict(meta or {})
+            meta.setdefault("w", ow)  # keep the true size for salience
+            meta.setdefault("h", oh)
+            return self.classify(Image.fromarray(arr), meta)
         with open_guarded(raw) as img:
             return self.classify(img, meta)
 
