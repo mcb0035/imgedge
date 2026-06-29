@@ -16,9 +16,9 @@ Design (mirrors DecodePool's interface so the server/ensemble are unchanged):
   * A Job object caps each worker's committed memory and reaps survivors on close.
 
 First use performs a one-time `icacls` grant of the AppContainer SID on the
-Python install + venv + imgedge source; it is cached (a marker file + an ACL
-check) so later starts are instant. A large venv (e.g. torch) makes the very
-first grant slow; a dedicated minimal decode venv makes it instant.
+Python install + venv + imgedge source (an inheritable ACE on each root, so even
+a torch-heavy venv is granted in milliseconds, not a `/T` tree-walk); it is
+cached (a marker file + an ACL check) so later starts skip it entirely.
 """
 
 import base64
@@ -186,7 +186,7 @@ def _ensure_grants(sid_str):
         key = str(t)
         if key in done:
             continue
-        if _is_granted(t, sid_str) or ac.grant(t, sid_str):  # ACL check, else grant (slow once)
+        if _is_granted(t, sid_str) or ac.grant(t, sid_str):  # ACL check, else grant (inheritable)
             done.append(key)
             changed = True
     if changed:

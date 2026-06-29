@@ -152,7 +152,7 @@ backgrounds*, and the whitelist / allowed-sites / blocklist.
 | `IMGEDGE_LOG_LEVEL` | `INFO` | `DEBUG\|INFO\|WARNING\|ERROR` |
 | `IMGEDGE_PROFILE` | `1` | Expose rolling latency stats in `/health` (`0` = off) |
 | `IMGEDGE_SANDBOX` | `0` | Decode images in a recycled worker-process pool (crash isolation + per-worker memory cap) |
-| `IMGEDGE_SANDBOX_APPCONTAINER` | `0` | Windows: decode each image in a no-network AppContainer (one-time `icacls` grant on first run) |
+| `IMGEDGE_SANDBOX_APPCONTAINER` | `0` | Windows: decode each image in a no-network AppContainer (one-time, near-instant `icacls` grant on first run) |
 | `IMGEDGE_MODEL` / `IMGEDGE_ONNX` / `IMGEDGE_TAXONOMY` | under `src/imgedge/inat/models/` | Model/taxonomy paths |
 
 ## Security model
