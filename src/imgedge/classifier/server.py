@@ -13,11 +13,10 @@ GET  /health    (no auth):
     -> { "status", "target", "taxa", "voters", "policy", "provider", "auth_required" }
 
 Setup:
-  pip install -r ../inat/requirements.txt
-  pip install tensorflow            # (or ai-edge-litert) to run the .tflite
-  python ../inat/download_models.py # fetch the vision model + taxonomy
+  pip install -e .                  # numpy, pillow, ai-edge-litert
+  imgedge-download-models          # fetch + verify the vision model + taxonomy
 Run:
-  python classifier/server.py       # prints the access token to paste into the popup
+  imgedge-server                   # prints the access token to paste into the popup
 
 Environment overrides:
   IMGEDGE_TARGET     taxon name to block (default: Arachnida)
@@ -462,7 +461,8 @@ def classify(url, data, meta=None):
 
     cached = _vcache.get(url)
     if cached is not None:
-        _stats.hit()
+        if PROFILE:
+            _stats.hit()
         return cached
 
     t0 = time.perf_counter()
@@ -477,7 +477,8 @@ def classify(url, data, meta=None):
     except Exception as e:
         # Can't decode/classify (e.g. SVG, bomb, crafted bytes) -> don't block, don't cache.
         return {"block": False, "reason": f"error:{e}", "score": 0.0}
-    _stats.record(fetch_ms, (time.perf_counter() - t1) * 1000, verdict.get("block"))
+    if PROFILE:
+        _stats.record(fetch_ms, (time.perf_counter() - t1) * 1000, verdict.get("block"))
 
     _vcache.put(url, verdict)  # only stable, model-derived verdicts are cached
     return verdict
