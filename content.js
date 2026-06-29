@@ -405,18 +405,27 @@
   }
 
   async function explain(url) {
+    const el = lastContextEl;
     let v;
-    try { v = await getVerdict(url); } catch { v = null; }
+    try { v = await getVerdict(url, el ? { kind: "img", ...sizeOf(el) } : undefined); } catch { v = null; }
     v = v || {};
-    const votes = v.votes && Object.keys(v.votes).length
-      ? Object.entries(v.votes).map(([k, s]) => `  ${k}: ${s}`)
-      : ["  (no per-voter scores \u2014 lists/uncached)"];
+    const d = v.dbg || {};
+    const sz = el ? sizeOf(el) : { w: 0, h: 0 };
     const lines = [
-      "ImgEdge \u2014 decision: " + (v.allow ? "ALLOW" : "BLOCK"),
-      "reason: " + (v.reason || "?") + "   score: " + (v.score != null ? v.score : "?"),
-      v.salience != null ? "salience x" + v.salience : null,
-      "voter evidence:", ...votes, "", url.slice(0, 120),
-    ].filter(Boolean);
+      "ImgEdge \u2014 " + (v.allow ? "ALLOW" : "BLOCK") + "   reason: " + (v.reason || "?"),
+      `score ${v.score != null ? v.score : "?"} vs threshold ${d.threshold != null ? d.threshold : "?"}  (policy ${d.policy || "?"})`,
+      `combined = pos ${d.pos} \u00d7 salience ${d.mult} + neg ${d.neg}`,
+    ];
+    if (d.salience) {
+      const s = d.salience;
+      lines.push(`salience: size ${s.size} \u00d7 media ${s.media} \u00d7 photo ${s.photo} = ${s.salience}`);
+    }
+    lines.push(`rendered ${sz.w}\u00d7${sz.h}px`, "voters (evidence, weight, thr, contrib):");
+    for (const vt of (d.voters || [])) {
+      lines.push(`  ${vt.name}: ev ${vt.evidence} \u00d7 w ${vt.weight} = ${vt.contrib}  (thr ${vt.thr}, score ${vt.score})`);
+    }
+    if (!d.voters) lines.push("  (no breakdown \u2014 list hit / model unavailable)");
+    lines.push("", url.slice(0, 140));
     showOverlay(lines.join("\n"));
   }
 

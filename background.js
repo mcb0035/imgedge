@@ -240,7 +240,7 @@ async function classify(url, data, meta) {
     setHealth(json && json.reason === "model-unavailable" ? "model-missing" : "ok");
     // Strict mode allows only an explicit "not blocked" answer.
     const allow = strict ? json.block === false : !json.block;
-    return { allow, reason: json.reason, score: json.score, votes: json.votes, salience: json.salience };
+    return { allow, reason: json.reason, score: json.score, votes: json.votes, salience: json.salience, dbg: json.dbg };
   } catch (e) {
     setHealth("error");
     // Classifier unreachable / timed out: strict blocks, otherwise honor failClosed.

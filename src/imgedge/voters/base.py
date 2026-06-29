@@ -115,6 +115,17 @@ class VoteEnsemble:
             "votes": {v.name: round(e, 4) for (v, _, e) in rows},
             "salience": breakdown.get("salience", round(mult, 3)),
             "dampers": dampers,
+            "dbg": {
+                "policy": self.policy,
+                "threshold": round(self.threshold, 4),
+                "pos": round(pos, 4), "neg": round(neg, 4), "mult": round(mult, 3),
+                "salience": breakdown,
+                "voters": [{
+                    "name": v.name, "score": round(s, 4), "evidence": round(e, 4),
+                    "weight": v.weight, "thr": v.threshold,
+                    "contrib": round(v.weight * e * (mult if e > 0 else 1.0), 4),
+                } for (v, s, e) in rows],
+            },
         }
 
     def _decide(self, results):
