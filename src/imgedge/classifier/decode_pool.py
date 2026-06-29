@@ -18,6 +18,8 @@ from concurrent.futures.process import BrokenProcessPool
 
 import numpy as np
 
+from imgedge.classifier import confine
+
 
 def _decode(raw, cap):
     # Imported inside the worker so the parent process needn't import Pillow.
@@ -33,6 +35,10 @@ def _decode(raw, cap):
     return arr, ow, oh
 
 
+def _ping():
+    return True
+
+
 class DecodePool:
     """A recycled ProcessPool that decodes image bytes -> (uint8 RGB array, w, h).
 
@@ -40,25 +46,62 @@ class DecodePool:
     sees the true size even when the array is downscaled to `cap` for cheap IPC).
     """
 
-    def __init__(self, workers=2, recycle=200, cap=1024, timeout=8.0):
+    def __init__(self, workers=2, recycle=200, cap=1024, timeout=8.0,
+                 confine_os=True, mem_mb=1024):
         self.workers = max(1, int(workers))
         self.recycle = max(1, int(recycle))
         self.cap = int(cap)
         self.timeout = float(timeout)
+        self.mem_bytes = int(mem_mb) * 1024 * 1024
+        self._job = None
+        if confine_os and confine.WindowsJob is not None:
+            try:
+                self._job = confine.WindowsJob(self.mem_bytes, self.workers + 2)
+            except OSError:
+                self._job = None  # confinement is best-effort; never block decoding
+        self._assigned = set()
         self._pool = self._new_pool()
+        self._confine_workers()  # spawn + assign before real traffic
 
     def _new_pool(self):
-        return ProcessPoolExecutor(max_workers=self.workers,
-                                   max_tasks_per_child=self.recycle)
+        return ProcessPoolExecutor(
+            max_workers=self.workers, max_tasks_per_child=self.recycle,
+            initializer=confine.worker_init, initargs=(self.mem_bytes,))
+
+    def _assign_new(self):
+        """Assign any not-yet-confined worker PIDs to the Job (cheap; no IPC)."""
+        if self._job is None:
+            return
+        for pid in list(getattr(self._pool, "_processes", {}) or {}):
+            if pid not in self._assigned and self._job.assign(pid):
+                self._assigned.add(pid)
+
+    def _confine_workers(self):
+        if self._job is None:
+            return
+        try:
+            self._pool.submit(_ping).result(timeout=self.timeout)  # force initial spawn
+        except Exception:
+            pass  # best-effort
+        self._assign_new()
+
+    @property
+    def confined(self):
+        return self._job is not None
 
     def decode(self, raw):
+        self._assign_new()  # confine recycled / new workers (no extra round-trip)
         try:
             return self._pool.submit(_decode, raw, self.cap).result(timeout=self.timeout)
         except BrokenProcessPool:
-            # A worker died (e.g. a decoder segfault). Rebuild so later requests
-            # recover; this one fails (caller treats it as a transient error).
+            # A worker died (decoder segfault, or a Job memory-limit kill). Rebuild
+            # so later requests recover; this one fails (transient error).
+            self._assigned.clear()
             self._pool = self._new_pool()
+            self._confine_workers()
             raise
 
     def close(self):
         self._pool.shutdown(wait=False)
+        if self._job is not None:
+            self._job.close()  # KILL_ON_JOB_CLOSE reaps any survivors

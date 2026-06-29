@@ -1,6 +1,7 @@
 """Out-of-process decode pool (feature/sandbox prototype)."""
 
 import io
+import sys
 
 import numpy as np
 from PIL import Image
@@ -18,6 +19,7 @@ def _png(w, h):
 def test_decode_returns_rgb_and_original_size():
     pool = DecodePool(workers=1, recycle=50, cap=1024)
     try:
+        assert pool.confined == (sys.platform == "win32")  # Job confinement on Windows
         arr, ow, oh = pool.decode(_png(30, 20))
         assert (ow, oh) == (30, 20)
         assert arr.ndim == 3 and arr.shape[2] == 3
