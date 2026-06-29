@@ -1,6 +1,9 @@
 """SSRF guard + fetch input handling (server.py)."""
 
 import base64
+import socket
+
+import pytest
 
 import imgedge.classifier.server as server
 
@@ -46,3 +49,30 @@ def test_data_url_decodes():
 def test_data_url_without_comma_returns_none():
     # No comma -> the split has no payload part -> handled, returns None.
     assert server.fetch_image_bytes(None, "data:image/png;base64") is None
+
+
+def _fake_getaddrinfo(ip):
+    def _inner(host, port, *a, **k):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, port or 0))]
+    return _inner
+
+
+def test_pinned_resolver_blocks_rebind_to_private(monkeypatch):
+    # DNS-rebinding TOCTOU: even if the name resolves to a private address at
+    # connect time, the pinned resolver refuses it instead of connecting.
+    monkeypatch.setattr(server.socket, "getaddrinfo", _fake_getaddrinfo("10.0.0.5"))
+    with pytest.raises(OSError):
+        server._resolve_pinned_addr("evil.example.com", 443)
+
+
+def test_pinned_resolver_blocks_rebind_to_metadata(monkeypatch):
+    # 169.254.169.254 is the cloud-metadata endpoint a rebind attack aims for.
+    monkeypatch.setattr(server.socket, "getaddrinfo", _fake_getaddrinfo("169.254.169.254"))
+    with pytest.raises(OSError):
+        server._resolve_pinned_addr("evil.example.com", 80)
+
+
+def test_pinned_resolver_allows_public(monkeypatch):
+    monkeypatch.setattr(server.socket, "getaddrinfo", _fake_getaddrinfo("93.184.216.34"))
+    sockaddr = server._resolve_pinned_addr("example.com", 443)
+    assert sockaddr[0] == "93.184.216.34"

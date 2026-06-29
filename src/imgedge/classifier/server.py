@@ -46,6 +46,7 @@ Environment overrides:
 
 import base64
 import hashlib
+import http.client
 import ipaddress
 import json
 import logging
@@ -419,16 +420,27 @@ def ensure_ensemble():
 
 
 # ---- SSRF-guarded image fetch ----------------------------------------------
+# Defense in depth against server-side request forgery on the user-supplied image
+# URL:
+#   1. scheme allow-list (http/https only) + a fast pre-check (_is_public_host);
+#   2. redirects are never followed (blocks redirect-to-internal);
+#   3. the socket is PINNED to the exact IP we validated, so the host cannot be
+#      rebound to a private/loopback address between the check and the connect
+#      (the classic DNS-rebinding TOCTOU bypass). TLS SNI + certificate checks
+#      stay bound to the original hostname.
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, *args, **kwargs):
         return None  # never follow redirects (blocks redirect-to-internal SSRF)
 
 
-_opener = urllib.request.build_opener(_NoRedirect)
+def _ip_is_public(addr):
+    """True only if `addr` (an ipaddress address) is a routable public IP."""
+    return not (addr.is_private or addr.is_loopback or addr.is_link_local
+                or addr.is_multicast or addr.is_reserved or addr.is_unspecified)
 
 
 def _is_public_host(host):
-    """True only if every resolved address is a routable public IP."""
+    """True only if every resolved address for `host` is a routable public IP."""
     try:
         infos = socket.getaddrinfo(host, None)
     except socket.gaierror:
@@ -440,10 +452,63 @@ def _is_public_host(host):
             addr = ipaddress.ip_address(info[4][0])
         except ValueError:
             return False
-        if (addr.is_private or addr.is_loopback or addr.is_link_local
-                or addr.is_multicast or addr.is_reserved or addr.is_unspecified):
+        if not _ip_is_public(addr):
             return False
     return True
+
+
+def _resolve_pinned_addr(host, port):
+    """Resolve `host`, require EVERY resolved address to be public, and return one
+    validated sockaddr to connect to. Raises OSError on lookup failure or if any
+    address is non-public. Connecting to this exact address (instead of re-using
+    the hostname) is what closes the DNS-rebinding TOCTOU gap."""
+    infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    if not infos:
+        raise OSError("no addresses for host")
+    for _family, _type, _proto, _canon, sockaddr in infos:
+        try:
+            addr = ipaddress.ip_address(sockaddr[0])
+        except ValueError as exc:
+            raise OSError(f"unparseable address: {sockaddr[0]!r}") from exc
+        if not _ip_is_public(addr):
+            raise OSError(f"blocked non-public address: {sockaddr[0]}")
+    return infos[0][4]
+
+
+class _PinnedHTTPConnection(http.client.HTTPConnection):
+    """Connects only to the validated IP for ``self.host`` (no second lookup)."""
+    def connect(self):
+        sockaddr = _resolve_pinned_addr(self.host, self.port)
+        self.sock = socket.create_connection(
+            sockaddr[:2], self.timeout, self.source_address)
+        if self._tunnel_host:
+            self._tunnel()
+
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    """As above, with TLS SNI + certificate check kept on the original hostname."""
+    def connect(self):
+        sockaddr = _resolve_pinned_addr(self.host, self.port)
+        sock = socket.create_connection(
+            sockaddr[:2], self.timeout, self.source_address)
+        if self._tunnel_host:
+            self.sock = sock
+            self._tunnel()
+        self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+
+
+class _PinnedHTTPHandler(urllib.request.HTTPHandler):
+    def http_open(self, req):
+        return self.do_open(_PinnedHTTPConnection, req)
+
+
+class _PinnedHTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(_PinnedHTTPSConnection, req, context=self._context)
+
+
+_opener = urllib.request.build_opener(
+    _PinnedHTTPHandler, _PinnedHTTPSHandler, _NoRedirect)
 
 
 def fetch_image_bytes(url, data):
