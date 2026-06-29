@@ -17,13 +17,15 @@ remains the cross-platform crash boundary. Enable with IMGEDGE_SANDBOX=1.
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
 
-import numpy as np
-
 from imgedge.classifier import confine
 
 
 def _decode(raw, cap):
-    # Imported inside the worker so the parent process needn't import Pillow.
+    # numpy/Pillow are imported here (not at module top) so the parent needn't
+    # load them, and so worker_init's OPENBLAS_NUM_THREADS=1 takes effect before
+    # numpy/OpenBLAS initialises.
+    import numpy as np
+
     from imgedge.inat.inat_filter import open_guarded
 
     with open_guarded(raw) as img:

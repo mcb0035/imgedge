@@ -58,6 +58,8 @@ if _k32 is not None:
 # format allow-list and pixel cap can never silently diverge.
 _WORKER = r"""
 import os, sys, struct, msvcrt, traceback
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')  # decode does no BLAS
+os.environ.setdefault('OMP_NUM_THREADS', '1')
 rfd = msvcrt.open_osfhandle(int(sys.argv[2]), os.O_RDONLY | os.O_BINARY)
 wfd = msvcrt.open_osfhandle(int(sys.argv[3]), os.O_WRONLY | os.O_BINARY)
 cap = int(sys.argv[4])

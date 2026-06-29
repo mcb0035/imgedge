@@ -23,6 +23,7 @@ can read or make network calls. Two stronger steps were explored:
   the Python install + venv. That productionization is the real next step.
 """
 
+import os
 import sys
 
 
@@ -40,6 +41,10 @@ def worker_init(mem_bytes, low_il=False):
     is the robust lightweight confinement, and AppContainer (see appcontainer.py)
     is the proven path for real network + file-write denial.
     """
+    # Decode does no linear algebra; cap BLAS/OMP threads so numpy/OpenBLAS don't
+    # reserve a per-core scratch buffer (~hundreds of MB of commit) in each worker.
+    os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
     if sys.platform == "win32":
         if low_il:
             try:
