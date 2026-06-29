@@ -210,3 +210,14 @@ the extension ID stays stable (`dist/`, `*.crx`, `*.pem` are git-ignored).
   (`python -m imgedge.inat.inat_vision <photo>` ranks the top taxa).
 - Dynamic backgrounds swapped in later (via JS class/style changes) aren't
   re-scanned, to avoid the CPU storm that pegging on those mutations caused.
+
+## License
+
+ImgEdge is licensed under the [Apache License 2.0](LICENSE) — © 2026 Matthew Bedford.
+
+The machine-learning models are **downloaded at runtime, not bundled in this
+repo**, and each remains under its own license (iNaturalist — MIT; timm —
+Apache-2.0). See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for attributions
+and — before you add another model — the **license checklist** there (which model
+licenses are allowed vs off-limits, and the commercial-use / training-data
+pitfalls to watch for).

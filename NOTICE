@@ -1,0 +1,9 @@
+ImgEdge
+Copyright 2026 Matthew Bedford
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product uses, but does not redistribute, third-party machine-learning
+models that are downloaded at runtime and remain under their own licenses
+(the iNaturalist vision model — MIT; the timm MobileNetV3 model — Apache-2.0).
+See THIRD-PARTY-NOTICES.md for attributions and licensing details.
