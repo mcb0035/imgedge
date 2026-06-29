@@ -12,7 +12,8 @@ from PIL import Image
 
 
 def make_image(side, seed=0):
-    """A deterministic, photorealistic-ish noise RGB image of ``side``x``side``."""
+    """A deterministic RGB noise image of ``side``x``side`` (seeded, so encoded
+    bytes and decoded pixels are identical run to run)."""
     rng = np.random.default_rng(seed)
     arr = (rng.random((side, side, 3)) * 255).astype("uint8")
     return Image.fromarray(arr)
