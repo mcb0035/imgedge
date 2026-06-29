@@ -19,6 +19,11 @@ checks (warm-pool reuse, IPC overhead, the per-worker `OPENBLAS_NUM_THREADS=1`
 cap) that tolerate CI runner noise. They run as the **Performance guards** CI job
 and locally with `pytest -m perf`. Use the scripts below for actual numbers.
 
+Fine-grained, **noise-free** deltas come from **CodSpeed** — the `test_*.py`
+files in this folder are an instruction-count benchmark suite (decode, salience,
+voting) run by the CodSpeed workflow (`pytest benchmark/ --codspeed`), which
+comments per-benchmark changes on PRs.
+
 ## bench_decode.py
 
 ```pwsh

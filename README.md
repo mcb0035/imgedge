@@ -1,5 +1,7 @@
 # ImgEdge
 
+[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/mcb0035/imgedge?utm_source=badge)
+
 A minimal Microsoft Edge / Chromium (Manifest V3) extension that intercepts the
 images on every page, classifies each one with a **local** model, and hides the
 ones you don't want to see — so you can keep a category of image (by default
@@ -54,7 +56,7 @@ flowchart LR
 | `src/imgedge/voters/` | Voting ensemble: base classes, iNaturalist + timm voters, image-salience weighting |
 | `src/imgedge/inat/` | iNaturalist model: download, TFLite + ONNX backends, taxonomy filter |
 | `tests/` | pytest suite (SSRF, integrity, cache, voting, salience, decode sandbox, perf guards) |
-| `benchmark/` | Decode-latency + memory-footprint scripts (see [benchmark/README.md](benchmark/README.md)) |
+| `benchmark/` | Decode-latency + memory-footprint scripts, plus the CodSpeed suite (`pytest benchmark/ --codspeed`) — see [benchmark/README.md](benchmark/README.md) |
 | `training/` | **Optional / not used by default** — a from-scratch MobileNetV3 fine-tune pipeline |
 | `package.ps1` | Build a store-ready ZIP (and optional `.crx`) of the extension |
 
