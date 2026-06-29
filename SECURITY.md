@@ -89,8 +89,8 @@ These are deliberately documented rather than hidden:
   AppContainer that denies the decoder network and writes to your files). Both
   are opt-in and **off by default**; with them disabled the decode runs
   in-process, so the pixel cap, format allowlist, and byte cap are the only
-  guards. The AppContainer path needs a one-time `icacls` grant of its SID on
-  the Python install (reversible: `icacls <path> /remove:g *<sid>`).
+  guards. The AppContainer path needs a one-time, near-instant `icacls` grant of
+  its SID on the Python install (reversible: `icacls <path> /remove:g *<sid>`).
 - **Inline image data (`sendData`).** When enabled, a page can hand image bytes
   directly to the decoder, bypassing the SSRF *fetch* path. Exposure is similar
   to fetched public images and is bounded by the same decode hardening.
@@ -113,8 +113,8 @@ These are deliberately documented rather than hidden:
 - Keep Python dependencies current: `pip install -U pillow onnxruntime*`.
 - Leave the access token enabled (don't set an empty `IMGEDGE_TOKEN`).
 - On Windows, consider `IMGEDGE_SANDBOX_APPCONTAINER=1` to decode untrusted
-  images in a no-network AppContainer (the first run does a one-time icacls
-  grant of the container's read access to your Python install).
+  images in a no-network AppContainer (the first run does a one-time, near-instant
+  icacls grant of the container's read access to your Python install).
 - Set `IMGEDGE_CACHE_FILE=none` if you don't want any verdicts persisted.
 - The classifier never needs inbound network or elevated privileges — run it as
   your normal user and don't expose port `8723` beyond `127.0.0.1`.
