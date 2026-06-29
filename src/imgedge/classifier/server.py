@@ -105,6 +105,7 @@ SANDBOX_WORKERS = int(os.environ.get("IMGEDGE_SANDBOX_WORKERS", "2"))
 SANDBOX_RECYCLE = int(os.environ.get("IMGEDGE_SANDBOX_RECYCLE", "200"))
 SANDBOX_MEM_MB = int(os.environ.get("IMGEDGE_SANDBOX_MEM_MB", "1024"))
 SANDBOX_CONFINE = os.environ.get("IMGEDGE_SANDBOX_CONFINE", "1") != "0"
+SANDBOX_LOWIL = os.environ.get("IMGEDGE_SANDBOX_LOWIL", "1") != "0"
 log = logging.getLogger("imgedge")
 
 
@@ -469,9 +470,11 @@ def _get_decoder():
             if _decoder is None:
                 from imgedge.classifier.decode_pool import DecodePool
                 _decoder = DecodePool(workers=SANDBOX_WORKERS, recycle=SANDBOX_RECYCLE,
-                                      confine_os=SANDBOX_CONFINE, mem_mb=SANDBOX_MEM_MB)
-                log.info("sandbox decode pool: %d workers, recycle %d, confined=%s",
-                         SANDBOX_WORKERS, SANDBOX_RECYCLE, _decoder.confined)
+                                      confine_os=SANDBOX_CONFINE, mem_mb=SANDBOX_MEM_MB,
+                                      low_il=SANDBOX_LOWIL)
+                log.info("sandbox decode pool: %d workers, recycle %d, confined=%s, worker=%s",
+                         SANDBOX_WORKERS, SANDBOX_RECYCLE, _decoder.confined,
+                         _decoder.worker_integrity())
     return _decoder
 
 

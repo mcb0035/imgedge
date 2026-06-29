@@ -39,6 +39,11 @@ def _ping():
     return True
 
 
+def _integrity_probe():
+    from imgedge.classifier import confine
+    return confine.current_integrity()
+
+
 class DecodePool:
     """A recycled ProcessPool that decodes image bytes -> (uint8 RGB array, w, h).
 
@@ -47,12 +52,13 @@ class DecodePool:
     """
 
     def __init__(self, workers=2, recycle=200, cap=1024, timeout=8.0,
-                 confine_os=True, mem_mb=1024):
+                 confine_os=True, mem_mb=1024, low_il=True):
         self.workers = max(1, int(workers))
         self.recycle = max(1, int(recycle))
         self.cap = int(cap)
         self.timeout = float(timeout)
         self.mem_bytes = int(mem_mb) * 1024 * 1024
+        self.low_il = bool(low_il)
         self._job = None
         if confine_os and confine.WindowsJob is not None:
             try:
@@ -66,7 +72,7 @@ class DecodePool:
     def _new_pool(self):
         return ProcessPoolExecutor(
             max_workers=self.workers, max_tasks_per_child=self.recycle,
-            initializer=confine.worker_init, initargs=(self.mem_bytes,))
+            initializer=confine.worker_init, initargs=(self.mem_bytes, self.low_il))
 
     def _assign_new(self):
         """Assign any not-yet-confined worker PIDs to the Job (cheap; no IPC)."""
@@ -88,6 +94,13 @@ class DecodePool:
     @property
     def confined(self):
         return self._job is not None
+
+    def worker_integrity(self):
+        """Probe a worker's integrity level (e.g. 'low') for verification."""
+        try:
+            return self._pool.submit(_integrity_probe).result(timeout=self.timeout)
+        except Exception:
+            return "?"
 
     def decode(self, raw):
         self._assign_new()  # confine recycled / new workers (no extra round-trip)
