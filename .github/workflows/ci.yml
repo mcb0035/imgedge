@@ -21,7 +21,7 @@ jobs:
       - name: Lint (ruff)
         run: ruff check .
       - name: Compile
-        run: python -m py_compile src/imgedge/classifier/server.py src/imgedge/inat/*.py src/imgedge/voters/*.py
+        run: python -m py_compile src/imgedge/classifier/*.py src/imgedge/inat/*.py src/imgedge/voters/*.py
       - name: Tests
         run: pytest
 
