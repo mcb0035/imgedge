@@ -52,7 +52,7 @@ class DecodePool:
     """
 
     def __init__(self, workers=2, recycle=200, cap=1024, timeout=8.0,
-                 confine_os=True, mem_mb=1024, low_il=True):
+                 confine_os=True, mem_mb=1024, low_il=False):
         self.workers = max(1, int(workers))
         self.recycle = max(1, int(recycle))
         self.cap = int(cap)

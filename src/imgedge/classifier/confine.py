@@ -11,22 +11,34 @@ POSIX: each worker self-limits its address space via ``setrlimit``.
 NOTE — what this is and isn't: this is kernel-enforced *resource + UI + lifecycle*
 confinement, which bounds abuse and contains crashes. It is **not** a full
 privilege drop: a code-exec exploit in a decoder could still read files the user
-can read or make network calls. The stronger follow-ups are a low-integrity /
-restricted token or an AppContainer (Windows) and seccomp/namespaces (Linux);
-those need extra setup (e.g. granting the container read access to the venv) and
-are intentionally left as the next step.
+can read or make network calls. Two stronger steps were explored:
+
+* Low-integrity token (``worker_init(low_il=True)``) — turned out to be fragile:
+  dropping a *running* worker to Low IL breaks lazy imports of a profile
+  installed Python, so it is OFF by default and not recommended.
+* AppContainer (``appcontainer.py``) — proven to deny network *and* writes to the
+  user's files while still decoding; it requires launching the worker with
+  security capabilities at process-creation time (so it needs a custom worker +
+  IPC instead of ProcessPoolExecutor) and granting the container read access to
+  the Python install + venv. That productionization is the real next step.
 """
 
 import sys
 
 
-def worker_init(mem_bytes, low_il=True):
+def worker_init(mem_bytes, low_il=False):
     """Run inside each worker at startup, before it ever touches untrusted bytes.
 
-    Windows: drop the worker's own process integrity to Low, so a compromised
-    decoder cannot write to the user's (medium-integrity) files or inject into
-    other processes. Low integrity keeps read/execute, so importing the venv
-    still works. POSIX: cap the worker's address space.
+    POSIX: cap the worker's address space via ``setrlimit``.
+
+    Windows (low_il, OFF by default): drop the worker's own integrity to Low.
+    Caveat learned the hard way: dropping a *running* interpreter to Low IL
+    breaks any not-yet-loaded import (stdlib *and* venv) because a profile
+    installed Python tree is not readable by a Low-IL token on a typical box --
+    the worker dies with ``ModuleNotFoundError`` the first time it lazily imports
+    csv/numpy/etc. So Low-IL is opt-in only and unreliable; the Job object below
+    is the robust lightweight confinement, and AppContainer (see appcontainer.py)
+    is the proven path for real network + file-write denial.
     """
     if sys.platform == "win32":
         if low_il:
