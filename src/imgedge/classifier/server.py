@@ -20,7 +20,7 @@ Run:
 
 Environment overrides:
   IMGEDGE_TARGET     taxon name to block (default: Arachnida)
-  IMGEDGE_THRESHOLD  block when P(target) >= this (default: 0.5)
+  IMGEDGE_THRESHOLD  block when P(target) >= this (default: 0.18)
   IMGEDGE_MODEL      path to the .tflite vision model
   IMGEDGE_TAXONOMY   path to taxonomy.csv
   IMGEDGE_TOKEN      fixed access token (else one is generated and persisted)
@@ -42,6 +42,9 @@ Environment overrides:
   IMGEDGE_TIMM_CONTRAST_WEIGHT  weight of contrast (look-alike) evidence (default: 0.0)
   IMGEDGE_TIMM_THRESHOLD timm voter block threshold (default: 0.5)
   IMGEDGE_TIMM_WEIGHT    timm evidence weight in the ensemble (default: 0.5)
+  IMGEDGE_SIGLIP     enable the open-vocab SigLIP 2 voter (default: 0; 1=on)
+  IMGEDGE_SIGLIP_MODEL   HF SigLIP model id (default: google/siglip2-base-patch16-224)
+  IMGEDGE_SIGLIP_WEIGHT  siglip evidence weight in the ensemble (default: 0.5)
 """
 
 import base64
@@ -90,6 +93,12 @@ TIMM_WEIGHT = float(os.environ.get("IMGEDGE_TIMM_WEIGHT", "0.5"))
 # iNat (real-organism) confidence at/above which it blocks outright, ignoring
 # the look-alike contrast voter. Set >1.0 (e.g. 1.1) to disable.
 INAT_OVERRIDE = float(os.environ.get("IMGEDGE_INAT_OVERRIDE", "0.9"))
+# Optional third voter: open-vocabulary SigLIP 2 (off by default; needs the
+# transformers extra). Recognises arachnids the closed-vocab voters have no
+# class for, adding independent positive evidence on borderline images.
+SIGLIP_ENABLE = os.environ.get("IMGEDGE_SIGLIP", "0") != "0"
+SIGLIP_THRESHOLD = float(os.environ.get("IMGEDGE_SIGLIP_THRESHOLD", "0.5"))
+SIGLIP_WEIGHT = float(os.environ.get("IMGEDGE_SIGLIP_WEIGHT", "0.5"))
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 MAX_BODY_BYTES = 16 * 1024 * 1024  # request-body cap (8MB image -> ~11MB base64 + JSON)
@@ -427,6 +436,15 @@ def load_ensemble():
         )
     except Exception as e:
         log.info('timm voter skipped (%s); pip install -e ".[voters]" to enable it.', e)
+    if SIGLIP_ENABLE:
+        try:
+            from imgedge.voters.siglip_voter import SiglipVoter
+
+            sv = SiglipVoter(threshold=SIGLIP_THRESHOLD, weight=SIGLIP_WEIGHT)
+            voters.append(sv)
+            log.info("siglip voter: %s on %s, %d prompt(s)", sv.name, sv.provider, len(sv.prompts))
+        except Exception as e:
+            log.info('siglip voter skipped (%s); pip install -e ".[voters,siglip]" and set IMGEDGE_SIGLIP=1.', e)
     if not voters:
         return None
     from imgedge.voters.base import VoteEnsemble

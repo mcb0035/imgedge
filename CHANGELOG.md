@@ -20,6 +20,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Open-vocabulary SigLIP 2 voter** (`src/imgedge/voters/siglip_voter.py`,
+  off by default): an optional third voter that scores images against free-text
+  prompts using `google/siglip2-base-patch16-224` (Apache-2.0), catching
+  arachnids the closed-vocabulary iNat/timm voters have no class for. Enable
+  with `IMGEDGE_SIGLIP=1` after `pip install -e ".[voters,siglip]"`; tune
+  `IMGEDGE_SIGLIP_WEIGHT` / `IMGEDGE_SIGLIP_GAIN` against the eval harness.
 - **iNat-confidence override:** when the iNaturalist model (trained on real
   living organisms) is at/above `IMGEDGE_INAT_OVERRIDE` confidence (default
   `0.9`), it blocks outright and the look-alike contrast voter can no longer
