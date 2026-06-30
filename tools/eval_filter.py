@@ -66,17 +66,19 @@ def _label_for(name):
     return None
 
 
-def _iter_dir(root):
+def _iter_dir(root, only=None):
     for label in ("block", "allow"):
         base = Path(root) / label
         if not base.is_dir():
             continue
         for f in sorted(base.rglob("*")):
             if f.is_file() and f.suffix.lower() in IMAGE_EXTS:
-                yield label, f"{label}/{f.relative_to(base).as_posix()}", f.read_bytes()
+                name = f"{label}/{f.relative_to(base).as_posix()}"
+                if only is None or name in only:
+                    yield label, name, f.read_bytes()
 
 
-def _iter_zip(zip_path, password):
+def _iter_zip(zip_path, password, only=None):
     try:
         import pyzipper
     except ModuleNotFoundError as e:
@@ -92,24 +94,69 @@ def _iter_zip(zip_path, password):
                 label = _label_for(info.filename)
                 if label is None or Path(info.filename).suffix.lower() not in IMAGE_EXTS:
                     continue
+                if only is not None and info.filename not in only:
+                    continue
                 yield label, info.filename, zf.read(info)
     except RuntimeError as e:
         raise SystemExit(f"Could not read encrypted zip (wrong password?): {e}") from e
 
 
-def iter_samples(path, password=None):
+def iter_samples(path, password=None, only=None):
     """Yield (label, name, raw_bytes) for every labelled image in `path`.
 
     `path` is an AES-encrypted .zip or a directory with block/ and allow/
     subfolders. Bytes are read into memory only; nothing is extracted to disk.
+    `only`, if given, restricts output to that set of names (for sampling).
     """
     p = Path(path)
     if p.is_dir():
-        yield from _iter_dir(p)
+        yield from _iter_dir(p, only)
     elif p.suffix.lower() == ".zip":
-        yield from _iter_zip(p, password)
+        yield from _iter_zip(p, password, only)
     else:
         raise SystemExit(f"Dataset must be a directory or a .zip: {path}")
+
+
+def _labeled_names(path, password=None):
+    """Yield (label, name) for labelled entries WITHOUT reading image bytes.
+    Zip entry names are not encrypted, so listing needs no password."""
+    p = Path(path)
+    if p.is_dir():
+        for label in ("block", "allow"):
+            base = p / label
+            if base.is_dir():
+                for f in sorted(base.rglob("*")):
+                    if f.is_file() and f.suffix.lower() in IMAGE_EXTS:
+                        yield label, f"{label}/{f.relative_to(base).as_posix()}"
+        return
+    if p.suffix.lower() == ".zip":
+        try:
+            import pyzipper
+        except ModuleNotFoundError as e:
+            raise SystemExit('Encrypted datasets need pyzipper: pip install -e ".[eval]"') from e
+        with pyzipper.AESZipFile(p) as zf:
+            for info in zf.infolist():
+                label = _label_for(info.filename)
+                if not info.is_dir() and label and Path(info.filename).suffix.lower() in IMAGE_EXTS:
+                    yield label, info.filename
+        return
+    raise SystemExit(f"Dataset must be a directory or a .zip: {path}")
+
+
+def _sample_names(path, password, sample_per_class, seed):
+    """Pick a random up-to-N names per class (the names list is read without
+    decrypting any image)."""
+    import random
+
+    rng = random.Random(seed)
+    by_label = {}
+    for label, name in _labeled_names(path, password):
+        by_label.setdefault(label, []).append(name)
+    only = set()
+    for names in by_label.values():
+        rng.shuffle(names)
+        only.update(names[:sample_per_class])
+    return only
 
 
 # --------------------------------------------------------------------------- #
@@ -151,11 +198,13 @@ def classify_sample(ens, raw, threshold=None, salience=None):
     }
 
 
-def evaluate(path, threshold=None, salience=None, password=None):
-    """Classify every labelled image; return records with label + scores only."""
+def evaluate(path, threshold=None, salience=None, password=None, sample_per_class=None, seed=1234):
+    """Classify labelled images; return records with label + scores only.
+    `sample_per_class` scores a random N per class instead of the whole set."""
     ens = load_pipeline()
+    only = _sample_names(path, password, sample_per_class, seed) if sample_per_class else None
     records = []
-    for label, name, raw in iter_samples(path, password):
+    for label, name, raw in iter_samples(path, password, only):
         rec = classify_sample(ens, raw, threshold, salience)
         rec["label"] = label
         rec["name"] = name
@@ -261,6 +310,16 @@ def _miss_row(r):
     }
 
 
+def _score_row(r):
+    return {
+        "label": r["label"],
+        "combined": round(r["combined"], 4),
+        "pos": _round(r["pos"]),
+        "neg": _round(r["neg"]),
+        "mult": _round(r["mult"]),
+    }
+
+
 def _op_threshold(records, override):
     if override is not None:
         return override
@@ -283,6 +342,7 @@ def build_report(records, threshold, salience, sweep_on=True):
         },
         "false_negatives": [_miss_row(r) for r in fns],
         "false_positives": [_miss_row(r) for r in fps],
+        "records": [_score_row(r) for r in records],
     }
     if sweep_on:
         rep["threshold_sweep"] = sweep(records)
@@ -431,6 +491,188 @@ def build_urls(urls_file, out_zip, password):
 
 
 # --------------------------------------------------------------------------- #
+# Synthetic datasets (procedural images for a no-real-data tuning / smoke pass)
+# --------------------------------------------------------------------------- #
+# These are crude procedural drawings, not photographs. A single pass is useful
+# to confirm the pipeline end to end, measure the false-positive rate on varied
+# non-arachnid images, and watch the salience multiplier across sizes. They
+# CANNOT stand in for real-photo recall (the iNat model is trained on real
+# organisms and scores drawings low) and so cannot exercise the iNat-confidence
+# override. Generated images go straight into the encrypted zip, never shown.
+def _rand_color(rng):
+    return (rng.randint(0, 255), rng.randint(0, 255), rng.randint(0, 255))
+
+
+def _png_bytes(img):
+    import io
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _draw_spider(draw, w, h, rng):
+    cx, cy = w / 2, h / 2
+    unit = max(3, min(w, h) // 9)
+    col = (rng.randint(0, 70), rng.randint(0, 70), rng.randint(0, 70))
+    width = max(1, unit // 3)
+    for k in range(4):  # four legs per side, two segments each, radiating out
+        dy = (k - 1.5) * unit * 0.7
+        for side in (-1, 1):
+            knee = (cx + side * unit * 2.4, cy + dy - unit * 0.6)
+            foot = (cx + side * unit * (3.6 + rng.random()), cy + dy + unit * 1.3)
+            draw.line([(cx, cy + dy * 0.4), knee, foot], fill=col, width=width, joint="curve")
+    draw.ellipse([cx - unit, cy - unit * 0.4, cx + unit, cy + unit * 2.2], fill=col)  # abdomen
+    draw.ellipse([cx - unit * 0.6, cy - unit * 1.6, cx + unit * 0.6, cy + unit * 0.2], fill=col)  # cephalothorax
+
+
+def _draw_negative(draw, w, h, rng):
+    kind = rng.choice(("shapes", "bars", "rings", "blank"))
+    if kind == "blank":
+        return
+    for _ in range(rng.randint(2, 6)):
+        x0, y0, x1, y1 = rng.randint(0, w), rng.randint(0, h), rng.randint(0, w), rng.randint(0, h)
+        box = [min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)]
+        col = _rand_color(rng)
+        if kind == "rings":
+            draw.ellipse(box, outline=col, width=max(1, w // 40))
+        elif kind == "bars":
+            draw.rectangle(box, fill=col)
+        else:
+            (draw.ellipse if rng.random() < 0.5 else draw.rectangle)(box, fill=col)
+
+
+def build_synthetic(out_zip, password, count=30, seed=1234):
+    """Generate `count` procedural arachnid drawings (block/) and `count`
+    non-arachnid images (allow/) straight into an AES zip. Nothing is displayed."""
+    import random
+
+    from PIL import Image, ImageDraw
+
+    rng = random.Random(seed)
+    sizes = (48, 64, 96, 128, 160, 224, 320, 400)
+
+    def gen():
+        for label, paint in (("block", _draw_spider), ("allow", _draw_negative)):
+            for i in range(count):
+                size = rng.choice(sizes)
+                img = Image.new("RGB", (size, size), _rand_color(rng))
+                paint(ImageDraw.Draw(img), size, size, rng)
+                yield f"{label}/{i:04d}.png", _png_bytes(img)
+
+    n = _write_zip(out_zip, password, gen())
+    print(f"Wrote {n} synthetic images ({count} block / {count} allow) into {out_zip} (AES-256).")
+    print("Procedural drawings only -- no real photo, nothing displayed.")
+
+
+# --------------------------------------------------------------------------- #
+# iNaturalist 2021 dataset sorter (visipedia/inat_comp 2021)
+# --------------------------------------------------------------------------- #
+# Sort an iNat 2021 dataset into block/ (taxonomic class == "Arachnida") and
+# allow/ (everything else) using the COCO-style metadata, writing a balanced
+# subset STRAIGHT into the encrypted zip. Nothing is extracted to loose files
+# and nothing is displayed, so an arachnid set is assembled without ever
+# rendering an image. Per the iNat terms of use the images are not
+# redistributable; the encrypted zip is local-only (gitignored) -- never commit.
+def _load_inat_meta(meta_path):
+    p = Path(meta_path)
+    name = p.name.lower()
+    if name.endswith((".tar.gz", ".tgz", ".tar")):
+        import tarfile
+
+        with tarfile.open(p, "r:*") as tf:
+            member = next((m for m in tf.getmembers() if m.name.endswith(".json")), None)
+            if member is None:
+                raise SystemExit(f"No .json inside {meta_path}")
+            return json.load(tf.extractfile(member))
+    if name.endswith(".zip"):
+        import zipfile
+
+        with zipfile.ZipFile(p) as zf:
+            jn = next((n for n in zf.namelist() if n.endswith(".json")), None)
+            if jn is None:
+                raise SystemExit(f"No .json inside {meta_path}")
+            return json.loads(zf.read(jn))
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def _iter_inat_images(images_path, wanted):
+    """Yield (file_name, bytes) for members named in `wanted` from a directory,
+    a tar(.gz), or a zip -- streaming, without extracting anything to disk."""
+    p = Path(images_path)
+    if p.is_dir():
+        for fn in wanted:
+            f = p / fn
+            if f.is_file():
+                yield fn, f.read_bytes()
+        return
+    name = p.name.lower()
+    if name.endswith((".tar.gz", ".tgz", ".tar")):
+        import tarfile
+
+        with tarfile.open(p, "r:*") as tf:
+            for m in tf:
+                key = m.name.lstrip("./")
+                if m.isfile() and key in wanted:
+                    fobj = tf.extractfile(m)
+                    if fobj is not None:
+                        yield key, fobj.read()
+        return
+    if name.endswith(".zip"):
+        import zipfile
+
+        with zipfile.ZipFile(p) as zf:
+            for info in zf.infolist():
+                key = info.filename.lstrip("./")
+                if not info.is_dir() and key in wanted:
+                    yield key, zf.read(info)
+        return
+    raise SystemExit(f"Unsupported images source (use a dir, .tar.gz, or .zip): {images_path}")
+
+
+def build_inat(images_path, meta_path, out_zip, password, limit_per_class=200, seed=1234):
+    """Sort an iNat 2021 dataset by taxonomy into block(arachnid)/allow inside an
+    encrypted zip, using the metadata JSON. Streams from the image archive; never
+    extracts loose files or displays anything."""
+    import random
+
+    rng = random.Random(seed)
+    meta = _load_inat_meta(meta_path)
+    cats = {c["id"]: c for c in meta.get("categories", [])}
+    arachnid_ids = {cid for cid, c in cats.items() if (c.get("class") or "").strip().lower() == "arachnida"}
+    if not arachnid_ids:
+        raise SystemExit("No 'Arachnida' class in categories -- is this iNat 2021 metadata?")
+    fname = {im["id"]: im["file_name"] for im in meta.get("images", [])}
+    block_files, allow_files = [], []
+    for ann in meta.get("annotations", []):
+        fn = fname.get(ann["image_id"])
+        if fn:
+            (block_files if ann["category_id"] in arachnid_ids else allow_files).append(fn)
+    if not block_files:
+        raise SystemExit("No arachnid images found in the annotations.")
+    rng.shuffle(block_files)
+    rng.shuffle(allow_files)
+    wanted = {fn.lstrip("./"): "block" for fn in block_files[:limit_per_class]}
+    wanted.update({fn.lstrip("./"): "allow" for fn in allow_files[:limit_per_class]})
+
+    counts = {"block": 0, "allow": 0}
+
+    def gen():
+        for key, data in _iter_inat_images(images_path, wanted):
+            label = wanted.get(key)
+            if label is None or counts[label] >= limit_per_class:
+                continue
+            counts[label] += 1
+            yield f"{label}/{counts[label]:05d}{_sniff_ext(data)}", data
+            if counts["block"] >= limit_per_class and counts["allow"] >= limit_per_class:
+                break
+
+    n = _write_zip(out_zip, password, gen())
+    print(f"Sorted {n} iNat images: {counts['block']} arachnid -> block, {counts['allow']} other -> allow.")
+    print(f"Matched {len(arachnid_ids)} Arachnida categories -> {out_zip} (AES-256). Nothing extracted or shown.")
+
+
+# --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
 def _get_password(required=True):
@@ -455,6 +697,8 @@ def main(argv=None):
     pe.add_argument("--salience", type=float, default=None, help="salience weight 0..1 (0 = off)")
     pe.add_argument("--report", default=None, help="write a JSON report (scores only, no images)")
     pe.add_argument("--no-sweep", action="store_true", help="skip the threshold/salience sweeps")
+    pe.add_argument("--sample-per-class", type=int, default=None, help="score a random N per class (sample the set)")
+    pe.add_argument("--seed", type=int, default=1234, help="sampling seed")
 
     pd = sub.add_parser("build-dir", help="encrypt a block/+allow/ folder into an AES zip")
     pd.add_argument("src_dir")
@@ -464,11 +708,23 @@ def main(argv=None):
     pu.add_argument("urls_file")
     pu.add_argument("out_zip")
 
+    ps = sub.add_parser("build-synthetic", help="generate a procedural labelled dataset (no real images)")
+    ps.add_argument("out_zip")
+    ps.add_argument("--count", type=int, default=30, help="images per class (default 30)")
+    ps.add_argument("--seed", type=int, default=1234, help="RNG seed for reproducibility")
+
+    pi = sub.add_parser("build-inat", help="sort an iNat 2021 dataset into block(arachnid)/allow (AES zip)")
+    pi.add_argument("images", help="iNat images: a directory, .tar.gz, or .zip")
+    pi.add_argument("metadata", help="iNat metadata: *.json (or .json.tar.gz / .zip)")
+    pi.add_argument("out_zip")
+    pi.add_argument("--limit-per-class", type=int, default=200, help="max images per class (default 200)")
+    pi.add_argument("--seed", type=int, default=1234, help="RNG seed for reproducibility")
+
     args = parser.parse_args(argv)
 
     if args.cmd == "eval":
         password = _get_password(required=str(args.dataset).lower().endswith(".zip"))
-        records = evaluate(args.dataset, args.threshold, args.salience, password)
+        records = evaluate(args.dataset, args.threshold, args.salience, password, args.sample_per_class, args.seed)
         if not records:
             raise SystemExit("No labelled images found (expected block/ and allow/ entries).")
         report = build_report(records, args.threshold, args.salience, sweep_on=not args.no_sweep)
@@ -484,6 +740,14 @@ def main(argv=None):
 
     if args.cmd == "build-urls":
         build_urls(args.urls_file, args.out_zip, _get_password())
+        return 0
+
+    if args.cmd == "build-synthetic":
+        build_synthetic(args.out_zip, _get_password(), args.count, args.seed)
+        return 0
+
+    if args.cmd == "build-inat":
+        build_inat(args.images, args.metadata, args.out_zip, _get_password(), args.limit_per_class, args.seed)
         return 0
 
     return 1
