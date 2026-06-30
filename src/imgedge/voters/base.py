@@ -54,11 +54,14 @@ class Voter:
 
 
 class VoteEnsemble:
-    def __init__(self, voters, policy="any", threshold=0.5):
+    def __init__(self, voters, policy="any", threshold=0.5, inat_override=1.01):
         self.voters = list(voters)
         self.policy = policy
         self.threshold = float(threshold)
         self.inat = None  # set by the server for backward-compatible health fields
+        # iNat (real-organism) confidence at/above which it blocks outright,
+        # regardless of the contrast voter. >1.0 disables the override.
+        self.inat_override = float(inat_override)
 
     @property
     def names(self):
@@ -112,7 +115,11 @@ class VoteEnsemble:
         sliders): `threshold` replaces the ensemble threshold; `salience` in
         [0, 1] dials the size/detail weighting (0 = off -> mult forced to 1.0;
         1 = full). Because `combined` does not depend on the threshold, a block
-        at one threshold stays blocked at every lower threshold."""
+        at one threshold stays blocked at every lower threshold.
+
+        If the iNat voter is present and its own P(block) reaches
+        `inat_override`, it blocks outright: a confident real-organism match is
+        not vetoed by the look-alike contrast voter's negative evidence."""
         pos = sum(v.weight * e for (v, _, e) in rows if e > 0)
         neg = sum(v.weight * e for (v, _, e) in rows if e < 0)  # <= 0
         try:
@@ -123,7 +130,16 @@ class VoteEnsemble:
             mult = 1.0 + salience * (mult - 1.0)  # 0 -> no weighting; 1 -> full
         thr = self.threshold if threshold is None else threshold
         combined = max(0.0, min(1.0, pos * mult + neg))
-        block = combined >= thr
+
+        # iNat dominance: a confident real-organism match should not be vetoed
+        # by the look-alike contrast voter, so when iNat's own P(block) clears
+        # `inat_override` it blocks outright (and pins the score to its own).
+        inat_score = next((s for (v, s, _) in rows if v is self.inat), None)
+        override = inat_score is not None and inat_score >= self.inat_override
+        if override:
+            combined = max(combined, inat_score)
+        block = override or combined >= thr
+
         supporters = [v.name for (v, _, e) in rows if e > 0]
         dampers = [v.name for (v, _, e) in rows if e < 0]
         return {
@@ -139,6 +155,8 @@ class VoteEnsemble:
                 "pos": round(pos, 4),
                 "neg": round(neg, 4),
                 "mult": round(mult, 3),
+                "inat_override": round(self.inat_override, 3),
+                "override": override,
                 "salience": breakdown,
                 "voters": [
                     {

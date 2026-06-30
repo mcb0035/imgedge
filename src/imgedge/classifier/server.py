@@ -87,6 +87,9 @@ EP_PREF = os.environ.get("IMGEDGE_EP", "auto")  # auto|npu|ovgpu|cuda|dml|cpu
 VOTE_POLICY = os.environ.get("IMGEDGE_VOTE", "evidence")  # evidence|any|all|majority|weighted
 TIMM_THRESHOLD = float(os.environ.get("IMGEDGE_TIMM_THRESHOLD", "0.5"))
 TIMM_WEIGHT = float(os.environ.get("IMGEDGE_TIMM_WEIGHT", "0.5"))
+# iNat (real-organism) confidence at/above which it blocks outright, ignoring
+# the look-alike contrast voter. Set >1.0 (e.g. 1.1) to disable.
+INAT_OVERRIDE = float(os.environ.get("IMGEDGE_INAT_OVERRIDE", "0.9"))
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 MAX_BODY_BYTES = 16 * 1024 * 1024  # request-body cap (8MB image -> ~11MB base64 + JSON)
@@ -428,7 +431,7 @@ def load_ensemble():
         return None
     from imgedge.voters.base import VoteEnsemble
 
-    ens = VoteEnsemble(voters, policy=VOTE_POLICY, threshold=THRESHOLD)
+    ens = VoteEnsemble(voters, policy=VOTE_POLICY, threshold=THRESHOLD, inat_override=INAT_OVERRIDE)
     ens.inat = inat_voter
     log.info("ensemble ready: policy=%s, voters=%s", VOTE_POLICY, ens.names)
     return ens
@@ -812,6 +815,7 @@ def health_payload(full=True):
             "provider": getattr(inat, "provider", None) if inat else None,
             "voters": ens.names if ok else [],
             "policy": getattr(ens, "policy", None) if ok else None,
+            "inat_override": INAT_OVERRIDE,
             "stats": _stats.snapshot() if PROFILE else None,
             "sandbox": (
                 "appcontainer"
