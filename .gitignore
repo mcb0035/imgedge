@@ -35,6 +35,14 @@ dist/
 *.crx
 *.pem
 
+# Evaluation harness (local-only): encrypted datasets, raw image collections,
+# and reports. These can reference the very images the extension exists to
+# hide, so they must never be committed.
+*.eval.zip
+/eval-raw/
+/eval-data/
+/eval-report*.json
+
 # JS tooling (ESLint)
 node_modules/
 
