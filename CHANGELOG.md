@@ -24,8 +24,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   off by default): an optional third voter that scores images against free-text
   prompts using `google/siglip2-base-patch16-224` (Apache-2.0), catching
   arachnids the closed-vocabulary iNat/timm voters have no class for. Enable
-  with `IMGEDGE_SIGLIP=1` after `pip install -e ".[voters,siglip]"`; tune
-  `IMGEDGE_SIGLIP_WEIGHT` / `IMGEDGE_SIGLIP_GAIN` against the eval harness.
+  with `IMGEDGE_SIGLIP=1` after `pip install -e ".[voters,siglip]"`. Calibrated
+  on real data (default `IMGEDGE_SIGLIP_WEIGHT` `2.0`): lifts recall ~79% -> ~89%
+  at ~0.9% real-web false positives, since SigLIP is near-silent on non-arachnid
+  imagery; re-tune `IMGEDGE_SIGLIP_WEIGHT` / `IMGEDGE_SIGLIP_GAIN` if you change
+  the model or prompts.
 - **iNat-confidence override:** when the iNaturalist model (trained on real
   living organisms) is at/above `IMGEDGE_INAT_OVERRIDE` confidence (default
   `0.9`), it blocks outright and the look-alike contrast voter can no longer

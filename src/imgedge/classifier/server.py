@@ -44,7 +44,7 @@ Environment overrides:
   IMGEDGE_TIMM_WEIGHT    timm evidence weight in the ensemble (default: 0.5)
   IMGEDGE_SIGLIP     enable the open-vocab SigLIP 2 voter (default: 0; 1=on)
   IMGEDGE_SIGLIP_MODEL   HF SigLIP model id (default: google/siglip2-base-patch16-224)
-  IMGEDGE_SIGLIP_WEIGHT  siglip evidence weight in the ensemble (default: 0.5)
+  IMGEDGE_SIGLIP_WEIGHT  siglip evidence weight in the ensemble (default: 2.0)
 """
 
 import base64
@@ -98,7 +98,7 @@ INAT_OVERRIDE = float(os.environ.get("IMGEDGE_INAT_OVERRIDE", "0.9"))
 # class for, adding independent positive evidence on borderline images.
 SIGLIP_ENABLE = os.environ.get("IMGEDGE_SIGLIP", "0") != "0"
 SIGLIP_THRESHOLD = float(os.environ.get("IMGEDGE_SIGLIP_THRESHOLD", "0.5"))
-SIGLIP_WEIGHT = float(os.environ.get("IMGEDGE_SIGLIP_WEIGHT", "0.5"))
+SIGLIP_WEIGHT = float(os.environ.get("IMGEDGE_SIGLIP_WEIGHT", "2.0"))
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 MAX_BODY_BYTES = 16 * 1024 * 1024  # request-body cap (8MB image -> ~11MB base64 + JSON)
