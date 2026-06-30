@@ -43,6 +43,7 @@ CONTRAST_WEIGHT = float(os.environ.get("IMGEDGE_TIMM_CONTRAST_WEIGHT", "1.0"))
 
 # Real arachnid (Arachnida) classes present in ImageNet-1k -> push toward block.
 BLOCK_TERMS = [
+    "spider",
     "tarantula",
     "garden spider",
     "barn spider",
@@ -91,7 +92,6 @@ CONTRAST_TERMS = [
     "crab",
     "lobster",
     # webs / geometric patterns / stylised art
-    "spider web",
     "honeycomb",
     "chainlink fence",
     "window screen",
@@ -99,6 +99,10 @@ CONTRAST_TERMS = [
     "quilt",
     "maze",
     "comic book",
+    "textile",
+    "pattern",
+    "art",
+    "geometric",
 ]
 
 
@@ -121,6 +125,23 @@ def _mask_for(labels, terms, num_classes):
         if any(p.search(lab) for p in pats):
             mask[i] = True
     return mask
+
+
+def _masks_by_term(labels, terms, num_classes):
+    """{term: boolean mask} for each term that matched at least one class -- used
+    to report per-term probabilities for offline analysis."""
+    out = {}
+    if not labels or not terms:
+        return out
+    for t in terms:
+        pat = re.compile(r"\b" + re.escape(t.lower()) + r"\b")
+        mask = np.zeros(num_classes, dtype=bool)
+        for i, lab in enumerate(labels):
+            if pat.search(lab):
+                mask[i] = True
+        if mask.any():
+            out[t] = mask
+    return out
 
 
 def _imagenet_labels(model, num_classes):
@@ -162,6 +183,7 @@ class TimmVoter(Voter):
         labels = _imagenet_labels(self.model, num_classes) if (block_terms or contrast_terms) else None
         self.mask = _mask_for(labels, block_terms, num_classes)
         self.contrast_mask = _mask_for(labels, contrast_terms, num_classes)
+        self.contrast_term_masks = _masks_by_term(labels, contrast_terms, num_classes)
         self.matched = int(self.mask.sum())
         self.contrast_matched = int(self.contrast_mask.sum())
 
@@ -188,7 +210,12 @@ class TimmVoter(Voter):
         neg = self._sum(probs, self.contrast_mask)
         evidence = pos - self.contrast_weight * neg  # signed, may be negative
         score = max(0.0, min(1.0, evidence))  # [0,1] for discrete votes
-        return score, evidence
+        details = {
+            "block_p": round(pos, 5),
+            "contrast_p": round(neg, 5),
+            "contrast_terms": {t: round(self._sum(probs, m), 5) for t, m in self.contrast_term_masks.items()},
+        }
+        return score, evidence, details
 
     def score(self, img):
         return self.assess(img)[0]
