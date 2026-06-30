@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Supply-chain hardening:** pin all dependencies, dev tools, and GitHub
+  Actions to exact versions / immutable commit SHAs (no floating ranges or
+  mutable tags), and raise the Python floor to 3.13. Bumped to the latest
+  stable releases (numpy 2.5, pillow 12.2, onnxruntime 1.27, ruff 0.15,
+  pytest 9, pip-audit 2.10, pre-commit 4.6; CI Node 24).
+
 ## [0.2.0] - 2026-06-29
 
 ### Added
