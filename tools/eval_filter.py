@@ -310,6 +310,16 @@ def _miss_row(r):
     }
 
 
+def _score_row(r):
+    return {
+        "label": r["label"],
+        "combined": round(r["combined"], 4),
+        "pos": _round(r["pos"]),
+        "neg": _round(r["neg"]),
+        "mult": _round(r["mult"]),
+    }
+
+
 def _op_threshold(records, override):
     if override is not None:
         return override
@@ -332,6 +342,7 @@ def build_report(records, threshold, salience, sweep_on=True):
         },
         "false_negatives": [_miss_row(r) for r in fns],
         "false_positives": [_miss_row(r) for r in fps],
+        "records": [_score_row(r) for r in records],
     }
     if sweep_on:
         rep["threshold_sweep"] = sweep(records)
