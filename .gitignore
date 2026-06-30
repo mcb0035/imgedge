@@ -7,6 +7,13 @@ venv/
 *.egg-info/
 build/
 
+# Test / coverage artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+
 # Models & datasets (downloaded or generated — large, not source)
 models/
 data/
