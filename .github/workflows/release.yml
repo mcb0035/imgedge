@@ -1,0 +1,38 @@
+name: Release
+
+# Tag a release with e.g. `git tag v0.2.0 && git push origin v0.2.0`.
+# This verifies the tag matches the manifest version, builds the store ZIP, and
+# publishes a GitHub Release with auto-generated notes.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Package + GitHub Release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Verify tag matches manifest version
+        shell: pwsh
+        run: |
+          $ver = (Get-Content manifest.json -Raw | ConvertFrom-Json).version
+          $tag = "${{ github.ref_name }}" -replace '^v', ''
+          if ($ver -ne $tag) {
+            throw "Tag v$tag does not match manifest version $ver"
+          }
+          Write-Host "Releasing v$ver"
+
+      - name: Build extension package
+        shell: pwsh
+        run: ./package.ps1
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/imgedge-*.zip
+          generate_release_notes: true
