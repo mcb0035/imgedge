@@ -12,6 +12,8 @@ const DEFAULTS = {
   failClosed: false,
   strict: false,
   scanBackgrounds: true,
+  threshold: 0.5,
+  salience: 1.0,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -33,6 +35,9 @@ async function load() {
   $("failClosed").checked = s.failClosed;
   $("strict").checked = s.strict;
   $("scanBackgrounds").checked = s.scanBackgrounds;
+  $("threshold").value = s.threshold;
+  $("salience").value = s.salience;
+  updateSliderLabels();
   for (const id of Object.keys(LISTS)) renderList(id, data[LISTS[id].key] || []);
   loadCounts();
   checkHealth();
@@ -179,6 +184,8 @@ async function save() {
     failClosed: $("failClosed").checked,
     strict: $("strict").checked,
     scanBackgrounds: $("scanBackgrounds").checked,
+    threshold: Number($("threshold").value),
+    salience: Number($("salience").value),
   };
   await chrome.storage.local.set({ [KEYS.settings]: settings });
   btn.textContent = "Saved";
@@ -202,6 +209,23 @@ async function persistToggle(id) {
 }
 for (const id of TOGGLES) {
   $(id).addEventListener("change", () => persistToggle(id));
+}
+
+// Tuning sliders: update the live readout on input, persist on release (change).
+const SLIDERS = ["threshold", "salience"];
+function updateSliderLabels() {
+  $("thresholdVal").textContent = Number($("threshold").value).toFixed(2);
+  $("salienceVal").textContent = Number($("salience").value).toFixed(1);
+}
+async function persistSlider(id) {
+  const data = await chrome.storage.local.get([KEYS.settings]);
+  const s = Object.assign({}, DEFAULTS, data[KEYS.settings] || {});
+  s[id] = Number($(id).value);
+  await chrome.storage.local.set({ [KEYS.settings]: s });
+}
+for (const id of SLIDERS) {
+  $(id).addEventListener("input", updateSliderLabels);
+  $(id).addEventListener("change", () => persistSlider(id));
 }
 
 load();

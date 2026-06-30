@@ -20,6 +20,8 @@ const DEFAULTS = {
   failClosed: false, // block when the classifier can't be reached
   strict: false, // block by default; show only what the classifier explicitly allows
   scanBackgrounds: true, // also filter CSS background / list images
+  threshold: 0.5, // block threshold, sent per request (lower = block more); popup slider
+  salience: 1.0, // size/detail weighting strength 0..1 (lower = block more); popup slider
 };
 
 const MENUS = [
@@ -260,6 +262,8 @@ async function classify(url, data, meta) {
 
   const body = { url };
   if (meta) body.meta = meta;
+  if (typeof s.threshold === "number") body.threshold = s.threshold;
+  if (typeof s.salience === "number") body.salience = s.salience;
   if (data) body.data = data;
   else if (s.sendData && /^https?:/i.test(url)) {
     const d = await fetchAsDataUrl(url);

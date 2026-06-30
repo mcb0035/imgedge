@@ -692,14 +692,30 @@ def _get_decoder():
     return _decoder
 
 
-def classify(url, data, meta=None):
+def _clamp01(v):
+    """Coerce a client override to a float in [0, 1], or None if absent/invalid."""
+    if v is None:
+        return None
+    try:
+        return max(0.0, min(1.0, float(v)))
+    except (TypeError, ValueError):
+        return None
+
+
+def classify(url, data, meta=None, threshold=None, salience=None):
     """Return a verdict dict. `data` is a base64 data URL or None; `meta` carries
-    page hints (rendered size, element kind) used for salience weighting."""
+    page hints (rendered size, element kind) used for salience weighting.
+    `threshold`/`salience` are optional per-request overrides (popup sliders)."""
     ens = ensure_ensemble()
     if ens is None:
         return {"block": False, "reason": "model-unavailable", "score": 0.0}
 
-    cached = _vcache.get(url)
+    # Cache per (url, overrides) so moving a slider re-classifies instead of
+    # returning a stale verdict -- which keeps blocking monotonic in threshold.
+    cache_key = url
+    if threshold is not None or salience is not None:
+        cache_key = f"{url}\x00t={threshold}\x00s={salience}"
+    cached = _vcache.get(cache_key)
     if cached is not None:
         if PROFILE:
             _stats.hit()
@@ -713,7 +729,7 @@ def classify(url, data, meta=None):
 
     t1 = time.perf_counter()
     try:
-        verdict = ens.classify_bytes(raw, meta, _get_decoder())  # {block, reason, score, votes}
+        verdict = ens.classify_bytes(raw, meta, _get_decoder(), threshold, salience)
     except Exception:
         # Can't decode/classify (e.g. SVG, bomb, crafted bytes) -> don't block, don't
         # cache. Log detail locally; return a generic reason (no internals to client).
@@ -722,7 +738,7 @@ def classify(url, data, meta=None):
     if PROFILE:
         _stats.record(fetch_ms, (time.perf_counter() - t1) * 1000, verdict.get("block"))
 
-    _vcache.put(url, verdict)  # only stable, model-derived verdicts are cached
+    _vcache.put(cache_key, verdict)  # only stable, model-derived verdicts are cached
     return verdict
 
 
@@ -811,8 +827,9 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length) or b"{}")
         except (ValueError, TypeError):
             payload = {}
-        self._send_json(200, classify(payload.get("url"), payload.get("data"),
-                                      payload.get("meta")))
+        self._send_json(200, classify(
+            payload.get("url"), payload.get("data"), payload.get("meta"),
+            _clamp01(payload.get("threshold")), _clamp01(payload.get("salience"))))
 
     def log_message(self, *_):
         pass  # quiet

@@ -128,7 +128,9 @@ block / contrast term lists in [src/imgedge/voters/timm_voter.py](src/imgedge/vo
 **Popup (per-browser):** enable/disable, classifier endpoint + token, *Send
 image bytes* (for cookie/LAN-gated images), *Block when classifier unreachable*
 (fail-closed), *Strict mode* (block until explicitly allowed), *Scan CSS
-backgrounds*, and the whitelist / allowed-sites / blocklist.
+backgrounds*, the **Block threshold** and **Salience weighting** tuning sliders
+(sent per request, so they tune live and override the server defaults below),
+and the whitelist / allowed-sites / blocklist.
 
 **Server (environment variables):**
 
