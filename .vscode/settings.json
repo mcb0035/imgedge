@@ -1,0 +1,15 @@
+{
+  // Keep local evaluation artifacts (encrypted datasets, raw image collections,
+  // reports) out of the Explorer and search so the images the extension exists
+  // to hide never surface as a file entry, preview, or thumbnail.
+  "files.exclude": {
+    "**/*.eval.zip": true,
+    "eval-raw": true,
+    "eval-data": true
+  },
+  "search.exclude": {
+    "**/*.eval.zip": true,
+    "eval-raw": true,
+    "eval-data": true
+  }
+}
