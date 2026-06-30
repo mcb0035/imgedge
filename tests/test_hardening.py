@@ -67,3 +67,28 @@ def test_classify_error_is_generic(monkeypatch):  # F11 — no internals leaked 
     out = server.classify("http://x/never-cached-uniq", "data:image/png;base64,AAAA", None)
     assert out["reason"] == "error"
     assert "secret" not in str(out) and "/etc/" not in str(out)
+
+
+def test_port_probe_detects_imgedge(monkeypatch):  # friendly 'already running'
+    import json as _json
+
+    class FakeResp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self, n=-1):
+            return _json.dumps({"status": "ok", "model": True, "auth_required": True}).encode()
+
+    monkeypatch.setattr(server.urllib.request, "urlopen", lambda *a, **k: FakeResp())
+    assert server._port_in_use_by_imgedge() is True
+
+
+def test_port_probe_false_when_unreachable(monkeypatch):
+    def boom(*a, **k):
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(server.urllib.request, "urlopen", boom)
+    assert server._port_in_use_by_imgedge() is False
