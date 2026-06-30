@@ -86,10 +86,12 @@ Hardening that is implemented today:
   socket (network denied) or write your files, while Pillow/numpy still work via
   read-only grants to the Python install. The decoder returns only a trusted
   pixel array to the parent over an inherited pipe (no shared writable handles).
+  Enabling one of these is **recommended for distributed installs or untrusted
+  browsing**, as it is the primary containment for a decoder-level exploit.
 - **Bounded concurrency.** Requests are served by a fixed worker pool; failures
   fail open (configurable to fail closed / strict).
-- **Minimal on-disk footprint.** The verdict cache is keyed by a SHA-256 hash of
-  the URL (never the URL itself) and stores only verdicts.
+- **Minimal on-disk footprint.** The verdict cache is keyed by a keyed hash
+  (HMAC) of the URL (never the URL itself) and stores only verdicts.
 
 ## Known limitations & residual risks
 
