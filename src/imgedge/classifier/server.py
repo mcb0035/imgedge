@@ -46,6 +46,9 @@ Environment overrides:
   IMGEDGE_SIGLIP_MODEL   HF SigLIP model id (default: google/siglip2-base-patch16-224)
   IMGEDGE_SIGLIP_WEIGHT  siglip evidence weight in the ensemble (default: 2.0)
   IMGEDGE_SIGLIP_GATE    cascade floor; skip SigLIP below this iNat+timm score (default: 0.0)
+  IMGEDGE_MOBILECLIP     enable the MobileCLIP voter (smaller/faster open-vocab; default: 0)
+  IMGEDGE_MOBILECLIP_MODEL  open_clip model (default: MobileCLIP2-S0)
+  IMGEDGE_MOBILECLIP_WEIGHT mobileclip evidence weight in the ensemble (default: 1.0)
 """
 
 import base64
@@ -106,6 +109,11 @@ SIGLIP_WEIGHT = float(os.environ.get("IMGEDGE_SIGLIP_WEIGHT", "2.0"))
 # On real web data most images sit just under the threshold (iNat gives a small
 # baseline signal), so raising this trades a little recall for fewer SigLIP runs.
 SIGLIP_GATE = float(os.environ.get("IMGEDGE_SIGLIP_GATE", "0.0"))
+# Optional MobileCLIP voter: a smaller/faster open-vocabulary alternative to
+# SigLIP (open_clip). Off by default; also deferred (runs under the cascade).
+MOBILECLIP_ENABLE = os.environ.get("IMGEDGE_MOBILECLIP", "0") != "0"
+MOBILECLIP_THRESHOLD = float(os.environ.get("IMGEDGE_MOBILECLIP_THRESHOLD", "0.5"))
+MOBILECLIP_WEIGHT = float(os.environ.get("IMGEDGE_MOBILECLIP_WEIGHT", "1.0"))
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 MAX_BODY_BYTES = 16 * 1024 * 1024  # request-body cap (8MB image -> ~11MB base64 + JSON)
@@ -452,6 +460,15 @@ def load_ensemble():
             log.info("siglip voter: %s on %s, %d prompt(s)", sv.name, sv.provider, len(sv.prompts))
         except Exception as e:
             log.info('siglip voter skipped (%s); pip install -e ".[voters,siglip]" and set IMGEDGE_SIGLIP=1.', e)
+    if MOBILECLIP_ENABLE:
+        try:
+            from imgedge.voters.mobileclip_voter import MobileClipVoter
+
+            mv = MobileClipVoter(threshold=MOBILECLIP_THRESHOLD, weight=MOBILECLIP_WEIGHT)
+            voters.append(mv)
+            log.info("mobileclip voter: %s on %s, %d prompt(s)", mv.name, mv.provider, len(mv.prompts))
+        except Exception as e:
+            log.info('mobileclip voter skipped (%s); needs .[voters,mobileclip] + IMGEDGE_MOBILECLIP=1.', e)
     if not voters:
         return None
     from imgedge.voters.base import VoteEnsemble

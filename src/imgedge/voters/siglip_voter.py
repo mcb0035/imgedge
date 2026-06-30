@@ -65,6 +65,14 @@ BLOCK_PROMPTS = [
     "a tick",
     "a harvestman, also called a daddy longlegs",
     "a spider in its web",
+    # atypical presentations the closed-vocab voters miss -- experiment: re-eval
+    # the false-positive rate before relying on these. They widen coverage of the
+    # hard final ~10% (egg sacs, molts, spiderlings, mites, specimen shots).
+    "a spider egg sac",
+    "a cluster of baby spiders",
+    "a shed spider exoskeleton",
+    "a mite",
+    "a microscope photo of an arachnid",
 ]
 
 
