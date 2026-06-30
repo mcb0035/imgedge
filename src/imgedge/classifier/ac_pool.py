@@ -43,9 +43,12 @@ _HANDLE_FLAG_INHERIT = 1
 _STILL_ACTIVE = 259
 
 if _k32 is not None:
-    _k32.CreatePipe.argtypes = [ctypes.POINTER(wintypes.HANDLE),
-                                ctypes.POINTER(wintypes.HANDLE), ctypes.c_void_p,
-                                wintypes.DWORD]
+    _k32.CreatePipe.argtypes = [
+        ctypes.POINTER(wintypes.HANDLE),
+        ctypes.POINTER(wintypes.HANDLE),
+        ctypes.c_void_p,
+        wintypes.DWORD,
+    ]
     _k32.SetHandleInformation.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD]
     _k32.CloseHandle.argtypes = [wintypes.HANDLE]
     _k32.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
@@ -119,8 +122,7 @@ while True:
 
 
 class _SA(ctypes.Structure):
-    _fields_ = [("nLength", wintypes.DWORD), ("lpSD", ctypes.c_void_p),
-                ("bInherit", wintypes.BOOL)]
+    _fields_ = [("nLength", wintypes.DWORD), ("lpSD", ctypes.c_void_p), ("bInherit", wintypes.BOOL)]
 
 
 def _pipe(inherit_read, inherit_write, bufsize):
@@ -148,15 +150,15 @@ def _readn(fd, n):
 def _writeall(fd, data):
     mv = memoryview(data)
     while mv:
-        mv = mv[os.write(fd, mv):]
+        mv = mv[os.write(fd, mv) :]
 
 
 def _grant_targets():
     """Dirs the AppContainer SID needs *read* on: Python install, venv, imgedge src."""
     targets, seen = [], set()
     import imgedge
-    for p in (Path(sys.base_prefix), Path(sys.prefix),
-              Path(imgedge.__file__).resolve().parents[1]):
+
+    for p in (Path(sys.base_prefix), Path(sys.prefix), Path(imgedge.__file__).resolve().parents[1]):
         rp = str(p)
         if p.exists() and rp not in seen:
             seen.add(rp)
@@ -167,8 +169,7 @@ def _grant_targets():
 def _is_granted(path, sid_str):
     """Fast check: does `path`'s ACL already mention our SID / profile?"""
     try:
-        out = subprocess.run(["icacls", str(path)], capture_output=True,
-                             text=True, timeout=20).stdout.lower()
+        out = subprocess.run(["icacls", str(path)], capture_output=True, text=True, timeout=20).stdout.lower()
     except (OSError, subprocess.SubprocessError):
         return False
     return sid_str.lower() in out or ac._PROFILE_NAME.lower() in out
@@ -216,8 +217,7 @@ class AppContainerPool:
 
     kind = "appcontainer"
 
-    def __init__(self, workers=2, recycle=200, cap=1024, timeout=8.0,
-                 mem_mb=1024, confine_os=True):
+    def __init__(self, workers=2, recycle=200, cap=1024, timeout=8.0, mem_mb=1024, confine_os=True):
         if sys.platform != "win32":
             raise OSError("AppContainerPool requires Windows")
         self.workers = max(1, int(workers))
@@ -247,12 +247,15 @@ class AppContainerPool:
         try:
             pi = ac.spawn(cmd, self._sid, os.getcwd(), inherit_handles=[req_r, resp_w])
         finally:
-            _k32.CloseHandle(wintypes.HANDLE(req_r))   # child has its own copies now
+            _k32.CloseHandle(wintypes.HANDLE(req_r))  # child has its own copies now
             _k32.CloseHandle(wintypes.HANDLE(resp_w))
         if self._job is not None:
             self._job.assign(pi.dwProcessId)
-        wk = _Worker(pi, msvcrt.open_osfhandle(req_w, os.O_WRONLY | os.O_BINARY),
-                     msvcrt.open_osfhandle(resp_r, os.O_RDONLY | os.O_BINARY))
+        wk = _Worker(
+            pi,
+            msvcrt.open_osfhandle(req_w, os.O_WRONLY | os.O_BINARY),
+            msvcrt.open_osfhandle(resp_r, os.O_RDONLY | os.O_BINARY),
+        )
         try:
             first = self._read_frame(wk)
         except (EOFError, OSError):
@@ -261,8 +264,11 @@ class AppContainerPool:
             code = wintypes.DWORD()
             _k32.GetExitCodeProcess(wk.pi.hProcess, ctypes.byref(code))
             self._close_worker(wk)
-            detail = (first[1:].decode("utf-8", "replace")[:600] if first[:1] == b"X"
-                      else f"exit=0x{code.value & 0xFFFFFFFF:08x} frame={first[:40]!r}")
+            detail = (
+                first[1:].decode("utf-8", "replace")[:600]
+                if first[:1] == b"X"
+                else f"exit=0x{code.value & 0xFFFFFFFF:08x} frame={first[:40]!r}"
+            )
             raise OSError("AppContainer worker failed to start: " + detail)
         return wk
 
@@ -339,7 +345,7 @@ class AppContainerPool:
                 detail = fr[1:].decode("utf-8", "replace")[:400] if fr else "empty"
                 raise RuntimeError("decode failed: " + detail)
             h, w, c, ow, oh = struct.unpack(">IIIII", fr[1:21])
-            arr = np.frombuffer(fr[21:21 + h * w * c], dtype=np.uint8).reshape(h, w, c)
+            arr = np.frombuffer(fr[21 : 21 + h * w * c], dtype=np.uint8).reshape(h, w, c)
             return arr, ow, oh
 
     def probe(self):

@@ -33,11 +33,13 @@ def get_interpreter_cls():
     """Prefer the lightweight LiteRT runtime, fall back to full TensorFlow."""
     try:
         from ai_edge_litert.interpreter import Interpreter  # type: ignore
+
         return Interpreter
     except Exception:
         pass
     try:
         import tensorflow as tf  # type: ignore
+
         return tf.lite.Interpreter
     except Exception as e:
         sys.exit(

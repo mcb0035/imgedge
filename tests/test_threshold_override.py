@@ -24,13 +24,12 @@ def _img(w=64, h=64):
 
 def _verdict(evidence, *, threshold=None, salience=None, meta=None, img=None):
     ens = VoteEnsemble([_Fixed(evidence)], policy="evidence", threshold=0.5)
-    return ens.classify(img if img is not None else _img(),
-                        meta=meta, threshold=threshold, salience=salience)
+    return ens.classify(img if img is not None else _img(), meta=meta, threshold=threshold, salience=salience)
 
 
 def test_threshold_override_changes_block():
     # salience=0 removes size/detail weighting -> combined == evidence (0.4)
-    assert _verdict(0.4, salience=0.0)["block"] is False           # 0.4 < 0.5 default
+    assert _verdict(0.4, salience=0.0)["block"] is False  # 0.4 < 0.5 default
     assert _verdict(0.4, threshold=0.3, salience=0.0)["block"] is True  # 0.4 >= 0.3
 
 

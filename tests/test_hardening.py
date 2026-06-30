@@ -37,8 +37,7 @@ def test_cache_key_is_keyed_hmac():  # F5 — not a precomputable plain SHA-256
     c = server.VerdictCache(None)
     k = c._key("http://example.com/x.png")
     assert k != hashlib.sha256(b"http://example.com/x.png").hexdigest()
-    assert k == hmac.new(server._CACHE_HMAC_KEY, b"http://example.com/x.png",
-                         hashlib.sha256).hexdigest()
+    assert k == hmac.new(server._CACHE_HMAC_KEY, b"http://example.com/x.png", hashlib.sha256).hexdigest()
 
 
 def test_cache_roundtrip():  # F5 sanity — keying didn't break get/put

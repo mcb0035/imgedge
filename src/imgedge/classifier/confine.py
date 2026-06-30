@@ -54,6 +54,7 @@ def worker_init(mem_bytes, low_il=False):
         return
     try:
         import resource
+
         resource.setrlimit(resource.RLIMIT_AS, (mem_bytes, mem_bytes))
     except Exception:
         pass
@@ -92,9 +93,17 @@ if sys.platform == "win32":
         ]
 
     class _IO_COUNTERS(ctypes.Structure):
-        _fields_ = [(n, ctypes.c_ulonglong) for n in (
-            "ReadOperationCount", "WriteOperationCount", "OtherOperationCount",
-            "ReadTransferCount", "WriteTransferCount", "OtherTransferCount")]
+        _fields_ = [
+            (n, ctypes.c_ulonglong)
+            for n in (
+                "ReadOperationCount",
+                "WriteOperationCount",
+                "OtherOperationCount",
+                "ReadTransferCount",
+                "WriteTransferCount",
+                "OtherTransferCount",
+            )
+        ]
 
     class _EXT_LIMIT(ctypes.Structure):
         _fields_ = [
@@ -113,7 +122,11 @@ if sys.platform == "win32":
     _k32.CreateJobObjectW.argtypes = [wintypes.LPVOID, wintypes.LPCWSTR]
     _k32.SetInformationJobObject.restype = wintypes.BOOL
     _k32.SetInformationJobObject.argtypes = [
-        wintypes.HANDLE, ctypes.c_int, wintypes.LPVOID, wintypes.DWORD]
+        wintypes.HANDLE,
+        ctypes.c_int,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+    ]
     _k32.OpenProcess.restype = wintypes.HANDLE
     _k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
     _k32.AssignProcessToJobObject.restype = wintypes.BOOL
@@ -130,18 +143,24 @@ if sys.platform == "win32":
                 raise ctypes.WinError(ctypes.get_last_error())
             ext = _EXT_LIMIT()
             ext.BasicLimitInformation.LimitFlags = (
-                _LIMIT_ACTIVE_PROCESS | _LIMIT_PROCESS_MEMORY
-                | _LIMIT_DIE_ON_UNHANDLED_EXCEPTION | _LIMIT_KILL_ON_JOB_CLOSE)
+                _LIMIT_ACTIVE_PROCESS
+                | _LIMIT_PROCESS_MEMORY
+                | _LIMIT_DIE_ON_UNHANDLED_EXCEPTION
+                | _LIMIT_KILL_ON_JOB_CLOSE
+            )
             ext.BasicLimitInformation.ActiveProcessLimit = int(max_procs)
             ext.ProcessMemoryLimit = int(mem_bytes)
             if not _k32.SetInformationJobObject(
-                    self.handle, _JobObjectExtendedLimitInformation,
-                    ctypes.byref(ext), ctypes.sizeof(ext)):
+                self.handle,
+                _JobObjectExtendedLimitInformation,
+                ctypes.byref(ext),
+                ctypes.sizeof(ext),
+            ):
                 raise ctypes.WinError(ctypes.get_last_error())
             ui = _UI_RESTRICTIONS(UIRestrictionsClass=_UILIMIT_ALL)
             _k32.SetInformationJobObject(
-                self.handle, _JobObjectBasicUIRestrictions,
-                ctypes.byref(ui), ctypes.sizeof(ui))
+                self.handle, _JobObjectBasicUIRestrictions, ctypes.byref(ui), ctypes.sizeof(ui)
+            )
 
         def assign(self, pid):
             h = _k32.OpenProcess(_PROCESS_TERMINATE | _PROCESS_SET_QUOTA, False, int(pid))
@@ -174,14 +193,25 @@ if sys.platform == "win32":
     _adv.ConvertStringSidToSidW.argtypes = [wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_void_p)]
     _adv.OpenProcessToken.restype = wintypes.BOOL
     _adv.OpenProcessToken.argtypes = [
-        wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(wintypes.HANDLE)]
+        wintypes.HANDLE,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.HANDLE),
+    ]
     _adv.SetTokenInformation.restype = wintypes.BOOL
     _adv.SetTokenInformation.argtypes = [
-        wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+        wintypes.HANDLE,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+    ]
     _adv.GetTokenInformation.restype = wintypes.BOOL
     _adv.GetTokenInformation.argtypes = [
-        wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD,
-        ctypes.POINTER(wintypes.DWORD)]
+        wintypes.HANDLE,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
     _adv.GetLengthSid.restype = wintypes.DWORD
     _adv.GetLengthSid.argtypes = [ctypes.c_void_p]
     _adv.GetSidSubAuthorityCount.restype = ctypes.POINTER(ctypes.c_ubyte)
@@ -199,24 +229,29 @@ if sys.platform == "win32":
         tok = wintypes.HANDLE()
         try:
             if not _adv.OpenProcessToken(
-                    _k32.GetCurrentProcess(),
-                    _TOKEN_ADJUST_DEFAULT | _TOKEN_QUERY, ctypes.byref(tok)):
+                _k32.GetCurrentProcess(), _TOKEN_ADJUST_DEFAULT | _TOKEN_QUERY, ctypes.byref(tok)
+            ):
                 raise ctypes.WinError(ctypes.get_last_error())
             try:
                 label = _TOKEN_MANDATORY_LABEL()
                 label.Label.Sid = sid
                 label.Label.Attributes = _SE_GROUP_INTEGRITY
                 size = ctypes.sizeof(label) + _adv.GetLengthSid(sid)
-                if not _adv.SetTokenInformation(
-                        tok, _TokenIntegrityLevel, ctypes.byref(label), size):
+                if not _adv.SetTokenInformation(tok, _TokenIntegrityLevel, ctypes.byref(label), size):
                     raise ctypes.WinError(ctypes.get_last_error())
             finally:
                 _k32.CloseHandle(tok)
         finally:
             _k32.LocalFree(sid)
 
-    _IL_NAMES = {0x0000: "untrusted", 0x1000: "low", 0x2000: "medium",
-                 0x2100: "medium-plus", 0x3000: "high", 0x4000: "system"}
+    _IL_NAMES = {
+        0x0000: "untrusted",
+        0x1000: "low",
+        0x2000: "medium",
+        0x2100: "medium-plus",
+        0x3000: "high",
+        0x4000: "system",
+    }
 
     def current_integrity():
         """Return this process's integrity level name (e.g. 'low', 'medium')."""
@@ -228,8 +263,12 @@ if sys.platform == "win32":
             _adv.GetTokenInformation(tok, _TokenIntegrityLevel, None, 0, ctypes.byref(need))
             buf = (ctypes.c_byte * need.value)()
             if not _adv.GetTokenInformation(
-                    tok, _TokenIntegrityLevel,
-                    ctypes.cast(buf, ctypes.c_void_p), need, ctypes.byref(need)):
+                tok,
+                _TokenIntegrityLevel,
+                ctypes.cast(buf, ctypes.c_void_p),
+                need,
+                ctypes.byref(need),
+            ):
                 return "?"
             label = ctypes.cast(buf, ctypes.POINTER(_TOKEN_MANDATORY_LABEL)).contents
             cnt = _adv.GetSidSubAuthorityCount(label.Label.Sid)

@@ -7,6 +7,7 @@ Prints `working-set / private-commit` (MB) for the parent and each decode worker
 then the parent with the full model ensemble loaded. numpy is imported lazily so
 the pool workers' OPENBLAS_NUM_THREADS=1 cap is measured faithfully.
 """
+
 import ctypes
 import io
 import os
@@ -19,12 +20,16 @@ os.environ.setdefault("IMGEDGE_CACHE_FILE", "none")
 
 class _PMC(ctypes.Structure):
     _fields_ = [
-        ("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
-        ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
-        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t),
+        ("cb", wintypes.DWORD),
+        ("PageFaultCount", wintypes.DWORD),
+        ("PeakWorkingSetSize", ctypes.c_size_t),
+        ("WorkingSetSize", ctypes.c_size_t),
+        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+        ("QuotaPagedPoolUsage", ctypes.c_size_t),
         ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
         ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
-        ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t),
+        ("PagefileUsage", ctypes.c_size_t),
+        ("PeakPagefileUsage", ctypes.c_size_t),
     ]
 
 
@@ -57,6 +62,7 @@ def _pid_mb(pid):
 def _jpeg(side):
     import numpy as np
     from PIL import Image
+
     buf = io.BytesIO()
     arr = (np.random.default_rng(0).random((side, side, 3)) * 255).astype("uint8")
     Image.fromarray(arr).save(buf, "JPEG", quality=85)
@@ -73,6 +79,7 @@ def main():
     print(f"parent, numpy+PIL only:      {_pid_mb(me)}")
 
     from imgedge.classifier.decode_pool import DecodePool
+
     dp = DecodePool(workers=2)
     dp.decode(raw)
     pids = list(getattr(dp._pool, "_processes", {}) or {})
@@ -80,6 +87,7 @@ def main():
     dp.close()
 
     from imgedge.classifier.ac_pool import AppContainerPool
+
     ap = AppContainerPool(workers=2)
     ap.decode(raw)
     print(f"AppContainer workers:        {[_mb(wk.pi.hProcess) for wk in ap._pool]}")
@@ -87,6 +95,7 @@ def main():
 
     try:
         from imgedge.classifier import server
+
         server.ensure_ensemble()
         print(f"parent WITH model ensemble:  {_pid_mb(me)}")
     except Exception as e:  # model files may be absent

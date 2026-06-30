@@ -80,11 +80,9 @@ PORT = int(os.environ.get("IMGEDGE_PORT", "8723"))
 
 TARGET = os.environ.get("IMGEDGE_TARGET", "Arachnida")
 THRESHOLD = float(os.environ.get("IMGEDGE_THRESHOLD", "0.5"))
-MODEL_PATH = Path(os.environ.get(
-    "IMGEDGE_MODEL", INAT_DIR / "models" / "INatVision_Small_2_fact256_8bit.tflite"))
+MODEL_PATH = Path(os.environ.get("IMGEDGE_MODEL", INAT_DIR / "models" / "INatVision_Small_2_fact256_8bit.tflite"))
 TAXONOMY_PATH = Path(os.environ.get("IMGEDGE_TAXONOMY", INAT_DIR / "models" / "taxonomy.csv"))
-ONNX_PATH = Path(os.environ.get(
-    "IMGEDGE_ONNX", INAT_DIR / "models" / "INatVision_Small_2_fact256_8bit.onnx"))
+ONNX_PATH = Path(os.environ.get("IMGEDGE_ONNX", INAT_DIR / "models" / "INatVision_Small_2_fact256_8bit.onnx"))
 EP_PREF = os.environ.get("IMGEDGE_EP", "auto")  # auto|npu|ovgpu|cuda|dml|cpu
 VOTE_POLICY = os.environ.get("IMGEDGE_VOTE", "evidence")  # evidence|any|all|majority|weighted
 TIMM_THRESHOLD = float(os.environ.get("IMGEDGE_TIMM_THRESHOLD", "0.5"))
@@ -161,8 +159,7 @@ def _setup_logging():
     log.addHandler(stream)
     if LOG_FILE:
         try:
-            fh = RotatingFileHandler(LOG_FILE, maxBytes=LOG_MAX_BYTES,
-                                     backupCount=LOG_BACKUPS, encoding="utf-8")
+            fh = RotatingFileHandler(LOG_FILE, maxBytes=LOG_MAX_BYTES, backupCount=LOG_BACKUPS, encoding="utf-8")
             fh.setFormatter(fmt)
             log.addHandler(fh)
         except OSError:
@@ -171,8 +168,8 @@ def _setup_logging():
 
 _setup_logging()
 
-_ensemble = None            # VoteEnsemble (None if no voters are available)
-_decoder = None             # DecodePool (None unless IMGEDGE_SANDBOX)
+_ensemble = None  # VoteEnsemble (None if no voters are available)
+_decoder = None  # DecodePool (None unless IMGEDGE_SANDBOX)
 _load_lock = threading.Lock()
 _last_load_attempt = float("-inf")
 
@@ -362,9 +359,15 @@ def load_filter():
     if ONNX_PATH.exists():
         try:
             from imgedge.inat.onnx_filter import OnnxTaxonFilter
+
             flt = OnnxTaxonFilter(ONNX_PATH, TAXONOMY_PATH, target=TARGET, ep=EP_PREF)
-            log.info("model loaded (ONNX): %d '%s' taxa, threshold=%s, provider=%s",
-                     flt.match_count, TARGET, THRESHOLD, flt.provider)
+            log.info(
+                "model loaded (ONNX): %d '%s' taxa, threshold=%s, provider=%s",
+                flt.match_count,
+                TARGET,
+                THRESHOLD,
+                flt.provider,
+            )
             return flt
         except Exception as e:
             log.warning("ONNX backend unavailable (%s); falling back to TFLite.", e)
@@ -373,15 +376,23 @@ def load_filter():
             return None
         try:
             from imgedge.inat.inat_filter import TaxonFilter
+
             flt = TaxonFilter(MODEL_PATH, TAXONOMY_PATH, target=TARGET, pool_size=POOL_SIZE)
-            log.info("model loaded (TFLite): %d '%s' taxa, threshold=%s, pool=%s",
-                     flt.match_count, TARGET, THRESHOLD, POOL_SIZE)
+            log.info(
+                "model loaded (TFLite): %d '%s' taxa, threshold=%s, pool=%s",
+                flt.match_count,
+                TARGET,
+                THRESHOLD,
+                POOL_SIZE,
+            )
             return flt
         except Exception as e:
             log.error("failed to load TFLite model (%s); fail-open mode.", e)
             return None
-    log.warning("no model found in %s; run: imgedge-download-models (and install a runtime)",
-                MODEL_PATH.parent)
+    log.warning(
+        "no model found in %s; run: imgedge-download-models (and install a runtime)",
+        MODEL_PATH.parent,
+    )
     log.warning("running in fail-open mode (nothing will be blocked).")
     return None
 
@@ -394,21 +405,29 @@ def load_ensemble():
     if inat_model is not None:
         try:
             from imgedge.voters.inat_voter import InatVoter
+
             inat_voter = InatVoter(inat_model, threshold=THRESHOLD)
             voters.append(inat_voter)
         except Exception as e:
             log.warning("iNat voter unavailable (%s).", e)
     try:
         from imgedge.voters.timm_voter import TimmVoter
+
         tv = TimmVoter(threshold=TIMM_THRESHOLD, weight=TIMM_WEIGHT)
         voters.append(tv)
-        log.info("timm voter: %s on %s, %d block / %d contrast class(es)",
-                 tv.name, tv.provider, tv.matched, tv.contrast_matched)
+        log.info(
+            "timm voter: %s on %s, %d block / %d contrast class(es)",
+            tv.name,
+            tv.provider,
+            tv.matched,
+            tv.contrast_matched,
+        )
     except Exception as e:
-        log.info("timm voter skipped (%s); pip install -e \".[voters]\" to enable it.", e)
+        log.info('timm voter skipped (%s); pip install -e ".[voters]" to enable it.', e)
     if not voters:
         return None
     from imgedge.voters.base import VoteEnsemble
+
     ens = VoteEnsemble(voters, policy=VOTE_POLICY, threshold=THRESHOLD)
     ens.inat = inat_voter
     log.info("ensemble ready: policy=%s, voters=%s", VOTE_POLICY, ens.names)
@@ -460,12 +479,11 @@ FETCH_HTTPS_ONLY = os.environ.get("IMGEDGE_FETCH_HTTPS_ONLY", "0") != "0"
 # hosts (privacy: don't reveal the tool or the category being filtered).
 FETCH_UA = os.environ.get(
     "IMGEDGE_FETCH_UA",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+)
 ALLOW_HOSTS = tuple(
-    h.strip().lower().rstrip(".")
-    for h in os.environ.get("IMGEDGE_FETCH_ALLOW_HOSTS", "").split(",")
-    if h.strip())
+    h.strip().lower().rstrip(".") for h in os.environ.get("IMGEDGE_FETCH_ALLOW_HOSTS", "").split(",") if h.strip()
+)
 try:
     FETCH_PER_HOST = int(os.environ.get("IMGEDGE_FETCH_PER_HOST", "4"))
 except ValueError:
@@ -482,8 +500,13 @@ _NAT64_LOCAL = ipaddress.ip_network("64:ff9b:1::/48")
 _CGNAT = ipaddress.ip_network("100.64.0.0/10")
 # Response content types that clearly aren't images (an SSRF probe of an
 # internal web/API service); image/* and ambiguous types pass to Pillow.
-_BAD_CONTENT_TYPES = ("text/", "application/json", "application/xml",
-                      "application/javascript", "multipart/")
+_BAD_CONTENT_TYPES = (
+    "text/",
+    "application/json",
+    "application/xml",
+    "application/javascript",
+    "multipart/",
+)
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -504,8 +527,14 @@ def _ip_is_public(addr):
             return False  # variable embedding format -> fail closed
     elif addr in _CGNAT:
         return False
-    return not (addr.is_private or addr.is_loopback or addr.is_link_local
-                or addr.is_multicast or addr.is_reserved or addr.is_unspecified)
+    return not (
+        addr.is_private
+        or addr.is_loopback
+        or addr.is_link_local
+        or addr.is_multicast
+        or addr.is_reserved
+        or addr.is_unspecified
+    )
 
 
 def _is_public_host(host):
@@ -546,20 +575,20 @@ def _resolve_pinned_addr(host, port):
 
 class _PinnedHTTPConnection(http.client.HTTPConnection):
     """Connects only to the validated IP for ``self.host`` (no second lookup)."""
+
     def connect(self):
         sockaddr = _resolve_pinned_addr(self.host, self.port)
-        self.sock = socket.create_connection(
-            sockaddr[:2], self.timeout, self.source_address)
+        self.sock = socket.create_connection(sockaddr[:2], self.timeout, self.source_address)
         if self._tunnel_host:
             self._tunnel()
 
 
 class _PinnedHTTPSConnection(http.client.HTTPSConnection):
     """As above, with TLS SNI + certificate check kept on the original hostname."""
+
     def connect(self):
         sockaddr = _resolve_pinned_addr(self.host, self.port)
-        sock = socket.create_connection(
-            sockaddr[:2], self.timeout, self.source_address)
+        sock = socket.create_connection(sockaddr[:2], self.timeout, self.source_address)
         if self._tunnel_host:
             self.sock = sock
             self._tunnel()
@@ -576,8 +605,7 @@ class _PinnedHTTPSHandler(urllib.request.HTTPSHandler):
         return self.do_open(_PinnedHTTPSConnection, req, context=self._context)
 
 
-_opener = urllib.request.build_opener(
-    _PinnedHTTPHandler, _PinnedHTTPSHandler, _NoRedirect)
+_opener = urllib.request.build_opener(_PinnedHTTPHandler, _PinnedHTTPSHandler, _NoRedirect)
 
 
 def _host_allowed(host):
@@ -677,18 +705,31 @@ def _get_decoder():
             if _decoder is None:
                 if SANDBOX_APPCONTAINER and sys.platform == "win32":
                     from imgedge.classifier.ac_pool import AppContainerPool
+
                     _decoder = AppContainerPool(
-                        workers=SANDBOX_WORKERS, recycle=SANDBOX_RECYCLE,
-                        confine_os=SANDBOX_CONFINE, mem_mb=SANDBOX_MEM_MB)
+                        workers=SANDBOX_WORKERS,
+                        recycle=SANDBOX_RECYCLE,
+                        confine_os=SANDBOX_CONFINE,
+                        mem_mb=SANDBOX_MEM_MB,
+                    )
                 else:
                     from imgedge.classifier.decode_pool import DecodePool
+
                     _decoder = DecodePool(
-                        workers=SANDBOX_WORKERS, recycle=SANDBOX_RECYCLE,
-                        confine_os=SANDBOX_CONFINE, mem_mb=SANDBOX_MEM_MB,
-                        low_il=SANDBOX_LOWIL)
-                log.info("sandbox decode: kind=%s, %d workers, recycle %d, confined=%s, worker=%s",
-                         getattr(_decoder, "kind", "process"), SANDBOX_WORKERS,
-                         SANDBOX_RECYCLE, _decoder.confined, _decoder.worker_integrity())
+                        workers=SANDBOX_WORKERS,
+                        recycle=SANDBOX_RECYCLE,
+                        confine_os=SANDBOX_CONFINE,
+                        mem_mb=SANDBOX_MEM_MB,
+                        low_il=SANDBOX_LOWIL,
+                    )
+                log.info(
+                    "sandbox decode: kind=%s, %d workers, recycle %d, confined=%s, worker=%s",
+                    getattr(_decoder, "kind", "process"),
+                    SANDBOX_WORKERS,
+                    SANDBOX_RECYCLE,
+                    _decoder.confined,
+                    _decoder.worker_integrity(),
+                )
     return _decoder
 
 
@@ -746,8 +787,7 @@ def _health_proof(challenge):
     """HMAC(token, challenge) hex. Lets the extension verify it's talking to the
     real classifier (which knows the token) WITHOUT sending the token first, so a
     local port-squatter that doesn't know the token can't impersonate the server."""
-    return hmac.new(TOKEN.encode("utf-8"), challenge.encode("utf-8"),
-                    hashlib.sha256).hexdigest()
+    return hmac.new(TOKEN.encode("utf-8"), challenge.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def health_payload(full=True):
@@ -762,20 +802,26 @@ def health_payload(full=True):
     if not full:
         return payload
     inat = getattr(ens, "inat", None) if ok else None
-    payload.update({
-        "version": __version__,
-        "target": getattr(inat, "target", TARGET),
-        "threshold": THRESHOLD,
-        "taxa": getattr(inat, "match_count", 0) if ok else 0,
-        "backend": getattr(inat, "backend", None) if inat else None,
-        "provider": getattr(inat, "provider", None) if inat else None,
-        "voters": ens.names if ok else [],
-        "policy": getattr(ens, "policy", None) if ok else None,
-        "stats": _stats.snapshot() if PROFILE else None,
-        "sandbox": ("appcontainer" if (SANDBOX and SANDBOX_APPCONTAINER
-                                       and sys.platform == "win32")
-                    else "process" if SANDBOX else None),
-    })
+    payload.update(
+        {
+            "version": __version__,
+            "target": getattr(inat, "target", TARGET),
+            "threshold": THRESHOLD,
+            "taxa": getattr(inat, "match_count", 0) if ok else 0,
+            "backend": getattr(inat, "backend", None) if inat else None,
+            "provider": getattr(inat, "provider", None) if inat else None,
+            "voters": ens.names if ok else [],
+            "policy": getattr(ens, "policy", None) if ok else None,
+            "stats": _stats.snapshot() if PROFILE else None,
+            "sandbox": (
+                "appcontainer"
+                if (SANDBOX and SANDBOX_APPCONTAINER and sys.platform == "win32")
+                else "process"
+                if SANDBOX
+                else None
+            ),
+        }
+    )
     return payload
 
 
@@ -827,9 +873,16 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length) or b"{}")
         except (ValueError, TypeError):
             payload = {}
-        self._send_json(200, classify(
-            payload.get("url"), payload.get("data"), payload.get("meta"),
-            _clamp01(payload.get("threshold")), _clamp01(payload.get("salience"))))
+        self._send_json(
+            200,
+            classify(
+                payload.get("url"),
+                payload.get("data"),
+                payload.get("meta"),
+                _clamp01(payload.get("threshold")),
+                _clamp01(payload.get("salience")),
+            ),
+        )
 
     def log_message(self, *_):
         pass  # quiet
@@ -837,6 +890,7 @@ class Handler(BaseHTTPRequestHandler):
 
 class PooledHTTPServer(HTTPServer):
     """HTTP server with a bounded worker pool (no unbounded thread growth)."""
+
     daemon_threads = True
 
     def __init__(self, *args, max_workers=MAX_WORKERS, **kwargs):
@@ -882,14 +936,18 @@ def main():
         httpd = PooledHTTPServer((HOST, PORT), Handler)
     except OSError as e:
         if _port_in_use_by_imgedge():
-            print(f"[imgedge] already running at http://{HOST}:{PORT} -- reuse it: paste\n"
-                  f"    that server's token into the ImgEdge popup. Nothing to do here.")
+            print(
+                f"[imgedge] already running at http://{HOST}:{PORT} -- reuse it: paste\n"
+                f"    that server's token into the ImgEdge popup. Nothing to do here."
+            )
             raise SystemExit(0) from None
-        print(f"[imgedge] ERROR: cannot bind {HOST}:{PORT} ({e}).\n"
-              f"    The port is in use by another application (or a just-stopped ImgEdge\n"
-              f"    still releasing it -- retry shortly). Set IMGEDGE_PORT to a free port\n"
-              f"    (and update the extension's endpoint) to run alongside it.",
-              file=sys.stderr)
+        print(
+            f"[imgedge] ERROR: cannot bind {HOST}:{PORT} ({e}).\n"
+            f"    The port is in use by another application (or a just-stopped ImgEdge\n"
+            f"    still releasing it -- retry shortly). Set IMGEDGE_PORT to a free port\n"
+            f"    (and update the extension's endpoint) to run alongside it.",
+            file=sys.stderr,
+        )
         raise SystemExit(2) from e
     log.info("ImgEdge classifier on http://%s:%s  (blocking: %s)", HOST, PORT, TARGET)
     print(f"[imgedge] access token (paste into the ImgEdge popup):\n    {TOKEN}")

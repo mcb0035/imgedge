@@ -50,7 +50,7 @@ def test_pool_stays_warm():
     pool = DecodePool(workers=1)
     try:
         t = time.perf_counter()
-        pool.decode(raw)                                  # cold: first import in worker
+        pool.decode(raw)  # cold: first import in worker
         cold_ms = (time.perf_counter() - t) * 1000
         warm_ms = _median_ms(pool.decode, raw)
     finally:
@@ -67,7 +67,7 @@ def test_warm_ipc_overhead_bounded():
     inproc_ms = _median_ms(partial(_decode, cap=1024), raw)
     pool = DecodePool(workers=1)
     try:
-        pool.decode(raw)                                  # warm
+        pool.decode(raw)  # warm
         pool_ms = _median_ms(pool.decode, raw)
     finally:
         pool.close()
@@ -86,7 +86,7 @@ def test_worker_caps_blas_threads():
 
     pool = DecodePool(workers=1)
     try:
-        pool.decode(_png(64))                             # ensure a worker is up
+        pool.decode(_png(64))  # ensure a worker is up
         threads = pool._pool.submit(_env_probe).result(timeout=15)
     finally:
         pool.close()
@@ -106,7 +106,7 @@ def test_appcontainer_stays_warm():
     raw = _png(128)
     t = time.perf_counter()
     pool = AppContainerPool(workers=1)
-    build_ms = (time.perf_counter() - t) * 1000           # includes the worker spawn
+    build_ms = (time.perf_counter() - t) * 1000  # includes the worker spawn
     try:
         warm_ms = _median_ms(pool.decode, raw)
     finally:

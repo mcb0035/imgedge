@@ -1,22 +1,42 @@
 version: 2
 updates:
+  # App + dev tools, pinned in the root pyproject.toml.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      python:
+        patterns: ["*"]
   # Python runtime deps (Dependabot updates the requirements.txt files; then
   # regenerate the *.lock with pip-compile --generate-hashes).
   - package-ecosystem: "pip"
     directory: "/src/imgedge/inat"
     schedule:
       interval: "weekly"
+    groups:
+      inat:
+        patterns: ["*"]
   - package-ecosystem: "pip"
     directory: "/src/imgedge/voters"
     schedule:
       interval: "weekly"
+    groups:
+      voters:
+        patterns: ["*"]
   # Extension lint toolchain.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
-  # Keep the CI actions current.
+    groups:
+      npm:
+        patterns: ["*"]
+  # Keep the CI actions current (SHA-pinned; Dependabot bumps the SHA + comment).
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]

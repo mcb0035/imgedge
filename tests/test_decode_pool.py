@@ -32,7 +32,7 @@ def test_decode_downscales_but_reports_original_size():
     pool = DecodePool(workers=1, recycle=50, cap=64)
     try:
         arr, ow, oh = pool.decode(_png(200, 100))
-        assert (ow, oh) == (200, 100)                  # original size preserved
-        assert max(arr.shape[0], arr.shape[1]) <= 64   # array itself is capped
+        assert (ow, oh) == (200, 100)  # original size preserved
+        assert max(arr.shape[0], arr.shape[1]) <= 64  # array itself is capped
     finally:
         pool.close()

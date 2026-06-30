@@ -68,6 +68,7 @@ class VoteEnsemble:
         if decoder is not None:
             # Decode out-of-process; reconstruct from a trusted RGB array.
             from PIL import Image
+
             arr, ow, oh = decoder.decode(raw)
             meta = dict(meta or {})
             meta.setdefault("w", ow)  # keep the true size for salience
@@ -135,13 +136,21 @@ class VoteEnsemble:
             "dbg": {
                 "policy": self.policy,
                 "threshold": round(thr, 4),
-                "pos": round(pos, 4), "neg": round(neg, 4), "mult": round(mult, 3),
+                "pos": round(pos, 4),
+                "neg": round(neg, 4),
+                "mult": round(mult, 3),
                 "salience": breakdown,
-                "voters": [{
-                    "name": v.name, "score": round(s, 4), "evidence": round(e, 4),
-                    "weight": v.weight, "thr": v.threshold,
-                    "contrib": round(v.weight * e * (mult if e > 0 else 1.0), 4),
-                } for (v, s, e) in rows],
+                "voters": [
+                    {
+                        "name": v.name,
+                        "score": round(s, 4),
+                        "evidence": round(e, 4),
+                        "weight": v.weight,
+                        "thr": v.threshold,
+                        "contrib": round(v.weight * e * (mult if e > 0 else 1.0), 4),
+                    }
+                    for (v, s, e) in rows
+                ],
             },
         }
 
