@@ -38,11 +38,17 @@ def test_evidence_decrease_on_lookalike(monkeypatch):
     assert ens.classify(None)["block"] is False  # 0.60 - 0.45 = 0.15
 
 
-def test_salience_scales_only_positive(monkeypatch):
+def test_salience_is_boost_only(monkeypatch):
+    # A raw multiplier < 1 is clamped to 1.0 -- salience never suppresses.
     _pin_salience(monkeypatch, 0.5)
     inat = _Stub(0.80, "inat", weight=1.0)
     ens = VoteEnsemble([inat], policy="evidence", threshold=0.5)
-    assert ens.classify(None)["block"] is False  # 0.80 * 0.5 = 0.40
+    assert ens.classify(None)["block"] is True  # clamped to 1.0 -> 0.80 (not 0.40)
+
+    # A raw multiplier > 1 amplifies the positive evidence.
+    _pin_salience(monkeypatch, 1.5)
+    weak = VoteEnsemble([_Stub(0.40, "inat", weight=1.0)], policy="evidence", threshold=0.5)
+    assert weak.classify(None)["block"] is True  # 0.40 * 1.5 = 0.60
 
 
 def test_policy_any_blocks_on_one():

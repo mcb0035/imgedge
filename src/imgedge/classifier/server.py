@@ -39,7 +39,7 @@ Environment overrides:
   IMGEDGE_TIMM_MODEL HF/timm model id (default: mobilenetv3_large_100.ra_in1k)
   IMGEDGE_TIMM_EXCLUDE   comma-separated ImageNet terms to BLOCK (arachnids)
   IMGEDGE_TIMM_CONTRAST  comma-separated ImageNet terms that argue AGAINST a block
-  IMGEDGE_TIMM_CONTRAST_WEIGHT  weight of contrast (look-alike) evidence (default: 1.0)
+  IMGEDGE_TIMM_CONTRAST_WEIGHT  weight of contrast (look-alike) evidence (default: 0.0)
   IMGEDGE_TIMM_THRESHOLD timm voter block threshold (default: 0.5)
   IMGEDGE_TIMM_WEIGHT    timm evidence weight in the ensemble (default: 0.5)
 """
@@ -79,7 +79,7 @@ HOST = "127.0.0.1"  # loopback only, by design (not configurable)
 PORT = int(os.environ.get("IMGEDGE_PORT", "8723"))
 
 TARGET = os.environ.get("IMGEDGE_TARGET", "Arachnida")
-THRESHOLD = float(os.environ.get("IMGEDGE_THRESHOLD", "0.5"))
+THRESHOLD = float(os.environ.get("IMGEDGE_THRESHOLD", "0.18"))
 MODEL_PATH = Path(os.environ.get("IMGEDGE_MODEL", INAT_DIR / "models" / "INatVision_Small_2_fact256_8bit.tflite"))
 TAXONOMY_PATH = Path(os.environ.get("IMGEDGE_TAXONOMY", INAT_DIR / "models" / "taxonomy.csv"))
 ONNX_PATH = Path(os.environ.get("IMGEDGE_ONNX", INAT_DIR / "models" / "INatVision_Small_2_fact256_8bit.onnx"))

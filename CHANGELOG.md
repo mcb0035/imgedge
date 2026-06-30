@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Recall-first filtering defaults**, calibrated against 1,530 arachnid images
+  (iNaturalist) and 10,000 real web images (Open Images): block threshold
+  `0.5 -> 0.18`, salience is now **boost-only** (amplifies large/photographic
+  images, never suppresses small/stylised ones), and the timm look-alike
+  contrast is **off by default** (`IMGEDGE_TIMM_CONTRAST_WEIGHT` `1.0 -> 0.0`)
+  -- on real web imagery it suppressed recall for almost no false-positive
+  benefit. Together: ~0% -> ~77% recall at ~1% false positives. The bare
+  `spider` block term (which also matched *spider monkey*) is replaced with the
+  explicit arachnid classes plus `spider web`.
+
 ### Added
 
 - **iNat-confidence override:** when the iNaturalist model (trained on real

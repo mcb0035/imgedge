@@ -138,12 +138,12 @@ and the whitelist / allowed-sites / blocklist.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `IMGEDGE_TARGET` | `Arachnida` | Taxon to block (any iNaturalist name, e.g. `Araneae` for spiders only) |
-| `IMGEDGE_THRESHOLD` | `0.5` | Block when the (salience-scaled) ensemble score ≥ this |
+| `IMGEDGE_THRESHOLD` | `0.18` | Block when the (salience-scaled) ensemble score ≥ this |
 | `IMGEDGE_VOTE` | `evidence` | Ensemble policy: `evidence\|any\|all\|majority\|weighted` |
 | `IMGEDGE_TIMM_MODEL` | `mobilenetv3_large_100.ra_in1k` | timm/HF model id for the second voter |
 | `IMGEDGE_TIMM_EXCLUDE` | arachnid set | ImageNet terms (comma-sep) to **block** |
 | `IMGEDGE_TIMM_CONTRAST` | look-alike set | ImageNet terms that argue **against** a block |
-| `IMGEDGE_TIMM_CONTRAST_WEIGHT` | `1.0` | How hard look-alike evidence counts |
+| `IMGEDGE_TIMM_CONTRAST_WEIGHT` | `0.0` | How hard look-alike evidence counts |
 | `IMGEDGE_TIMM_THRESHOLD` | `0.5` | timm voter's own block threshold |
 | `IMGEDGE_TIMM_WEIGHT` | `0.5` | timm evidence weight in the ensemble |
 | `IMGEDGE_INAT_OVERRIDE` | `0.9` | iNat P(block) at/above which it blocks outright, ignoring the contrast voter (`>1` disables) |
