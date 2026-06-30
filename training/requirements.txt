@@ -2,8 +2,8 @@
 # For NVIDIA CUDA, install torch/torchvision from the official index first, e.g.:
 #   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
 torch>=2.2
-torchvision>=0.17
-onnx>=1.16
+torchvision>=0.27.1
+onnx>=1.22.0
 onnxruntime>=1.18
 pillow>=10.0
 numpy>=1.24
