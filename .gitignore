@@ -41,7 +41,11 @@ dist/
 *.eval.zip
 /eval-raw/
 /eval-data/
+# report files written by `eval_filter.py eval --report ...`: the default
+# eval-report*.json plus dataset-named reports (inat*.json / oi*.json).
 /eval-report*.json
+/inat*.json
+/oi*.json
 
 # JS tooling (ESLint)
 node_modules/

@@ -147,6 +147,9 @@ and the whitelist / allowed-sites / blocklist.
 | `IMGEDGE_TIMM_THRESHOLD` | `0.5` | timm voter's own block threshold |
 | `IMGEDGE_TIMM_WEIGHT` | `0.5` | timm evidence weight in the ensemble |
 | `IMGEDGE_INAT_OVERRIDE` | `0.9` | iNat P(block) at/above which it blocks outright, ignoring the contrast voter (`>1` disables) |
+| `IMGEDGE_SIGLIP` | `0` | Enable the open-vocab SigLIP 2 third voter (`1`=on; needs the `siglip` extra) |
+| `IMGEDGE_SIGLIP_MODEL` | `google/siglip2-base-patch16-224` | HF SigLIP model id for the third voter |
+| `IMGEDGE_SIGLIP_WEIGHT` | `0.5` | SigLIP evidence weight in the ensemble |
 | `IMGEDGE_EP` | `auto` | ONNX provider: `auto\|npu\|ovgpu\|cuda\|dml\|cpu` |
 | `IMGEDGE_POOL` | `min(4, cpus)` | TFLite interpreter pool size |
 | `IMGEDGE_WORKERS` | `8` | Max concurrent HTTP request workers |
