@@ -35,7 +35,7 @@ jobs:
       - name: Compile
         run: python -m py_compile src/imgedge/classifier/*.py src/imgedge/inat/*.py src/imgedge/voters/*.py
       - name: Tests (with coverage)
-        run: pytest -m "not perf" --cov=imgedge --cov-report=term-missing --cov-fail-under=45
+        run: pytest -m "not perf" --cov=imgedge --cov-report=term-missing --cov-fail-under=55
 
   javascript:
     name: Extension JS (eslint)

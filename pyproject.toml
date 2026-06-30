@@ -46,3 +46,26 @@ addopts = "-q"
 markers = [
     "perf: performance-regression guards (run via the CI 'perf' job; not in the default gate)",
 ]
+
+[tool.coverage.run]
+# The coverage gate runs in the core CI job, which installs only the base
+# dependencies (no optional voters / ONNX), has no downloaded model artifacts,
+# and runs on Linux. Scope coverage to the deterministic, always-on core so the
+# percentage is stable across environments. The omitted modules are covered
+# elsewhere (the Windows test job, or an install with the optional extras) or
+# require model files / extra packages the gate intentionally does not provide.
+omit = [
+    # Windows-only decode sandbox (exercised by the Windows test job)
+    "*/imgedge/classifier/appcontainer.py",
+    "*/imgedge/classifier/confine.py",
+    "*/imgedge/classifier/ac_pool.py",
+    # Optional backends / offline tools (extra deps not installed in the gate)
+    "*/imgedge/voters/timm_voter.py",
+    "*/imgedge/inat/onnx_filter.py",
+    "*/imgedge/inat/convert_to_onnx.py",
+    # Require downloaded model artifacts (not present in CI)
+    "*/imgedge/inat/inat_filter.py",
+    "*/imgedge/inat/inat_vision.py",
+    "*/imgedge/inat/download_models.py",
+    "*/imgedge/voters/inat_voter.py",
+]
