@@ -184,9 +184,33 @@ def _as_float(v):
 
 
 def classify_sample(ens, raw, threshold=None, salience=None):
-    """Return a flat record for one image's verdict (no pixels retained)."""
-    verdict = ens.classify_bytes(raw, None, None, threshold, salience)
+    """Return a flat record for one image's verdict (no pixels retained). A
+    decode/classify failure (e.g. an oversized image the guard rejects) is
+    recorded as not-blocked -- matching the server's fail-open behaviour -- so a
+    single bad image never aborts a whole run."""
+    try:
+        verdict = ens.classify_bytes(raw, None, None, threshold, salience)
+    except Exception:
+        return {
+            "block": False,
+            "combined": 0.0,
+            "thr": None,
+            "pos": None,
+            "neg": None,
+            "mult": None,
+            "inat": None,
+            "timm_block": None,
+            "timm_contrast": None,
+            "contrast_terms": None,
+            "salience": None,
+            "votes": {},
+            "error": True,
+        }
     dbg = verdict.get("dbg") or {}
+    voters = {v.get("name", ""): v for v in dbg.get("voters", [])}
+    inat_v = next((v for n, v in voters.items() if n.startswith("inat")), None)
+    timm_v = next((v for n, v in voters.items() if n.startswith("timm")), None)
+    timm_d = (timm_v or {}).get("details") or {}
     return {
         "block": bool(verdict.get("block")),
         "combined": float(verdict.get("score", 0.0)),
@@ -194,6 +218,11 @@ def classify_sample(ens, raw, threshold=None, salience=None):
         "pos": _as_float(dbg.get("pos")),
         "neg": _as_float(dbg.get("neg")),
         "mult": _as_float(dbg.get("mult")),
+        "inat": _as_float(inat_v.get("score")) if inat_v else None,
+        "timm_block": _as_float(timm_d.get("block_p")),
+        "timm_contrast": _as_float(timm_d.get("contrast_p")),
+        "contrast_terms": timm_d.get("contrast_terms"),
+        "salience": dbg.get("salience"),
         "votes": verdict.get("votes", {}),
     }
 
@@ -317,6 +346,11 @@ def _score_row(r):
         "pos": _round(r["pos"]),
         "neg": _round(r["neg"]),
         "mult": _round(r["mult"]),
+        "inat": _round(r.get("inat")),
+        "timm_block": _round(r.get("timm_block")),
+        "timm_contrast": _round(r.get("timm_contrast")),
+        "contrast_terms": r.get("contrast_terms"),
+        "salience": r.get("salience"),
     }
 
 
@@ -335,6 +369,7 @@ def build_report(records, threshold, salience, sweep_on=True):
         "samples": len(records),
         "positives": sum(1 for r in records if r["label"] == "block"),
         "negatives": sum(1 for r in records if r["label"] == "allow"),
+        "errors": sum(1 for r in records if r.get("error")),
         "operating_point": {
             "threshold": threshold,
             "salience": salience,
@@ -359,6 +394,8 @@ def print_report(rep):
     thr = op["threshold"]
     sal = op["salience"]
     print(f"Samples: {rep['samples']}  (block={rep['positives']}, allow={rep['negatives']})")
+    if rep.get("errors"):
+        print(f"  ({rep['errors']} images skipped -- decode/classify error, counted as not-blocked)")
     print(
         f"Operating point: threshold={'default' if thr is None else thr}, salience={'default' if sal is None else sal}"
     )
@@ -663,13 +700,83 @@ def build_inat(images_path, meta_path, out_zip, password, limit_per_class=200, s
             if label is None or counts[label] >= limit_per_class:
                 continue
             counts[label] += 1
-            yield f"{label}/{counts[label]:05d}{_sniff_ext(data)}", data
+            parts = key.replace("\\", "/").rstrip("/").split("/")
+            cat = parts[-2] if len(parts) >= 2 else "_"  # iNat category dir carries the taxonomy
+            yield f"{label}/{cat}/{parts[-1]}", data
             if counts["block"] >= limit_per_class and counts["allow"] >= limit_per_class:
                 break
 
     n = _write_zip(out_zip, password, gen())
     print(f"Sorted {n} iNat images: {counts['block']} arachnid -> block, {counts['allow']} other -> allow.")
     print(f"Matched {len(arachnid_ids)} Arachnida categories -> {out_zip} (AES-256). Nothing extracted or shown.")
+
+
+def _oi_arachnid_mids(descriptions_csv, names):
+    """{MID: name} for Open Images classes whose display name is in `names`."""
+    import csv
+
+    want = {n.strip().lower() for n in names}
+    out = {}
+    with open(descriptions_csv, newline="", encoding="utf-8") as f:
+        for row in csv.reader(f):
+            if len(row) >= 2 and row[1].strip().lower() in want:
+                out[row[0].strip()] = row[1].strip()
+    return out
+
+
+def build_openimages(
+    images_dir,
+    imagelabels_csv,
+    descriptions_csv,
+    out_zip,
+    password,
+    arachnid_names=("spider", "scorpion", "tick"),
+    limit_per_class=None,
+    seed=1234,
+):
+    """Sort an Open Images split into block(arachnid)/allow inside an encrypted
+    zip, using the image-level labels CSV. Reads loose <ImageID>.jpg files from
+    `images_dir` and never displays anything. Per the Open Images terms the
+    images are not redistributable -- the encrypted zip is local-only."""
+    import csv
+    import random
+
+    rng = random.Random(seed)
+    mid2name = _oi_arachnid_mids(descriptions_csv, arachnid_names)
+    if not mid2name:
+        raise SystemExit(f"No arachnid classes ({', '.join(arachnid_names)}) found in {descriptions_csv}.")
+    arachnid_mids = set(mid2name)
+
+    pos = {}
+    with open(imagelabels_csv, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if (row.get("Confidence") or "0").strip() == "1":
+                pos.setdefault(row["ImageID"], set()).add(row["LabelName"].strip())
+
+    root = Path(images_dir)
+    block_files, allow_files = [], []
+    for img in root.glob("*.jpg"):
+        labels = pos.get(img.stem)
+        if not labels:
+            continue
+        (block_files if labels & arachnid_mids else allow_files).append(img.name)
+    if not block_files:
+        raise SystemExit("No arachnid-labeled images found among the downloaded files.")
+    rng.shuffle(block_files)
+    rng.shuffle(allow_files)
+    cap = limit_per_class or max(len(block_files), len(allow_files))
+    wanted = {fn: "block" for fn in block_files[:cap]}
+    wanted.update({fn: "allow" for fn in allow_files[:cap]})
+    counts = {"block": 0, "allow": 0}
+
+    def gen():
+        for fn, label in wanted.items():
+            counts[label] += 1
+            yield f"{label}/{fn}", (root / fn).read_bytes()
+
+    n = _write_zip(out_zip, password, gen())
+    print(f"Sorted {n} Open Images: {counts['block']} arachnid -> block, {counts['allow']} other -> allow.")
+    print(f"Arachnid classes: {sorted(mid2name.values())} -> {out_zip} (AES-256). Nothing displayed.")
 
 
 # --------------------------------------------------------------------------- #
@@ -720,6 +827,15 @@ def main(argv=None):
     pi.add_argument("--limit-per-class", type=int, default=200, help="max images per class (default 200)")
     pi.add_argument("--seed", type=int, default=1234, help="RNG seed for reproducibility")
 
+    po = sub.add_parser("build-openimages", help="sort an Open Images split into block(arachnid)/allow (AES zip)")
+    po.add_argument("images_dir", help="folder of <ImageID>.jpg files")
+    po.add_argument("imagelabels_csv", help="...human-imagelabels-boxable.csv (ImageID,Source,LabelName,Confidence)")
+    po.add_argument("descriptions_csv", help="oidv7-class-descriptions-boxable.csv (LabelName,DisplayName)")
+    po.add_argument("out_zip")
+    po.add_argument("--arachnid", default="spider,scorpion,tick", help="comma class names to treat as block")
+    po.add_argument("--limit-per-class", type=int, default=None, help="max images per class (default: all)")
+    po.add_argument("--seed", type=int, default=1234, help="RNG seed for sampling")
+
     args = parser.parse_args(argv)
 
     if args.cmd == "eval":
@@ -748,6 +864,20 @@ def main(argv=None):
 
     if args.cmd == "build-inat":
         build_inat(args.images, args.metadata, args.out_zip, _get_password(), args.limit_per_class, args.seed)
+        return 0
+
+    if args.cmd == "build-openimages":
+        names = [n for n in args.arachnid.split(",") if n.strip()]
+        build_openimages(
+            args.images_dir,
+            args.imagelabels_csv,
+            args.descriptions_csv,
+            args.out_zip,
+            _get_password(),
+            names,
+            args.limit_per_class,
+            args.seed,
+        )
         return 0
 
     return 1

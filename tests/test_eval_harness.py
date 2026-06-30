@@ -161,3 +161,34 @@ def test_sampling_selects_n_per_class(tmp_path):
     assert len(only) == 4
     got = sorted(lbl for lbl, _, _ in eval_filter.iter_samples(str(zpath), "pw", only))
     assert got == ["allow", "allow", "block", "block"]
+
+
+def test_build_openimages_routes_by_label(tmp_path):
+    pytest.importorskip("pyzipper")
+    imgs = tmp_path / "oi"
+    imgs.mkdir()
+    for stem in ("a", "b", "c"):
+        Image.new("RGB", (8, 8), (10, 10, 10)).save(imgs / f"{stem}.jpg", "JPEG")
+    (tmp_path / "desc.csv").write_text("/m/09kmb,Spider\n/m/0xxx,Cat\n", encoding="utf-8")
+    (tmp_path / "labels.csv").write_text(
+        "ImageID,Source,LabelName,Confidence\n"
+        "a,verification,/m/09kmb,1\n"
+        "b,verification,/m/0xxx,1\n"
+        "c,verification,/m/0xxx,0\n",
+        encoding="utf-8",
+    )
+    out = tmp_path / "oi.eval.zip"
+    eval_filter.build_openimages(str(imgs), str(tmp_path / "labels.csv"), str(tmp_path / "desc.csv"), str(out), "pw")
+    got = sorted((lbl, name) for lbl, name, _ in eval_filter.iter_samples(str(out), "pw"))
+    assert got == [("allow", "allow/b.jpg"), ("block", "block/a.jpg")]
+
+
+def test_classify_sample_resilient_to_failure():
+    class _Boom:
+        def classify_bytes(self, *a, **k):
+            raise ValueError("image too large")
+
+    rec = eval_filter.classify_sample(_Boom(), b"x")
+    assert rec["error"] is True
+    assert rec["block"] is False
+    assert rec["combined"] == 0.0

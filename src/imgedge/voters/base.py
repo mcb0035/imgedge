@@ -81,19 +81,21 @@ class VoteEnsemble:
             return self.classify(img, meta, threshold, salience)
 
     def classify(self, img, meta=None, threshold=None, salience=None):
-        rows = []  # (voter, score, evidence)
+        rows = []  # (voter, score, evidence, details)
         for v in self.voters:
             try:
-                s, e = v.assess(img)
+                out = v.assess(img)
+                s, e = float(out[0]), float(out[1])
+                d = out[2] if len(out) > 2 else None  # optional per-voter breakdown
             except Exception:
-                s, e = 0.0, 0.0  # a broken voter abstains, never crashes the verdict
-            rows.append((v, float(s), float(e)))
+                s, e, d = 0.0, 0.0, None  # a broken voter abstains, never crashes the verdict
+            rows.append((v, s, e, d))
 
         if self.policy == "evidence":
             return self._evidence_verdict(rows, img, meta, threshold, salience)
 
         # ---- discrete policies (any / all / majority / weighted) ------------
-        results = [(v, s >= v.threshold, s) for (v, s, _) in rows]
+        results = [(v, s >= v.threshold, s) for (v, s, _, _) in rows]
         block = self._decide(results)
         blockers = [v.name for (v, b, _) in results if b]
         scores = {v.name: round(s, 4) for (v, _, s) in results}
@@ -120,8 +122,8 @@ class VoteEnsemble:
         If the iNat voter is present and its own P(block) reaches
         `inat_override`, it blocks outright: a confident real-organism match is
         not vetoed by the look-alike contrast voter's negative evidence."""
-        pos = sum(v.weight * e for (v, _, e) in rows if e > 0)
-        neg = sum(v.weight * e for (v, _, e) in rows if e < 0)  # <= 0
+        pos = sum(v.weight * e for (v, _, e, _) in rows if e > 0)
+        neg = sum(v.weight * e for (v, _, e, _) in rows if e < 0)  # <= 0
         try:
             mult, breakdown = image_salience(img, meta)
         except Exception:
@@ -134,19 +136,19 @@ class VoteEnsemble:
         # iNat dominance: a confident real-organism match should not be vetoed
         # by the look-alike contrast voter, so when iNat's own P(block) clears
         # `inat_override` it blocks outright (and pins the score to its own).
-        inat_score = next((s for (v, s, _) in rows if v is self.inat), None)
+        inat_score = next((s for (v, s, _, _) in rows if v is self.inat), None)
         override = inat_score is not None and inat_score >= self.inat_override
         if override:
             combined = max(combined, inat_score)
         block = override or combined >= thr
 
-        supporters = [v.name for (v, _, e) in rows if e > 0]
-        dampers = [v.name for (v, _, e) in rows if e < 0]
+        supporters = [v.name for (v, _, e, _) in rows if e > 0]
+        dampers = [v.name for (v, _, e, _) in rows if e < 0]
         return {
             "block": block,
             "reason": (",".join(supporters) if supporters else "ok") if block else "ok",
             "score": round(combined, 4),
-            "votes": {v.name: round(e, 4) for (v, _, e) in rows},
+            "votes": {v.name: round(e, 4) for (v, _, e, _) in rows},
             "salience": breakdown.get("salience", round(mult, 3)),
             "dampers": dampers,
             "dbg": {
@@ -166,8 +168,9 @@ class VoteEnsemble:
                         "weight": v.weight,
                         "thr": v.threshold,
                         "contrib": round(v.weight * e * (mult if e > 0 else 1.0), 4),
+                        "details": d,
                     }
-                    for (v, s, e) in rows
+                    for (v, s, e, d) in rows
                 ],
             },
         }
