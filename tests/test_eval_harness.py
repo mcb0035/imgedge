@@ -5,6 +5,7 @@ test job uses only the base deps), so the suite runs everywhere.
 """
 
 import io
+import json
 import math
 
 import eval_filter
@@ -117,3 +118,29 @@ def test_build_synthetic_roundtrip(tmp_path):
     labels = [lbl for lbl, _, _ in eval_filter.iter_samples(str(zpath), "pw123")]
     assert labels.count("block") == 3
     assert labels.count("allow") == 3
+
+
+def test_build_inat_routes_by_class(tmp_path):
+    pytest.importorskip("pyzipper")
+    imgs = tmp_path / "imgs"
+    (imgs / "val/araneae").mkdir(parents=True)
+    (imgs / "val/aves").mkdir(parents=True)
+    Image.new("RGB", (8, 8), (200, 0, 0)).save(imgs / "val/araneae/a.jpg", "JPEG")
+    Image.new("RGB", (8, 8), (0, 0, 200)).save(imgs / "val/aves/b.jpg", "JPEG")
+    meta = {
+        "categories": [{"id": 1, "class": "Arachnida"}, {"id": 2, "class": "Aves"}],
+        "images": [
+            {"id": 10, "file_name": "val/araneae/a.jpg"},
+            {"id": 11, "file_name": "val/aves/b.jpg"},
+        ],
+        "annotations": [
+            {"id": 1, "image_id": 10, "category_id": 1},
+            {"id": 2, "image_id": 11, "category_id": 2},
+        ],
+    }
+    mpath = tmp_path / "val.json"
+    mpath.write_text(json.dumps(meta), encoding="utf-8")
+    zpath = tmp_path / "inat.eval.zip"
+    eval_filter.build_inat(str(imgs), str(mpath), str(zpath), "pw", limit_per_class=10, seed=1)
+    labels = sorted(lbl for lbl, _, _ in eval_filter.iter_samples(str(zpath), "pw"))
+    assert labels == ["allow", "block"]

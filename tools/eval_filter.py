@@ -506,6 +506,113 @@ def build_synthetic(out_zip, password, count=30, seed=1234):
 
 
 # --------------------------------------------------------------------------- #
+# iNaturalist 2021 dataset sorter (visipedia/inat_comp 2021)
+# --------------------------------------------------------------------------- #
+# Sort an iNat 2021 dataset into block/ (taxonomic class == "Arachnida") and
+# allow/ (everything else) using the COCO-style metadata, writing a balanced
+# subset STRAIGHT into the encrypted zip. Nothing is extracted to loose files
+# and nothing is displayed, so an arachnid set is assembled without ever
+# rendering an image. Per the iNat terms of use the images are not
+# redistributable; the encrypted zip is local-only (gitignored) -- never commit.
+def _load_inat_meta(meta_path):
+    p = Path(meta_path)
+    name = p.name.lower()
+    if name.endswith((".tar.gz", ".tgz", ".tar")):
+        import tarfile
+
+        with tarfile.open(p, "r:*") as tf:
+            member = next((m for m in tf.getmembers() if m.name.endswith(".json")), None)
+            if member is None:
+                raise SystemExit(f"No .json inside {meta_path}")
+            return json.load(tf.extractfile(member))
+    if name.endswith(".zip"):
+        import zipfile
+
+        with zipfile.ZipFile(p) as zf:
+            jn = next((n for n in zf.namelist() if n.endswith(".json")), None)
+            if jn is None:
+                raise SystemExit(f"No .json inside {meta_path}")
+            return json.loads(zf.read(jn))
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def _iter_inat_images(images_path, wanted):
+    """Yield (file_name, bytes) for members named in `wanted` from a directory,
+    a tar(.gz), or a zip -- streaming, without extracting anything to disk."""
+    p = Path(images_path)
+    if p.is_dir():
+        for fn in wanted:
+            f = p / fn
+            if f.is_file():
+                yield fn, f.read_bytes()
+        return
+    name = p.name.lower()
+    if name.endswith((".tar.gz", ".tgz", ".tar")):
+        import tarfile
+
+        with tarfile.open(p, "r:*") as tf:
+            for m in tf:
+                key = m.name.lstrip("./")
+                if m.isfile() and key in wanted:
+                    fobj = tf.extractfile(m)
+                    if fobj is not None:
+                        yield key, fobj.read()
+        return
+    if name.endswith(".zip"):
+        import zipfile
+
+        with zipfile.ZipFile(p) as zf:
+            for info in zf.infolist():
+                key = info.filename.lstrip("./")
+                if not info.is_dir() and key in wanted:
+                    yield key, zf.read(info)
+        return
+    raise SystemExit(f"Unsupported images source (use a dir, .tar.gz, or .zip): {images_path}")
+
+
+def build_inat(images_path, meta_path, out_zip, password, limit_per_class=200, seed=1234):
+    """Sort an iNat 2021 dataset by taxonomy into block(arachnid)/allow inside an
+    encrypted zip, using the metadata JSON. Streams from the image archive; never
+    extracts loose files or displays anything."""
+    import random
+
+    rng = random.Random(seed)
+    meta = _load_inat_meta(meta_path)
+    cats = {c["id"]: c for c in meta.get("categories", [])}
+    arachnid_ids = {cid for cid, c in cats.items() if (c.get("class") or "").strip().lower() == "arachnida"}
+    if not arachnid_ids:
+        raise SystemExit("No 'Arachnida' class in categories -- is this iNat 2021 metadata?")
+    fname = {im["id"]: im["file_name"] for im in meta.get("images", [])}
+    block_files, allow_files = [], []
+    for ann in meta.get("annotations", []):
+        fn = fname.get(ann["image_id"])
+        if fn:
+            (block_files if ann["category_id"] in arachnid_ids else allow_files).append(fn)
+    if not block_files:
+        raise SystemExit("No arachnid images found in the annotations.")
+    rng.shuffle(block_files)
+    rng.shuffle(allow_files)
+    wanted = {fn.lstrip("./"): "block" for fn in block_files[:limit_per_class]}
+    wanted.update({fn.lstrip("./"): "allow" for fn in allow_files[:limit_per_class]})
+
+    counts = {"block": 0, "allow": 0}
+
+    def gen():
+        for key, data in _iter_inat_images(images_path, wanted):
+            label = wanted.get(key)
+            if label is None or counts[label] >= limit_per_class:
+                continue
+            counts[label] += 1
+            yield f"{label}/{counts[label]:05d}{_sniff_ext(data)}", data
+            if counts["block"] >= limit_per_class and counts["allow"] >= limit_per_class:
+                break
+
+    n = _write_zip(out_zip, password, gen())
+    print(f"Sorted {n} iNat images: {counts['block']} arachnid -> block, {counts['allow']} other -> allow.")
+    print(f"Matched {len(arachnid_ids)} Arachnida categories -> {out_zip} (AES-256). Nothing extracted or shown.")
+
+
+# --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
 def _get_password(required=True):
@@ -544,6 +651,13 @@ def main(argv=None):
     ps.add_argument("--count", type=int, default=30, help="images per class (default 30)")
     ps.add_argument("--seed", type=int, default=1234, help="RNG seed for reproducibility")
 
+    pi = sub.add_parser("build-inat", help="sort an iNat 2021 dataset into block(arachnid)/allow (AES zip)")
+    pi.add_argument("images", help="iNat images: a directory, .tar.gz, or .zip")
+    pi.add_argument("metadata", help="iNat metadata: *.json (or .json.tar.gz / .zip)")
+    pi.add_argument("out_zip")
+    pi.add_argument("--limit-per-class", type=int, default=200, help="max images per class (default 200)")
+    pi.add_argument("--seed", type=int, default=1234, help="RNG seed for reproducibility")
+
     args = parser.parse_args(argv)
 
     if args.cmd == "eval":
@@ -568,6 +682,10 @@ def main(argv=None):
 
     if args.cmd == "build-synthetic":
         build_synthetic(args.out_zip, _get_password(), args.count, args.seed)
+        return 0
+
+    if args.cmd == "build-inat":
+        build_inat(args.images, args.metadata, args.out_zip, _get_password(), args.limit_per_class, args.seed)
         return 0
 
     return 1
