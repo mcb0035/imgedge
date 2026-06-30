@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **CI security & coverage:** OpenSSF Scorecard analysis (weekly and on push,
+  results published for the badge), a `dependency-review` check on pull
+  requests (fails on high-severity advisories), StepSecurity Harden-Runner
+  egress auditing on every Linux job, a Windows test job, and test-coverage
+  reporting with a `--cov-fail-under` floor.
+
 ### Changed
 
 - **Supply-chain hardening:** pin all dependencies, dev tools, and GitHub

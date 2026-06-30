@@ -15,7 +15,7 @@ dependencies = ["numpy==2.5.0", "pillow==12.2.0", "ai-edge-litert==2.1.5"]
 [project.optional-dependencies]
 voters = ["timm==1.0.27", "torch==2.12.1"]
 onnx = ["onnxruntime==1.27.0"]
-dev = ["pytest==9.1.1", "ruff==0.15.20", "pip-audit==2.10.1", "pre-commit==4.6.0", "pytest-codspeed==5.0.3"]
+dev = ["pytest==9.1.1", "ruff==0.15.20", "pip-audit==2.10.1", "pre-commit==4.6.0", "pytest-codspeed==5.0.3", "pytest-cov==7.1.0"]
 
 [project.scripts]
 imgedge-server = "imgedge.classifier.server:main"

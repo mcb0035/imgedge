@@ -1,6 +1,7 @@
 # ImgEdge
 
 [![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/mcb0035/imgedge?utm_source=badge)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/mcb0035/imgedge/badge)](https://scorecard.dev/viewer/?uri=github.com/mcb0035/imgedge)
 
 A minimal Microsoft Edge / Chromium (Manifest V3) extension that intercepts the
 images on every page, classifies each one with a **local** model, and hides the
