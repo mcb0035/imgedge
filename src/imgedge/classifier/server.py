@@ -61,12 +61,19 @@ import urllib.request
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as pkg_version
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 PKG_DIR = Path(__file__).resolve().parent.parent
 INAT_DIR = PKG_DIR / "inat"
+
+try:
+    __version__ = pkg_version("imgedge")
+except PackageNotFoundError:
+    __version__ = "0+unknown"
 
 HOST = "127.0.0.1"  # loopback only, by design (not configurable)
 PORT = int(os.environ.get("IMGEDGE_PORT", "8723"))
@@ -740,6 +747,7 @@ def health_payload(full=True):
         return payload
     inat = getattr(ens, "inat", None) if ok else None
     payload.update({
+        "version": __version__,
         "target": getattr(inat, "target", TARGET),
         "threshold": THRESHOLD,
         "taxa": getattr(inat, "match_count", 0) if ok else 0,

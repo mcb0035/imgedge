@@ -98,10 +98,14 @@ async function checkHealth() {
     if (!r.ok) throw new Error(String(r.status));
     const j = await r.json();
     if (j.status === "ok") {
+      const myVer = chrome.runtime.getManifest().version;
+      const ver = j.version
+        ? (j.version === myVer ? ` v${j.version}` : ` v${j.version} \u2260 ext v${myVer}`)
+        : "";
       const prov = j.provider ? ` \u00B7 ${j.provider}` : "";
       const vote = j.voters && j.voters.length > 1 ? ` \u00B7 vote:${j.policy} \u00d7${j.voters.length}` : "";
       const perf = j.stats && j.stats.n ? ` \u00B7 ${j.stats.infer_ms}ms/img (n=${j.stats.n})` : "";
-      setHealthLine(el, "ok", `Classifier: verified \u00B7 ${j.target} (${j.taxa} taxa)${prov}${vote}${perf}`);
+      setHealthLine(el, "ok", `Classifier: verified${ver} \u00B7 ${j.target} (${j.taxa} taxa)${prov}${vote}${perf}`);
     } else {
       setHealthLine(el, "warn", "Classifier: model not loaded");
     }
