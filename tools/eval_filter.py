@@ -66,17 +66,19 @@ def _label_for(name):
     return None
 
 
-def _iter_dir(root):
+def _iter_dir(root, only=None):
     for label in ("block", "allow"):
         base = Path(root) / label
         if not base.is_dir():
             continue
         for f in sorted(base.rglob("*")):
             if f.is_file() and f.suffix.lower() in IMAGE_EXTS:
-                yield label, f"{label}/{f.relative_to(base).as_posix()}", f.read_bytes()
+                name = f"{label}/{f.relative_to(base).as_posix()}"
+                if only is None or name in only:
+                    yield label, name, f.read_bytes()
 
 
-def _iter_zip(zip_path, password):
+def _iter_zip(zip_path, password, only=None):
     try:
         import pyzipper
     except ModuleNotFoundError as e:
@@ -92,24 +94,69 @@ def _iter_zip(zip_path, password):
                 label = _label_for(info.filename)
                 if label is None or Path(info.filename).suffix.lower() not in IMAGE_EXTS:
                     continue
+                if only is not None and info.filename not in only:
+                    continue
                 yield label, info.filename, zf.read(info)
     except RuntimeError as e:
         raise SystemExit(f"Could not read encrypted zip (wrong password?): {e}") from e
 
 
-def iter_samples(path, password=None):
+def iter_samples(path, password=None, only=None):
     """Yield (label, name, raw_bytes) for every labelled image in `path`.
 
     `path` is an AES-encrypted .zip or a directory with block/ and allow/
     subfolders. Bytes are read into memory only; nothing is extracted to disk.
+    `only`, if given, restricts output to that set of names (for sampling).
     """
     p = Path(path)
     if p.is_dir():
-        yield from _iter_dir(p)
+        yield from _iter_dir(p, only)
     elif p.suffix.lower() == ".zip":
-        yield from _iter_zip(p, password)
+        yield from _iter_zip(p, password, only)
     else:
         raise SystemExit(f"Dataset must be a directory or a .zip: {path}")
+
+
+def _labeled_names(path, password=None):
+    """Yield (label, name) for labelled entries WITHOUT reading image bytes.
+    Zip entry names are not encrypted, so listing needs no password."""
+    p = Path(path)
+    if p.is_dir():
+        for label in ("block", "allow"):
+            base = p / label
+            if base.is_dir():
+                for f in sorted(base.rglob("*")):
+                    if f.is_file() and f.suffix.lower() in IMAGE_EXTS:
+                        yield label, f"{label}/{f.relative_to(base).as_posix()}"
+        return
+    if p.suffix.lower() == ".zip":
+        try:
+            import pyzipper
+        except ModuleNotFoundError as e:
+            raise SystemExit('Encrypted datasets need pyzipper: pip install -e ".[eval]"') from e
+        with pyzipper.AESZipFile(p) as zf:
+            for info in zf.infolist():
+                label = _label_for(info.filename)
+                if not info.is_dir() and label and Path(info.filename).suffix.lower() in IMAGE_EXTS:
+                    yield label, info.filename
+        return
+    raise SystemExit(f"Dataset must be a directory or a .zip: {path}")
+
+
+def _sample_names(path, password, sample_per_class, seed):
+    """Pick a random up-to-N names per class (the names list is read without
+    decrypting any image)."""
+    import random
+
+    rng = random.Random(seed)
+    by_label = {}
+    for label, name in _labeled_names(path, password):
+        by_label.setdefault(label, []).append(name)
+    only = set()
+    for names in by_label.values():
+        rng.shuffle(names)
+        only.update(names[:sample_per_class])
+    return only
 
 
 # --------------------------------------------------------------------------- #
@@ -151,11 +198,13 @@ def classify_sample(ens, raw, threshold=None, salience=None):
     }
 
 
-def evaluate(path, threshold=None, salience=None, password=None):
-    """Classify every labelled image; return records with label + scores only."""
+def evaluate(path, threshold=None, salience=None, password=None, sample_per_class=None, seed=1234):
+    """Classify labelled images; return records with label + scores only.
+    `sample_per_class` scores a random N per class instead of the whole set."""
     ens = load_pipeline()
+    only = _sample_names(path, password, sample_per_class, seed) if sample_per_class else None
     records = []
-    for label, name, raw in iter_samples(path, password):
+    for label, name, raw in iter_samples(path, password, only):
         rec = classify_sample(ens, raw, threshold, salience)
         rec["label"] = label
         rec["name"] = name
@@ -637,6 +686,8 @@ def main(argv=None):
     pe.add_argument("--salience", type=float, default=None, help="salience weight 0..1 (0 = off)")
     pe.add_argument("--report", default=None, help="write a JSON report (scores only, no images)")
     pe.add_argument("--no-sweep", action="store_true", help="skip the threshold/salience sweeps")
+    pe.add_argument("--sample-per-class", type=int, default=None, help="score a random N per class (sample the set)")
+    pe.add_argument("--seed", type=int, default=1234, help="sampling seed")
 
     pd = sub.add_parser("build-dir", help="encrypt a block/+allow/ folder into an AES zip")
     pd.add_argument("src_dir")
@@ -662,7 +713,7 @@ def main(argv=None):
 
     if args.cmd == "eval":
         password = _get_password(required=str(args.dataset).lower().endswith(".zip"))
-        records = evaluate(args.dataset, args.threshold, args.salience, password)
+        records = evaluate(args.dataset, args.threshold, args.salience, password, args.sample_per_class, args.seed)
         if not records:
             raise SystemExit("No labelled images found (expected block/ and allow/ entries).")
         report = build_report(records, args.threshold, args.salience, sweep_on=not args.no_sweep)

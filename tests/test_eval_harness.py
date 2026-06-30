@@ -144,3 +144,20 @@ def test_build_inat_routes_by_class(tmp_path):
     eval_filter.build_inat(str(imgs), str(mpath), str(zpath), "pw", limit_per_class=10, seed=1)
     labels = sorted(lbl for lbl, _, _ in eval_filter.iter_samples(str(zpath), "pw"))
     assert labels == ["allow", "block"]
+
+
+def test_sampling_selects_n_per_class(tmp_path):
+    pytest.importorskip("pyzipper")
+    entries = {}
+    for i in range(5):
+        for label in ("block", "allow"):
+            buf = io.BytesIO()
+            Image.new("RGB", (8, 8), (i * 10, 0, 0)).save(buf, format="PNG")
+            entries[f"{label}/{i}.png"] = buf.getvalue()
+    zpath = tmp_path / "s.eval.zip"
+    eval_filter._write_zip(str(zpath), "pw", entries.items())
+    assert len(list(eval_filter._labeled_names(str(zpath), "pw"))) == 10
+    only = eval_filter._sample_names(str(zpath), "pw", 2, seed=1)
+    assert len(only) == 4
+    got = sorted(lbl for lbl, _, _ in eval_filter.iter_samples(str(zpath), "pw", only))
+    assert got == ["allow", "allow", "block", "block"]
