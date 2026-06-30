@@ -130,6 +130,7 @@ class VoteEnsemble:
             mult, breakdown = 1.0, {}
         if salience is not None:
             mult = 1.0 + salience * (mult - 1.0)  # 0 -> no weighting; 1 -> full
+        mult = max(1.0, mult)  # boost-only: salience amplifies, never suppresses
         thr = self.threshold if threshold is None else threshold
         combined = max(0.0, min(1.0, pos * mult + neg))
 

@@ -2,6 +2,7 @@
 
 from PIL import Image
 
+from imgedge.voters import base
 from imgedge.voters.base import VoteEnsemble, Voter
 
 
@@ -40,10 +41,9 @@ def test_block_is_monotonic_in_threshold():
         assert _verdict(0.5, threshold=lower, salience=0.0)["block"] is True
 
 
-def test_salience_strength_zero_disables_weighting():
-    # A tiny flat CSS-background image is normally suppressed below threshold;
-    # salience=0 turns the weighting off so the same evidence blocks.
-    meta = {"kind": "bg"}
-    small = _img(30, 30)
-    assert _verdict(0.6, salience=1.0, meta=meta, img=small)["block"] is False
-    assert _verdict(0.6, salience=0.0, meta=meta, img=small)["block"] is True
+def test_salience_strength_zero_disables_weighting(monkeypatch):
+    # Boost-only: a photographic image earns a >1 multiplier. salience=1 applies
+    # the full boost (blocks); salience=0 turns the boost off (mult==1, no block).
+    monkeypatch.setattr(base, "image_salience", lambda img, meta=None: (1.4, {"salience": 1.4}))
+    assert _verdict(0.4, salience=1.0)["block"] is True  # 0.4 * 1.4 = 0.56
+    assert _verdict(0.4, salience=0.0)["block"] is False  # 0.4 * 1.0 = 0.40

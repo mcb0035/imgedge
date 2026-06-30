@@ -21,7 +21,7 @@ ImageNet class descriptions, so "tick" never matches "stick".
 Override the lists with env vars (comma-separated):
   IMGEDGE_TIMM_EXCLUDE   block terms       (default: the arachnid classes below)
   IMGEDGE_TIMM_CONTRAST  look-alike terms  (default: the insect/pattern set below)
-  IMGEDGE_TIMM_CONTRAST_WEIGHT  how hard look-alikes argue against (default: 1.0)
+  IMGEDGE_TIMM_CONTRAST_WEIGHT  how hard look-alikes argue against (default: 0.0)
 
 Enable by installing the optional deps:  pip install -r voters/requirements.txt
 The server runs fine without them; the voter is simply skipped.
@@ -39,11 +39,16 @@ from timm.data import create_transform, resolve_model_data_config  # type: ignor
 from imgedge.voters.base import Voter
 
 DEFAULT_MODEL = os.environ.get("IMGEDGE_TIMM_MODEL", "mobilenetv3_large_100.ra_in1k")
-CONTRAST_WEIGHT = float(os.environ.get("IMGEDGE_TIMM_CONTRAST_WEIGHT", "1.0"))
+# Default 0.0: evaluating on real web imagery showed the look-alike contrast
+# suppressed arachnid recall for almost no false-positive benefit (it mainly
+# guarded against organism look-alikes, which are rare on the web). Set >0 to
+# re-enable contrast subtraction.
+CONTRAST_WEIGHT = float(os.environ.get("IMGEDGE_TIMM_CONTRAST_WEIGHT", "0.0"))
 
 # Real arachnid (Arachnida) classes present in ImageNet-1k -> push toward block.
 BLOCK_TERMS = [
-    "spider",
+    # specific arachnid classes -- the bare term "spider" also matches the
+    # non-arachnid "spider monkey", so the real classes are listed explicitly
     "tarantula",
     "garden spider",
     "barn spider",
@@ -54,6 +59,7 @@ BLOCK_TERMS = [
     "tick",
     "harvestman",
     "daddy longlegs",
+    "spider web",  # webs strongly co-occur with spiders -> count toward block
 ]
 
 # Look-alikes that are NOT arachnids -> argue against a block. Other insects and

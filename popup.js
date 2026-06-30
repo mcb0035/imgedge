@@ -12,7 +12,7 @@ const DEFAULTS = {
   failClosed: false,
   strict: false,
   scanBackgrounds: true,
-  threshold: 0.5,
+  threshold: 0.18,
   salience: 1.0,
 };
 
