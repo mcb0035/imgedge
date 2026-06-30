@@ -64,7 +64,7 @@ class VoteEnsemble:
     def names(self):
         return [v.name for v in self.voters]
 
-    def classify_bytes(self, raw, meta=None, decoder=None):
+    def classify_bytes(self, raw, meta=None, decoder=None, threshold=None, salience=None):
         if decoder is not None:
             # Decode out-of-process; reconstruct from a trusted RGB array.
             from PIL import Image
@@ -72,11 +72,11 @@ class VoteEnsemble:
             meta = dict(meta or {})
             meta.setdefault("w", ow)  # keep the true size for salience
             meta.setdefault("h", oh)
-            return self.classify(Image.fromarray(arr), meta)
+            return self.classify(Image.fromarray(arr), meta, threshold, salience)
         with open_guarded(raw) as img:
-            return self.classify(img, meta)
+            return self.classify(img, meta, threshold, salience)
 
-    def classify(self, img, meta=None):
+    def classify(self, img, meta=None, threshold=None, salience=None):
         rows = []  # (voter, score, evidence)
         for v in self.voters:
             try:
@@ -86,7 +86,7 @@ class VoteEnsemble:
             rows.append((v, float(s), float(e)))
 
         if self.policy == "evidence":
-            return self._evidence_verdict(rows, img, meta)
+            return self._evidence_verdict(rows, img, meta, threshold, salience)
 
         # ---- discrete policies (any / all / majority / weighted) ------------
         results = [(v, s >= v.threshold, s) for (v, s, _) in rows]
@@ -101,19 +101,28 @@ class VoteEnsemble:
             "votes": scores,
         }
 
-    def _evidence_verdict(self, rows, img, meta):
+    def _evidence_verdict(self, rows, img, meta, threshold=None, salience=None):
         """Sum signed evidence, scale the positive part by image salience, then
         threshold. Positive evidence (real arachnid) pushes toward a block and
         is amplified for large/photographic images; negative evidence (a
-        look-alike) always pulls fully away."""
+        look-alike) always pulls fully away.
+
+        `threshold` and `salience` are optional per-request overrides (the popup
+        sliders): `threshold` replaces the ensemble threshold; `salience` in
+        [0, 1] dials the size/detail weighting (0 = off -> mult forced to 1.0;
+        1 = full). Because `combined` does not depend on the threshold, a block
+        at one threshold stays blocked at every lower threshold."""
         pos = sum(v.weight * e for (v, _, e) in rows if e > 0)
         neg = sum(v.weight * e for (v, _, e) in rows if e < 0)  # <= 0
         try:
             mult, breakdown = image_salience(img, meta)
         except Exception:
             mult, breakdown = 1.0, {}
+        if salience is not None:
+            mult = 1.0 + salience * (mult - 1.0)  # 0 -> no weighting; 1 -> full
+        thr = self.threshold if threshold is None else threshold
         combined = max(0.0, min(1.0, pos * mult + neg))
-        block = combined >= self.threshold
+        block = combined >= thr
         supporters = [v.name for (v, _, e) in rows if e > 0]
         dampers = [v.name for (v, _, e) in rows if e < 0]
         return {
@@ -125,7 +134,7 @@ class VoteEnsemble:
             "dampers": dampers,
             "dbg": {
                 "policy": self.policy,
-                "threshold": round(self.threshold, 4),
+                "threshold": round(thr, 4),
                 "pos": round(pos, 4), "neg": round(neg, 4), "mult": round(mult, 3),
                 "salience": breakdown,
                 "voters": [{
