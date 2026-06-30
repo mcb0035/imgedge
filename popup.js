@@ -189,4 +189,19 @@ $("save").addEventListener("click", save);
 $("showToken").addEventListener("change", (e) => {
   $("token").type = e.target.checked ? "text" : "password";
 });
+
+// Toggle checkboxes persist immediately (no Save needed), so enabling/disabling
+// filtering sticks across page reloads and navigation. endpoint/token still use
+// the Save button (endpoint needs localhost validation; the token is a paste field).
+const TOGGLES = ["enabled", "sendData", "failClosed", "strict", "scanBackgrounds"];
+async function persistToggle(id) {
+  const data = await chrome.storage.local.get([KEYS.settings]);
+  const s = Object.assign({}, DEFAULTS, data[KEYS.settings] || {});
+  s[id] = $(id).checked;
+  await chrome.storage.local.set({ [KEYS.settings]: s });
+}
+for (const id of TOGGLES) {
+  $(id).addEventListener("change", () => persistToggle(id));
+}
+
 load();
