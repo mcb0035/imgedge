@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=77"]
+requires = ["setuptools==82.0.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,13 +9,13 @@ description = "Local image-classifier backend for the ImgEdge MV3 extension."
 authors = [{ name = "Matthew Bedford" }]
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-requires-python = ">=3.9"
-dependencies = ["numpy>=1.24", "pillow>=10.0", "ai-edge-litert>=2.1"]
+requires-python = ">=3.13"
+dependencies = ["numpy==2.5.0", "pillow==12.2.0", "ai-edge-litert==2.1.5"]
 
 [project.optional-dependencies]
-voters = ["timm>=1.0", "torch>=2.2"]
-onnx = ["onnxruntime>=1.17"]
-dev = ["pytest>=8", "ruff>=0.8", "pip-audit>=2.7", "pre-commit>=4"]
+voters = ["timm==1.0.27", "torch==2.12.1"]
+onnx = ["onnxruntime==1.27.0"]
+dev = ["pytest==9.1.1", "ruff==0.15.20", "pip-audit==2.10.1", "pre-commit==4.6.0", "pytest-codspeed==5.0.3"]
 
 [project.scripts]
 imgedge-server = "imgedge.classifier.server:main"
@@ -26,7 +26,7 @@ where = ["src"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py313"
 extend-exclude = ["training", "dist"]
 
 [tool.ruff.lint]
