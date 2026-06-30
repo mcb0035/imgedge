@@ -1,8 +1,11 @@
-"""SigLIP voter scoring math (pure helpers; no model download)."""
+"""SigLIP voter scoring math (pure helpers) + an opt-in model-path smoke test."""
+
+import os
 
 import numpy as np
+import pytest
 
-from imgedge.voters.siglip_voter import BLOCK_PROMPTS, _block_prob, _split_env
+from imgedge.voters.siglip_voter import BLOCK_PROMPTS, _block_prob, _pooled, _split_env
 
 
 def _sigmoid(x):
@@ -43,3 +46,37 @@ def test_split_env_parses_and_trims(monkeypatch):
     assert _split_env("IMGEDGE_SIGLIP_PROMPTS") == ["a spider", "a scorpion"]
     monkeypatch.delenv("IMGEDGE_SIGLIP_PROMPTS")
     assert _split_env("IMGEDGE_SIGLIP_PROMPTS") is None
+
+
+def test_pooled_extracts_pooler_output():
+    # transformers 5.x get_*_features returns a ModelOutput, not a tensor
+    class _Out:
+        pooler_output = "EMB"
+
+    assert _pooled(_Out()) == "EMB"
+    assert _pooled("TENSOR") == "TENSOR"  # older API: tensor passthrough
+
+    class _NoPool:
+        pooler_output = None
+
+    obj = _NoPool()
+    assert _pooled(obj) is obj  # None pooler -> return the object unchanged
+
+
+@pytest.mark.skipif(
+    os.environ.get("IMGEDGE_TEST_SIGLIP") != "1",
+    reason="set IMGEDGE_TEST_SIGLIP=1 to run the SigLIP model-path test (loads ~1GB model)",
+)
+def test_model_path_scores_synthetic_image():
+    # Guards the real inference path -- the transformers 5.x get_*_features change
+    # slipped past the pure-helper tests. Runs only when explicitly opted in.
+    from PIL import Image
+
+    from imgedge.voters.siglip_voter import SiglipVoter
+
+    v = SiglipVoter()
+    score, evidence, details = v.assess(Image.new("RGB", (128, 128), (128, 128, 128)))
+    assert 0.0 <= score <= 1.0
+    assert score == evidence  # positive-only voter
+    assert set(details) == {"block_p", "prompts"}
+    assert len(details["prompts"]) == len(v.prompts)

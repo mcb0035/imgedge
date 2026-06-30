@@ -43,7 +43,10 @@ import numpy as np
 from imgedge.voters.base import Voter
 
 DEFAULT_MODEL = os.environ.get("IMGEDGE_SIGLIP_MODEL", "google/siglip2-base-patch16-224")
-WEIGHT = float(os.environ.get("IMGEDGE_SIGLIP_WEIGHT", "0.5"))
+# Per-image gain on the raw sigmoid probability. The ensemble weight
+# (IMGEDGE_SIGLIP_WEIGHT) is read by the server and passed in -- mirroring the
+# timm voter -- so it is not duplicated here; gain is voter-local, like timm's
+# CONTRAST_WEIGHT.
 GAIN = float(os.environ.get("IMGEDGE_SIGLIP_GAIN", "1.0"))
 
 # Open-vocabulary block prompts. SigLIP was trained on lowercase descriptive
@@ -81,8 +84,15 @@ def _split_env(name):
     return [t.strip() for t in raw.split(",") if t.strip()] if raw.strip() else None
 
 
+def _pooled(out):
+    """transformers >=5 returns a ModelOutput from get_*_features; older versions
+    return the tensor directly. Pull the pooled embedding either way."""
+    pooled = getattr(out, "pooler_output", None)
+    return pooled if pooled is not None else out
+
+
 class SiglipVoter(Voter):
-    def __init__(self, model_name=DEFAULT_MODEL, threshold=0.5, weight=WEIGHT, prompts=None, gain=GAIN):
+    def __init__(self, model_name=DEFAULT_MODEL, threshold=0.5, weight=0.5, prompts=None, gain=GAIN):
         super().__init__(threshold, weight)
         # Heavy deps are imported lazily so the module (and its pure scoring
         # helpers) import cleanly without torch/transformers installed.
@@ -105,7 +115,7 @@ class SiglipVoter(Voter):
         text = self.processor(text=self.prompts, padding="max_length", max_length=64, return_tensors="pt")
         text = text.to(self.device)
         with torch.inference_mode():
-            temb = self.model.get_text_features(**text)
+            temb = _pooled(self.model.get_text_features(**text))
             self._text_emb = torch.nn.functional.normalize(temb, dim=-1)
         self._logit_scale = self.model.logit_scale.exp().detach()
         self._logit_bias = self.model.logit_bias.detach()
@@ -114,7 +124,7 @@ class SiglipVoter(Voter):
         torch = self._torch
         inputs = self.processor(images=img.convert("RGB"), return_tensors="pt").to(self.device)
         with self._lock, torch.inference_mode():
-            iemb = self.model.get_image_features(**inputs)
+            iemb = _pooled(self.model.get_image_features(**inputs))
             iemb = torch.nn.functional.normalize(iemb, dim=-1)
             logits = (iemb @ self._text_emb.t()) * self._logit_scale + self._logit_bias
             logits = logits[0].float().cpu().numpy()

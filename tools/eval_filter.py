@@ -202,6 +202,7 @@ def classify_sample(ens, raw, threshold=None, salience=None):
             "timm_block": None,
             "timm_contrast": None,
             "contrast_terms": None,
+            "siglip": None,
             "salience": None,
             "votes": {},
             "error": True,
@@ -210,6 +211,7 @@ def classify_sample(ens, raw, threshold=None, salience=None):
     voters = {v.get("name", ""): v for v in dbg.get("voters", [])}
     inat_v = next((v for n, v in voters.items() if n.startswith("inat")), None)
     timm_v = next((v for n, v in voters.items() if n.startswith("timm")), None)
+    siglip_v = next((v for n, v in voters.items() if n.startswith("siglip")), None)
     timm_d = (timm_v or {}).get("details") or {}
     return {
         "block": bool(verdict.get("block")),
@@ -222,6 +224,7 @@ def classify_sample(ens, raw, threshold=None, salience=None):
         "timm_block": _as_float(timm_d.get("block_p")),
         "timm_contrast": _as_float(timm_d.get("contrast_p")),
         "contrast_terms": timm_d.get("contrast_terms"),
+        "siglip": _as_float(siglip_v.get("score")) if siglip_v else None,
         "salience": dbg.get("salience"),
         "votes": verdict.get("votes", {}),
     }
@@ -350,6 +353,7 @@ def _score_row(r):
         "timm_block": _round(r.get("timm_block")),
         "timm_contrast": _round(r.get("timm_contrast")),
         "contrast_terms": r.get("contrast_terms"),
+        "siglip": _round(r.get("siglip")),
         "salience": r.get("salience"),
     }
 
