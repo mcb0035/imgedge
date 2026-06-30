@@ -184,8 +184,28 @@ def _as_float(v):
 
 
 def classify_sample(ens, raw, threshold=None, salience=None):
-    """Return a flat record for one image's verdict (no pixels retained)."""
-    verdict = ens.classify_bytes(raw, None, None, threshold, salience)
+    """Return a flat record for one image's verdict (no pixels retained). A
+    decode/classify failure (e.g. an oversized image the guard rejects) is
+    recorded as not-blocked -- matching the server's fail-open behaviour -- so a
+    single bad image never aborts a whole run."""
+    try:
+        verdict = ens.classify_bytes(raw, None, None, threshold, salience)
+    except Exception:
+        return {
+            "block": False,
+            "combined": 0.0,
+            "thr": None,
+            "pos": None,
+            "neg": None,
+            "mult": None,
+            "inat": None,
+            "timm_block": None,
+            "timm_contrast": None,
+            "contrast_terms": None,
+            "salience": None,
+            "votes": {},
+            "error": True,
+        }
     dbg = verdict.get("dbg") or {}
     voters = {v.get("name", ""): v for v in dbg.get("voters", [])}
     inat_v = next((v for n, v in voters.items() if n.startswith("inat")), None)
@@ -349,6 +369,7 @@ def build_report(records, threshold, salience, sweep_on=True):
         "samples": len(records),
         "positives": sum(1 for r in records if r["label"] == "block"),
         "negatives": sum(1 for r in records if r["label"] == "allow"),
+        "errors": sum(1 for r in records if r.get("error")),
         "operating_point": {
             "threshold": threshold,
             "salience": salience,
@@ -373,6 +394,8 @@ def print_report(rep):
     thr = op["threshold"]
     sal = op["salience"]
     print(f"Samples: {rep['samples']}  (block={rep['positives']}, allow={rep['negatives']})")
+    if rep.get("errors"):
+        print(f"  ({rep['errors']} images skipped -- decode/classify error, counted as not-blocked)")
     print(
         f"Operating point: threshold={'default' if thr is None else thr}, salience={'default' if sal is None else sal}"
     )
