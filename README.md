@@ -146,6 +146,10 @@ backgrounds*, and the whitelist / allowed-sites / blocklist.
 | `IMGEDGE_EP` | `auto` | ONNX provider: `auto\|npu\|ovgpu\|cuda\|dml\|cpu` |
 | `IMGEDGE_POOL` | `min(4, cpus)` | TFLite interpreter pool size |
 | `IMGEDGE_WORKERS` | `8` | Max concurrent HTTP request workers |
+| `IMGEDGE_FETCH_PORTS` | `80,443` | Allowed image-fetch destination ports (`any` for no limit) |
+| `IMGEDGE_FETCH_HTTPS_ONLY` | `0` | Refuse plaintext `http://` image URLs |
+| `IMGEDGE_FETCH_ALLOW_HOSTS` | _(none)_ | If set, fetch only from these domains (comma-sep; subdomains included) |
+| `IMGEDGE_FETCH_PER_HOST` | `4` | Max concurrent fetches to a single host (`0` disables) |
 | `IMGEDGE_TOKEN` / `IMGEDGE_TOKEN_FILE` | generated → `~/.imgedge_token` | Access token |
 | `IMGEDGE_CACHE_FILE` | `~/.imgedge_cache.json` | Verdict cache (`none` to disable) |
 | `IMGEDGE_LOG_FILE` | `~/.imgedge.log` | Rotating log (1MB×3 ≈ 4MB cap; `none` to disable) |
@@ -163,8 +167,13 @@ backgrounds*, and the whitelist / allowed-sites / blocklist.
   paste it once into the popup). `/health` is open so the popup can report status.
 - **No CORS.** The server sends no `Access-Control-*` headers, so arbitrary web
   pages can't call it; the extension reaches it via host permissions.
-- **SSRF-guarded fetch.** When the server fetches an image URL it refuses
-  loopback / private / link-local / reserved targets and follows no redirects.
+- **SSRF-guarded fetch.** When the server fetches an image URL it allows only
+  `http(s)`, refuses loopback / private / link-local / CGNAT / reserved targets
+  (unwrapping IPv4-mapped and NAT64 IPv6), **pins the connection to the validated
+  IP** (no DNS-rebinding window), follows no redirects, restricts ports (default
+  `80,443`), rejects non-image responses, and caps per-host concurrency.
+  `IMGEDGE_FETCH_HTTPS_ONLY` and `IMGEDGE_FETCH_ALLOW_HOSTS` can lock egress down
+  further.
 - **Decode hardening.** Pillow is capped to a max pixel count (decompression-bomb
   guard) and only parses an allowlist of raster formats.
 - **Optional decode isolation.** `IMGEDGE_SANDBOX=1` runs the Pillow decode in a

@@ -50,10 +50,15 @@ Hardening that is implemented today:
   a web page cannot read responses or pass a JSON preflight to the local
   server. The extension reaches it via host permissions, which bypass CORS.
 - **SSRF guard.** When the server fetches an image URL it resolves the host and
-  refuses loopback, private, link-local, multicast, reserved, and unspecified
-  addresses; allows only `http(s)`; **follows no redirects**; accepts only
-  `200`; and caps the body at 8 MB with a short timeout. The `/classify`
-  request body itself is capped at 16 MB.
+  refuses loopback, private, link-local, CGNAT, multicast, reserved, and
+  unspecified addresses (unwrapping IPv4-mapped and NAT64 IPv6 so an internal
+  IPv4 can't hide inside an IPv6 wrapper); allows only `http(s)`; **pins the
+  socket to the validated IP** so the host can't be rebound between check and
+  connect; **follows no redirects**; restricts destination ports (default
+  `80,443`); rejects non-image response content types; accepts only `200`; and
+  caps the body at 8 MB with a short timeout plus a per-host concurrency limit.
+  The `/classify` request body itself is capped at 16 MB. Egress can be locked
+  down further with `IMGEDGE_FETCH_HTTPS_ONLY` and `IMGEDGE_FETCH_ALLOW_HOSTS`.
 - **Pinned model integrity.** Model/taxonomy downloads are pinned to a SHA-256
   and verified on download *and* before load; a mismatched file is refused.
   Python deps ship as hash-pinned lock files (`pip install --require-hashes`).
@@ -94,9 +99,9 @@ These are deliberately documented rather than hidden:
 - **Inline image data (`sendData`).** When enabled, a page can hand image bytes
   directly to the decoder, bypassing the SSRF *fetch* path. Exposure is similar
   to fetched public images and is bounded by the same decode hardening.
-- **DNS rebinding.** The SSRF guard validates at resolve time and disables
-  redirects, but a rebind to an internal IP between validation and fetch is a
-  narrow residual risk.
+- **DNS rebinding.** Mitigated: the fetch resolves the host once, validates
+  every returned address, and connects to that exact IP, so the destination
+  can't be rebound to an internal address between the check and the connect.
 - **Local access.** Any local process that knows the token can call
   `/classify`; the token is the access control. `/health` is unauthenticated and
   reveals only that ImgEdge is running and which taxon it targets.
