@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **iNat-confidence override:** when the iNaturalist model (trained on real
+  living organisms) is at/above `IMGEDGE_INAT_OVERRIDE` confidence (default
+  `0.9`), it blocks outright and the look-alike contrast voter can no longer
+  veto it. Set `>1` to disable. Surfaced in `/health` and the debug breakdown.
+- **Filtering evaluation harness** (`tools/eval_filter.py`): measures recall /
+  false-positive rate, a threshold sweep, and a salience-strategy comparison
+  over an AES-encrypted dataset, without ever displaying an image. Dev-only
+  (`pip install -e ".[eval]"`).
 - **CI security & coverage:** OpenSSF Scorecard analysis (weekly and on push,
   results published for the badge), a `dependency-review` check on pull
   requests (fails on high-severity advisories), StepSecurity Harden-Runner

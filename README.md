@@ -146,6 +146,7 @@ and the whitelist / allowed-sites / blocklist.
 | `IMGEDGE_TIMM_CONTRAST_WEIGHT` | `1.0` | How hard look-alike evidence counts |
 | `IMGEDGE_TIMM_THRESHOLD` | `0.5` | timm voter's own block threshold |
 | `IMGEDGE_TIMM_WEIGHT` | `0.5` | timm evidence weight in the ensemble |
+| `IMGEDGE_INAT_OVERRIDE` | `0.9` | iNat P(block) at/above which it blocks outright, ignoring the contrast voter (`>1` disables) |
 | `IMGEDGE_EP` | `auto` | ONNX provider: `auto\|npu\|ovgpu\|cuda\|dml\|cpu` |
 | `IMGEDGE_POOL` | `min(4, cpus)` | TFLite interpreter pool size |
 | `IMGEDGE_WORKERS` | `8` | Max concurrent HTTP request workers |
