@@ -28,7 +28,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   on real data (default `IMGEDGE_SIGLIP_WEIGHT` `2.0`): lifts recall ~79% -> ~89%
   at ~0.9% real-web false positives, since SigLIP is near-silent on non-arachnid
   imagery; re-tune `IMGEDGE_SIGLIP_WEIGHT` / `IMGEDGE_SIGLIP_GAIN` if you change
-  the model or prompts.
+  the model or prompts. A **cascade gate** (`IMGEDGE_SIGLIP_GATE`, default
+  `0.0`) skips the heavy model when the cheap voters already block; raise it to
+  trade a little recall for fewer SigLIP runs.
 - **iNat-confidence override:** when the iNaturalist model (trained on real
   living organisms) is at/above `IMGEDGE_INAT_OVERRIDE` confidence (default
   `0.9`), it blocks outright and the look-alike contrast voter can no longer
@@ -43,6 +45,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   egress auditing on every Linux job, a Windows test job, and test-coverage
   reporting over the deterministic core modules (optional / Windows-only /
   model-dependent code is excluded) with a `--cov-fail-under` floor.
+
+### Fixed
+
+- **Large images no longer fail open.** A photo above the 24 MP decode-bomb
+  guard was previously rejected and shown unclassified; large JPEGs are now
+  downscaled during decode (libjpeg DCT scaling, which never expands the full
+  pixels into memory) and classified, with an absolute reject ceiling kept for
+  true decompression bombs.
 
 ### Changed
 

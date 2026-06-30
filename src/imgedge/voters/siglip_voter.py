@@ -94,6 +94,8 @@ def _pooled(out):
 
 
 class SiglipVoter(Voter):
+    deferred = True  # heavy open-vocab model -> the ensemble runs it only in the cascade band
+
     def __init__(self, model_name=DEFAULT_MODEL, threshold=0.5, weight=2.0, prompts=None, gain=GAIN):
         super().__init__(threshold, weight)
         # Heavy deps are imported lazily so the module (and its pure scoring

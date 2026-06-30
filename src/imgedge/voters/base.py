@@ -27,6 +27,8 @@ from imgedge.voters.salience import image_salience
 
 class Voter:
     name = "voter"
+    deferred = False  # if True, the ensemble runs this voter only when the cheap
+    # voters leave the score near the threshold (see VoteEnsemble cascade gate).
 
     def __init__(self, threshold=0.5, weight=1.0):
         self.threshold = float(threshold)
@@ -54,7 +56,7 @@ class Voter:
 
 
 class VoteEnsemble:
-    def __init__(self, voters, policy="any", threshold=0.5, inat_override=1.01):
+    def __init__(self, voters, policy="any", threshold=0.5, inat_override=1.01, gate=0.0):
         self.voters = list(voters)
         self.policy = policy
         self.threshold = float(threshold)
@@ -62,6 +64,10 @@ class VoteEnsemble:
         # iNat (real-organism) confidence at/above which it blocks outright,
         # regardless of the contrast voter. >1.0 disables the override.
         self.inat_override = float(inat_override)
+        # Cascade gate: skip the deferred (expensive) voters when the cheap-voter
+        # combined score is below this floor -- they can't realistically rescue
+        # an image the cheap voters see nothing in. 0.0 = always run them.
+        self.gate = float(gate)
 
     @property
     def names(self):
@@ -80,16 +86,32 @@ class VoteEnsemble:
         with open_guarded(raw) as img:
             return self.classify(img, meta, threshold, salience)
 
+    def _assess(self, v, img):
+        """Run one voter, isolating failures: a broken voter abstains (0, 0)."""
+        try:
+            out = v.assess(img)
+            d = out[2] if len(out) > 2 else None  # optional per-voter breakdown
+            return (v, float(out[0]), float(out[1]), d)
+        except Exception:
+            return (v, 0.0, 0.0, None)  # never crash the verdict
+
     def classify(self, img, meta=None, threshold=None, salience=None):
-        rows = []  # (voter, score, evidence, details)
-        for v in self.voters:
-            try:
-                out = v.assess(img)
-                s, e = float(out[0]), float(out[1])
-                d = out[2] if len(out) > 2 else None  # optional per-voter breakdown
-            except Exception:
-                s, e, d = 0.0, 0.0, None  # a broken voter abstains, never crashes the verdict
-            rows.append((v, s, e, d))
+        deferred = [v for v in self.voters if getattr(v, "deferred", False)]
+        if deferred and self.policy == "evidence":
+            # Cascade: assess the cheap voters first; run the expensive
+            # (deferred) voters only when the cheap score lands in the band where
+            # they could still change the verdict -- at/above threshold it
+            # already blocks; below `gate` they realistically can't rescue it.
+            # Skips the heavy voter on the bulk of clearly-allow images.
+            rows = [self._assess(v, img) for v in self.voters if not getattr(v, "deferred", False)]
+            cheap = self._combine(rows, img, meta, threshold, salience)[0]
+            thr = self.threshold if threshold is None else threshold
+            if self.gate <= cheap < thr:
+                rows += [self._assess(v, img) for v in deferred]
+            else:
+                rows += [(v, 0.0, 0.0, {"skipped": True}) for v in deferred]
+        else:
+            rows = [self._assess(v, img) for v in self.voters]
 
         if self.policy == "evidence":
             return self._evidence_verdict(rows, img, meta, threshold, salience)
@@ -107,6 +129,28 @@ class VoteEnsemble:
             "votes": scores,
         }
 
+    def _combine(self, rows, img, meta, threshold=None, salience=None):
+        """Core evidence math shared by the cascade gate and the final verdict.
+        Returns (combined, pos, neg, mult, breakdown, override, inat_score).
+
+        Sum signed evidence, scale the positive part by image salience (boost-
+        only), then apply the iNat-confidence override."""
+        pos = sum(v.weight * e for (v, _, e, _) in rows if e > 0)
+        neg = sum(v.weight * e for (v, _, e, _) in rows if e < 0)  # <= 0
+        try:
+            mult, breakdown = image_salience(img, meta)
+        except Exception:
+            mult, breakdown = 1.0, {}
+        if salience is not None:
+            mult = 1.0 + salience * (mult - 1.0)  # 0 -> no weighting; 1 -> full
+        mult = max(1.0, mult)  # boost-only: salience amplifies, never suppresses
+        combined = max(0.0, min(1.0, pos * mult + neg))
+        inat_score = next((s for (v, s, _, _) in rows if v is self.inat), None)
+        override = inat_score is not None and inat_score >= self.inat_override
+        if override:
+            combined = max(combined, inat_score)  # confident real organism pins the score
+        return combined, pos, neg, mult, breakdown, override, inat_score
+
     def _evidence_verdict(self, rows, img, meta, threshold=None, salience=None):
         """Sum signed evidence, scale the positive part by image salience, then
         threshold. Positive evidence (real arachnid) pushes toward a block and
@@ -122,25 +166,8 @@ class VoteEnsemble:
         If the iNat voter is present and its own P(block) reaches
         `inat_override`, it blocks outright: a confident real-organism match is
         not vetoed by the look-alike contrast voter's negative evidence."""
-        pos = sum(v.weight * e for (v, _, e, _) in rows if e > 0)
-        neg = sum(v.weight * e for (v, _, e, _) in rows if e < 0)  # <= 0
-        try:
-            mult, breakdown = image_salience(img, meta)
-        except Exception:
-            mult, breakdown = 1.0, {}
-        if salience is not None:
-            mult = 1.0 + salience * (mult - 1.0)  # 0 -> no weighting; 1 -> full
-        mult = max(1.0, mult)  # boost-only: salience amplifies, never suppresses
+        combined, pos, neg, mult, breakdown, override, inat_score = self._combine(rows, img, meta, threshold, salience)
         thr = self.threshold if threshold is None else threshold
-        combined = max(0.0, min(1.0, pos * mult + neg))
-
-        # iNat dominance: a confident real-organism match should not be vetoed
-        # by the look-alike contrast voter, so when iNat's own P(block) clears
-        # `inat_override` it blocks outright (and pins the score to its own).
-        inat_score = next((s for (v, s, _, _) in rows if v is self.inat), None)
-        override = inat_score is not None and inat_score >= self.inat_override
-        if override:
-            combined = max(combined, inat_score)
         block = override or combined >= thr
 
         supporters = [v.name for (v, _, e, _) in rows if e > 0]
