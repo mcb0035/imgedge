@@ -147,6 +147,7 @@ backgrounds*, and the whitelist / allowed-sites / blocklist.
 | `IMGEDGE_POOL` | `min(4, cpus)` | TFLite interpreter pool size |
 | `IMGEDGE_WORKERS` | `8` | Max concurrent HTTP request workers |
 | `IMGEDGE_REQUEST_TIMEOUT` | `15` | Per-connection read timeout, seconds (slowloris guard) |
+| `IMGEDGE_PORT` | `8723` | Local classifier port (host stays `127.0.0.1`); change to avoid a conflict |
 | `IMGEDGE_FETCH_PORTS` | `80,443` | Allowed image-fetch destination ports (`any` for no limit) |
 | `IMGEDGE_FETCH_HTTPS_ONLY` | `0` | Refuse plaintext `http://` image URLs |
 | `IMGEDGE_FETCH_ALLOW_HOSTS` | _(none)_ | If set, fetch only from these domains (comma-sep; subdomains included) |

@@ -68,8 +68,8 @@ from urllib.parse import parse_qs, urlparse
 PKG_DIR = Path(__file__).resolve().parent.parent
 INAT_DIR = PKG_DIR / "inat"
 
-HOST = "127.0.0.1"
-PORT = 8723
+HOST = "127.0.0.1"  # loopback only, by design (not configurable)
+PORT = int(os.environ.get("IMGEDGE_PORT", "8723"))
 
 TARGET = os.environ.get("IMGEDGE_TARGET", "Arachnida")
 THRESHOLD = float(os.environ.get("IMGEDGE_THRESHOLD", "0.5"))
@@ -840,16 +840,32 @@ class PooledHTTPServer(HTTPServer):
         _vcache.flush()
 
 
+def _port_in_use_by_imgedge():
+    """True if something already answers /health on HOST:PORT like ImgEdge does,
+    so a second launch is a benign 'already running' rather than a real conflict."""
+    try:
+        with urllib.request.urlopen(f"http://{HOST}:{PORT}/health", timeout=2) as resp:
+            data = json.loads(resp.read(4096) or b"{}")
+        return isinstance(data, dict) and "status" in data and "auth_required" in data
+    except Exception:
+        return False
+
+
 def main():
     ensure_ensemble()
     try:
         httpd = PooledHTTPServer((HOST, PORT), Handler)
     except OSError as e:
+        if _port_in_use_by_imgedge():
+            print(f"[imgedge] already running at http://{HOST}:{PORT} -- reuse it: paste\n"
+                  f"    that server's token into the ImgEdge popup. Nothing to do here.")
+            raise SystemExit(0) from None
         print(f"[imgedge] ERROR: cannot bind {HOST}:{PORT} ({e}).\n"
-              f"    Another process is already using it. Refusing to start so nothing\n"
-              f"    can impersonate the classifier -- stop the other process and retry.",
+              f"    The port is in use by another application (or a just-stopped ImgEdge\n"
+              f"    still releasing it -- retry shortly). Set IMGEDGE_PORT to a free port\n"
+              f"    (and update the extension's endpoint) to run alongside it.",
               file=sys.stderr)
-        raise SystemExit(1) from e
+        raise SystemExit(2) from e
     log.info("ImgEdge classifier on http://%s:%s  (blocking: %s)", HOST, PORT, TARGET)
     print(f"[imgedge] access token (paste into the ImgEdge popup):\n    {TOKEN}")
     httpd.serve_forever()
