@@ -45,6 +45,7 @@ Environment overrides:
   IMGEDGE_SIGLIP     enable the open-vocab SigLIP 2 voter (default: 0; 1=on)
   IMGEDGE_SIGLIP_MODEL   HF SigLIP model id (default: google/siglip2-base-patch16-224)
   IMGEDGE_SIGLIP_WEIGHT  siglip evidence weight in the ensemble (default: 2.0)
+  IMGEDGE_SIGLIP_GATE    cascade floor; skip SigLIP below this iNat+timm score (default: 0.0)
 """
 
 import base64
@@ -99,6 +100,12 @@ INAT_OVERRIDE = float(os.environ.get("IMGEDGE_INAT_OVERRIDE", "0.9"))
 SIGLIP_ENABLE = os.environ.get("IMGEDGE_SIGLIP", "0") != "0"
 SIGLIP_THRESHOLD = float(os.environ.get("IMGEDGE_SIGLIP_THRESHOLD", "0.5"))
 SIGLIP_WEIGHT = float(os.environ.get("IMGEDGE_SIGLIP_WEIGHT", "2.0"))
+# Cascade gate: skip the SigLIP voter when the cheap iNat+timm combined score is
+# below this floor. Default 0.0 only skips it when the cheap voters ALREADY
+# block (SigLIP is positive-only, so it cannot change that verdict) -- lossless.
+# On real web data most images sit just under the threshold (iNat gives a small
+# baseline signal), so raising this trades a little recall for fewer SigLIP runs.
+SIGLIP_GATE = float(os.environ.get("IMGEDGE_SIGLIP_GATE", "0.0"))
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 MAX_BODY_BYTES = 16 * 1024 * 1024  # request-body cap (8MB image -> ~11MB base64 + JSON)
@@ -449,7 +456,7 @@ def load_ensemble():
         return None
     from imgedge.voters.base import VoteEnsemble
 
-    ens = VoteEnsemble(voters, policy=VOTE_POLICY, threshold=THRESHOLD, inat_override=INAT_OVERRIDE)
+    ens = VoteEnsemble(voters, policy=VOTE_POLICY, threshold=THRESHOLD, inat_override=INAT_OVERRIDE, gate=SIGLIP_GATE)
     ens.inat = inat_voter
     log.info("ensemble ready: policy=%s, voters=%s", VOTE_POLICY, ens.names)
     return ens

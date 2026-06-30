@@ -24,7 +24,16 @@ DEFAULT_TARGET = "Arachnida"
 
 # Decode-hardening: cap pixels (decompression-bomb guard) and restrict the image
 # formats we even attempt to parse (shrinks the codec attack surface).
-Image.MAX_IMAGE_PIXELS = 24_000_000
+#
+# Above HARD_CAP we always reject. Between WORK_CAP and HARD_CAP, JPEGs are
+# downscaled during decode (libjpeg DCT scaling via Image.draft(), which decodes
+# directly at reduced resolution -- never expanding the full pixels into memory)
+# so a large photo (e.g. a 48MP phone shot of a spider) is still classified
+# instead of failing open and being shown. Other formats can't be partially
+# decoded, so they are still rejected above WORK_CAP.
+WORK_CAP = 24_000_000  # 24 MP working ceiling
+HARD_CAP = 80_000_000  # absolute reject ceiling (any format)
+Image.MAX_IMAGE_PIXELS = HARD_CAP
 _ALLOWED_FORMATS = ["JPEG", "PNG", "WEBP", "GIF", "BMP"]
 
 
@@ -106,12 +115,22 @@ def build_mask(taxonomy_csv, target):
 def open_guarded(raw):
     """Open image bytes with decode hardening (use within a `with`). Rejects
     decompression bombs before any heavy decode and only parses known raster
-    formats — a defense against crafted inline image payloads."""
+    formats — a defense against crafted inline image payloads. A large JPEG
+    (over WORK_CAP) is downscaled during decode so it is still classified
+    instead of failing open and being shown."""
     img = Image.open(io.BytesIO(raw), formats=_ALLOWED_FORMATS)
     w, h = img.size
-    if w <= 0 or h <= 0 or w * h > Image.MAX_IMAGE_PIXELS:
+    if w <= 0 or h <= 0 or w * h > HARD_CAP:
         img.close()
         raise ValueError("image rejected (size)")
+    if w * h > WORK_CAP:
+        # Only JPEG can be partially decoded (libjpeg DCT scaling); for other
+        # formats a full decode of an oversized image is the bomb we guard
+        # against. draft() must run before any pixel access.
+        if (img.format or "").upper() != "JPEG":
+            img.close()
+            raise ValueError("image rejected (size)")
+        img.draft("RGB", (max(1, w // 2), max(1, h // 2)))  # 1/2 DCT scale -> <= ~20 MP
     return img
 
 

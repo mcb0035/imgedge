@@ -72,3 +72,38 @@ def test_broken_voter_abstains(monkeypatch):
 
     ens = VoteEnsemble([_Stub(0.9, "good", weight=1.0), _Boom()], policy="evidence", threshold=0.5)
     assert ens.classify(None)["block"] is True  # broken voter -> (0, 0), never raises
+
+
+def _deferred(stub):
+    stub.deferred = True
+    return stub
+
+
+def test_cascade_skips_deferred_below_gate(monkeypatch):
+    _pin_salience(monkeypatch)  # mult forced to 1.0
+    cheap = _Stub(0.04, "cheap", weight=1.0)  # below the gate floor
+    expensive = _deferred(_Stub(0.90, "siglip", weight=1.0))
+    ens = VoteEnsemble([cheap, expensive], policy="evidence", threshold=0.18, gate=0.05)
+    v = ens.classify(None)
+    assert v["block"] is False  # 0.04 < gate -> deferred never runs
+    assert v["votes"]["siglip"] == 0.0  # skipped
+
+
+def test_cascade_runs_deferred_in_band(monkeypatch):
+    _pin_salience(monkeypatch)
+    cheap = _Stub(0.10, "cheap", weight=1.0)  # gate <= 0.10 < threshold
+    expensive = _deferred(_Stub(0.90, "siglip", weight=1.0))
+    ens = VoteEnsemble([cheap, expensive], policy="evidence", threshold=0.18, gate=0.05)
+    v = ens.classify(None)
+    assert v["block"] is True  # 0.10 + 0.90 over threshold
+    assert v["votes"]["siglip"] == 0.9  # deferred ran
+
+
+def test_cascade_skips_deferred_when_cheap_already_blocks(monkeypatch):
+    _pin_salience(monkeypatch)
+    cheap = _Stub(0.50, "cheap", weight=1.0)  # already >= threshold
+    expensive = _deferred(_Stub(0.90, "siglip", weight=1.0))
+    ens = VoteEnsemble([cheap, expensive], policy="evidence", threshold=0.18, gate=0.05)
+    v = ens.classify(None)
+    assert v["block"] is True  # cheap voter alone blocks
+    assert v["votes"]["siglip"] == 0.0  # deferred not needed -> skipped
