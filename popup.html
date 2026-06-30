@@ -60,7 +60,8 @@
         display: block;
         margin: 8px 0;
       }
-      input[type="text"] {
+      input[type="text"],
+      input[type="password"] {
         width: 100%;
         box-sizing: border-box;
         padding: 4px 6px;
@@ -127,7 +128,12 @@
 
     <label class="field">
       Server token
-      <input type="text" id="token" placeholder="paste from the server console" />
+      <input type="password" id="token" placeholder="paste from the server console" />
+    </label>
+
+    <label class="row">
+      <input type="checkbox" id="showToken" />
+      Show token
     </label>
 
     <label class="row">

@@ -43,9 +43,18 @@ Hardening that is implemented today:
 
 - **Authenticated classify endpoint.** `POST /classify` requires the
   `X-ImgEdge-Token` header (constant-time compared). The token is taken from
-  `IMGEDGE_TOKEN`, or generated and persisted to `~/.imgedge_token` (mode
-  `600`). `GET /health` is unauthenticated and returns only liveness + the
-  target taxon.
+  `IMGEDGE_TOKEN`, or generated and persisted to `~/.imgedge_token`, created
+  atomically with owner-only perms (`O_EXCL`, mode `600`). `GET /health` is
+  unauthenticated but returns only liveness (`status`, `model`); the target
+  taxon, hardware provider, voters, and latency stats require the token.
+- **Server-identity proof (anti port-squatting).** On request, `/health`
+  returns `proof = HMAC(token, challenge)`; the extension verifies this *before*
+  sending the token, so a local process that squatted `127.0.0.1:8723` (without
+  the token) can't impersonate the classifier. The server also refuses to start
+  if the port is already in use.
+- **Request read timeout.** Each connection has an inactivity timeout
+  (`IMGEDGE_REQUEST_TIMEOUT`, default 15 s) so slow-drip (slowloris) clients
+  can't tie up the bounded worker pool.
 - **No permissive CORS.** The server sends no `Access-Control-Allow-Origin`, so
   a web page cannot read responses or pass a JSON preflight to the local
   server. The extension reaches it via host permissions, which bypass CORS.

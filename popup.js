@@ -47,25 +47,61 @@ async function loadCounts() {
   } catch {}
 }
 
+// Verify the classifier proves it knows the token (HMAC challenge) before we
+// send the token to it, so a local port-squatter can't impersonate it (F2).
+async function hmacHex(keyStr, msgStr) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw", enc.encode(keyStr), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(msgStr));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function eqHex(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+
 async function checkHealth() {
   const el = $("health");
   const data = await chrome.storage.local.get([KEYS.settings]);
   const settings = Object.assign({}, DEFAULTS, data[KEYS.settings] || {});
-  let healthUrl;
-  try { healthUrl = new URL("/health", settings.endpoint || DEFAULTS.endpoint).href; }
-  catch { healthUrl = null; }
-  if (!healthUrl) { setHealthLine(el, "bad", "Classifier: invalid endpoint"); return; }
+  let base;
+  try { base = new URL(settings.endpoint || DEFAULTS.endpoint); }
+  catch { setHealthLine(el, "bad", "Classifier: invalid endpoint"); return; }
   try {
-    const r = await fetch(healthUrl, { method: "GET" });
+    if (!settings.token) {
+      const r = await fetch(new URL("/health", base).href, { method: "GET" });
+      if (!r.ok) throw new Error(String(r.status));
+      const j = await r.json();
+      if (j.status !== "ok") setHealthLine(el, "warn", "Classifier: model not loaded");
+      else setHealthLine(el, "warn", "Classifier: token required \u2014 paste server token");
+      return;
+    }
+    // Identity check: challenge the server to prove it knows the token.
+    const nonce = crypto.randomUUID();
+    const cu = new URL("/health", base);
+    cu.searchParams.set("challenge", nonce);
+    const vr = await fetch(cu.href, { method: "GET" });
+    if (!vr.ok) throw new Error(String(vr.status));
+    const vj = await vr.json();
+    if (!eqHex(await hmacHex(settings.token, nonce), vj.proof)) {
+      setHealthLine(el, "bad", "Classifier: identity NOT verified \u2014 possible impersonation");
+      return;
+    }
+    // Verified: now safe to send the token for the detailed view.
+    const r = await fetch(new URL("/health", base).href, {
+      method: "GET", headers: { "X-ImgEdge-Token": settings.token },
+    });
     if (!r.ok) throw new Error(String(r.status));
     const j = await r.json();
-    if (j.auth_required && !settings.token) {
-      setHealthLine(el, "warn", "Classifier: token required \u2014 paste server token");
-    } else if (j.status === "ok") {
+    if (j.status === "ok") {
       const prov = j.provider ? ` \u00B7 ${j.provider}` : "";
       const vote = j.voters && j.voters.length > 1 ? ` \u00B7 vote:${j.policy} \u00d7${j.voters.length}` : "";
       const perf = j.stats && j.stats.n ? ` \u00B7 ${j.stats.infer_ms}ms/img (n=${j.stats.n})` : "";
-      setHealthLine(el, "ok", `Classifier: connected \u00B7 ${j.target} (${j.taxa} taxa)${prov}${vote}${perf}`);
+      setHealthLine(el, "ok", `Classifier: verified \u00B7 ${j.target} (${j.taxa} taxa)${prov}${vote}${perf}`);
     } else {
       setHealthLine(el, "warn", "Classifier: model not loaded");
     }
@@ -115,10 +151,25 @@ function renderList(id, items) {
   });
 }
 
+function isLocalEndpoint(u) {
+  let x;
+  try { x = new URL(u); } catch { return false; }
+  if (x.protocol !== "http:" && x.protocol !== "https:") return false;
+  const h = x.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  return h === "localhost" || h === "127.0.0.1" || h === "::1";
+}
+
 async function save() {
+  const endpoint = $("endpoint").value.trim() || DEFAULTS.endpoint;
+  const btn = $("save");
+  if (!isLocalEndpoint(endpoint)) {
+    btn.textContent = "Endpoint must be local (localhost)";
+    setTimeout(() => (btn.textContent = "Save settings"), 1800);
+    return;
+  }
   const settings = {
     enabled: $("enabled").checked,
-    endpoint: $("endpoint").value.trim() || DEFAULTS.endpoint,
+    endpoint,
     token: $("token").value.trim(),
     sendData: $("sendData").checked,
     failClosed: $("failClosed").checked,
@@ -126,10 +177,12 @@ async function save() {
     scanBackgrounds: $("scanBackgrounds").checked,
   };
   await chrome.storage.local.set({ [KEYS.settings]: settings });
-  const btn = $("save");
   btn.textContent = "Saved";
   setTimeout(() => (btn.textContent = "Save settings"), 1000);
 }
 
 $("save").addEventListener("click", save);
+$("showToken").addEventListener("change", (e) => {
+  $("token").type = e.target.checked ? "text" : "password";
+});
 load();
