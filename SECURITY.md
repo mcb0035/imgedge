@@ -50,8 +50,9 @@ Hardening that is implemented today:
 - **Server-identity proof (anti port-squatting).** On request, `/health`
   returns `proof = HMAC(token, challenge)`; the extension verifies this *before*
   sending the token, so a local process that squatted `127.0.0.1:8723` (without
-  the token) can't impersonate the classifier. The server also refuses to start
-  if the port is already in use.
+  the token) can't impersonate the classifier. On a port conflict it
+  distinguishes an existing ImgEdge instance (reports it and exits cleanly)
+  from another app holding the port (exits with guidance to set `IMGEDGE_PORT`).
 - **Request read timeout.** Each connection has an inactivity timeout
   (`IMGEDGE_REQUEST_TIMEOUT`, default 15 s) so slow-drip (slowloris) clients
   can't tie up the bounded worker pool.
