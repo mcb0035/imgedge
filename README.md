@@ -182,7 +182,8 @@ backgrounds*, and the whitelist / allowed-sites / blocklist.
 - **Optional decode isolation.** `IMGEDGE_SANDBOX=1` runs the Pillow decode in a
   recycled subprocess pool; on Windows, `IMGEDGE_SANDBOX_APPCONTAINER=1` runs
   each worker in a capability-less AppContainer that denies the decoder network
-  and writes to your files. Both are off by default — see [SECURITY.md](SECURITY.md).
+  and writes to your files. Both are off by default — **recommended when
+  distributing to others or browsing untrusted sites** — see [SECURITY.md](SECURITY.md).
 - **Pinned model integrity.** Each downloaded asset is verified against a pinned
   SHA-256; the server refuses to load a model/taxonomy that doesn't match.
 - **Bounded inputs.** `/classify` rejects bodies over 16 MB, images cap at 8 MB,

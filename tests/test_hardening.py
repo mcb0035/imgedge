@@ -92,3 +92,9 @@ def test_port_probe_false_when_unreachable(monkeypatch):
 
     monkeypatch.setattr(server.urllib.request, "urlopen", boom)
     assert server._port_in_use_by_imgedge() is False
+
+
+def test_health_full_includes_version():  # F2 version-skew awareness
+    full = server.health_payload(full=True)
+    assert isinstance(full.get("version"), str) and full["version"]
+    assert "version" not in server.health_payload(full=False)  # not leaked unauth
