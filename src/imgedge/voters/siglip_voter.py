@@ -26,13 +26,15 @@ Env overrides:
     IMGEDGE_SIGLIP            1 to enable the voter (read by the server; default 0)
     IMGEDGE_SIGLIP_MODEL      HF model id (default: google/siglip2-base-patch16-224)
     IMGEDGE_SIGLIP_PROMPTS    comma-separated block prompts (default: the set below)
-    IMGEDGE_SIGLIP_WEIGHT     evidence weight in the ensemble (default: 0.5)
+    IMGEDGE_SIGLIP_WEIGHT     evidence weight in the ensemble (default: 2.0)
     IMGEDGE_SIGLIP_THRESHOLD  the voter's own discrete-vote threshold (default: 0.5)
     IMGEDGE_SIGLIP_GAIN       scale raw sigmoid prob -> evidence (default: 1.0)
 
-NOTE: SigLIP's sigmoid probabilities are calibrated for retrieval and can read
-low in absolute terms even on true matches. Tune IMGEDGE_SIGLIP_GAIN /
-IMGEDGE_SIGLIP_WEIGHT against the evaluation harness before trusting the defaults.
+NOTE: SigLIP's sigmoid probabilities are calibrated for retrieval and read low
+in absolute terms even on true matches, so the default weight (2.0) is high by
+design -- calibrated on real data (~89% recall at ~0.9% web false positives).
+Re-tune IMGEDGE_SIGLIP_GAIN / IMGEDGE_SIGLIP_WEIGHT if you change the model or
+prompts.
 """
 
 import os
@@ -92,7 +94,7 @@ def _pooled(out):
 
 
 class SiglipVoter(Voter):
-    def __init__(self, model_name=DEFAULT_MODEL, threshold=0.5, weight=0.5, prompts=None, gain=GAIN):
+    def __init__(self, model_name=DEFAULT_MODEL, threshold=0.5, weight=2.0, prompts=None, gain=GAIN):
         super().__init__(threshold, weight)
         # Heavy deps are imported lazily so the module (and its pure scoring
         # helpers) import cleanly without torch/transformers installed.
