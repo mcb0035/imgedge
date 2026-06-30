@@ -222,6 +222,13 @@ the extension ID stays stable (`dist/`, `*.crx`, `*.pem` are git-ignored).
 - Dynamic backgrounds swapped in later (via JS class/style changes) aren't
   re-scanned, to avoid the CPU storm that pegging on those mutations caused.
 
+## Privacy
+
+ImgEdge runs entirely on your machine — no servers, accounts, analytics, or
+tracking. Image content and browsing are classified locally; only a block/allow
+verdict crosses the local socket. See [PRIVACY.md](PRIVACY.md) for the full
+disclosure (including the one-time model download and the classification fetch).
+
 ## License
 
 ImgEdge is licensed under the [Apache License 2.0](LICENSE) — © 2026 Matthew Bedford.
