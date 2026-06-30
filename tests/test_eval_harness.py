@@ -108,3 +108,12 @@ def test_encrypted_zip_roundtrip(tmp_path):
     eval_filter._write_zip(str(zpath), "pw123", entries.items())
     got = sorted((lbl, name) for lbl, name, _ in eval_filter.iter_samples(str(zpath), "pw123"))
     assert got == [("allow", "allow/b.png"), ("block", "block/a.png")]
+
+
+def test_build_synthetic_roundtrip(tmp_path):
+    pytest.importorskip("pyzipper")
+    zpath = tmp_path / "syn.eval.zip"
+    eval_filter.build_synthetic(str(zpath), "pw123", count=3, seed=7)
+    labels = [lbl for lbl, _, _ in eval_filter.iter_samples(str(zpath), "pw123")]
+    assert labels.count("block") == 3
+    assert labels.count("allow") == 3

@@ -431,6 +431,81 @@ def build_urls(urls_file, out_zip, password):
 
 
 # --------------------------------------------------------------------------- #
+# Synthetic datasets (procedural images for a no-real-data tuning / smoke pass)
+# --------------------------------------------------------------------------- #
+# These are crude procedural drawings, not photographs. A single pass is useful
+# to confirm the pipeline end to end, measure the false-positive rate on varied
+# non-arachnid images, and watch the salience multiplier across sizes. They
+# CANNOT stand in for real-photo recall (the iNat model is trained on real
+# organisms and scores drawings low) and so cannot exercise the iNat-confidence
+# override. Generated images go straight into the encrypted zip, never shown.
+def _rand_color(rng):
+    return (rng.randint(0, 255), rng.randint(0, 255), rng.randint(0, 255))
+
+
+def _png_bytes(img):
+    import io
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _draw_spider(draw, w, h, rng):
+    cx, cy = w / 2, h / 2
+    unit = max(3, min(w, h) // 9)
+    col = (rng.randint(0, 70), rng.randint(0, 70), rng.randint(0, 70))
+    width = max(1, unit // 3)
+    for k in range(4):  # four legs per side, two segments each, radiating out
+        dy = (k - 1.5) * unit * 0.7
+        for side in (-1, 1):
+            knee = (cx + side * unit * 2.4, cy + dy - unit * 0.6)
+            foot = (cx + side * unit * (3.6 + rng.random()), cy + dy + unit * 1.3)
+            draw.line([(cx, cy + dy * 0.4), knee, foot], fill=col, width=width, joint="curve")
+    draw.ellipse([cx - unit, cy - unit * 0.4, cx + unit, cy + unit * 2.2], fill=col)  # abdomen
+    draw.ellipse([cx - unit * 0.6, cy - unit * 1.6, cx + unit * 0.6, cy + unit * 0.2], fill=col)  # cephalothorax
+
+
+def _draw_negative(draw, w, h, rng):
+    kind = rng.choice(("shapes", "bars", "rings", "blank"))
+    if kind == "blank":
+        return
+    for _ in range(rng.randint(2, 6)):
+        x0, y0, x1, y1 = rng.randint(0, w), rng.randint(0, h), rng.randint(0, w), rng.randint(0, h)
+        box = [min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)]
+        col = _rand_color(rng)
+        if kind == "rings":
+            draw.ellipse(box, outline=col, width=max(1, w // 40))
+        elif kind == "bars":
+            draw.rectangle(box, fill=col)
+        else:
+            (draw.ellipse if rng.random() < 0.5 else draw.rectangle)(box, fill=col)
+
+
+def build_synthetic(out_zip, password, count=30, seed=1234):
+    """Generate `count` procedural arachnid drawings (block/) and `count`
+    non-arachnid images (allow/) straight into an AES zip. Nothing is displayed."""
+    import random
+
+    from PIL import Image, ImageDraw
+
+    rng = random.Random(seed)
+    sizes = (48, 64, 96, 128, 160, 224, 320, 400)
+
+    def gen():
+        for label, paint in (("block", _draw_spider), ("allow", _draw_negative)):
+            for i in range(count):
+                size = rng.choice(sizes)
+                img = Image.new("RGB", (size, size), _rand_color(rng))
+                paint(ImageDraw.Draw(img), size, size, rng)
+                yield f"{label}/{i:04d}.png", _png_bytes(img)
+
+    n = _write_zip(out_zip, password, gen())
+    print(f"Wrote {n} synthetic images ({count} block / {count} allow) into {out_zip} (AES-256).")
+    print("Procedural drawings only -- no real photo, nothing displayed.")
+
+
+# --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
 def _get_password(required=True):
@@ -464,6 +539,11 @@ def main(argv=None):
     pu.add_argument("urls_file")
     pu.add_argument("out_zip")
 
+    ps = sub.add_parser("build-synthetic", help="generate a procedural labelled dataset (no real images)")
+    ps.add_argument("out_zip")
+    ps.add_argument("--count", type=int, default=30, help="images per class (default 30)")
+    ps.add_argument("--seed", type=int, default=1234, help="RNG seed for reproducibility")
+
     args = parser.parse_args(argv)
 
     if args.cmd == "eval":
@@ -484,6 +564,10 @@ def main(argv=None):
 
     if args.cmd == "build-urls":
         build_urls(args.urls_file, args.out_zip, _get_password())
+        return 0
+
+    if args.cmd == "build-synthetic":
+        build_synthetic(args.out_zip, _get_password(), args.count, args.seed)
         return 0
 
     return 1
