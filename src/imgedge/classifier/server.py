@@ -46,6 +46,7 @@ Environment overrides:
 
 import base64
 import hashlib
+import hmac
 import http.client
 import ipaddress
 import json
@@ -62,7 +63,7 @@ from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 PKG_DIR = Path(__file__).resolve().parent.parent
 INAT_DIR = PKG_DIR / "inat"
@@ -88,6 +89,7 @@ MAX_BODY_BYTES = 16 * 1024 * 1024  # request-body cap (8MB image -> ~11MB base64
 # image doesn't make the extension abort and fail open.
 FETCH_TIMEOUT = 6
 MAX_WORKERS = int(os.environ.get("IMGEDGE_WORKERS", "8"))
+REQUEST_TIMEOUT = int(os.environ.get("IMGEDGE_REQUEST_TIMEOUT", "15"))  # slowloris guard
 POOL_SIZE = int(os.environ.get("IMGEDGE_POOL", str(min(4, os.cpu_count() or 1))))
 LOAD_RETRY_SEC = 30
 # Persistent verdict cache. Keyed by a hash of the URL (never the URL itself);
@@ -180,17 +182,22 @@ def load_or_create_token():
             if existing:
                 return existing
         token = secrets.token_urlsafe(24)
-        token_file.write_text(token, encoding="utf-8")
+        # Create atomically, owner-only: O_EXCL closes the exists->write race and
+        # 0o600 leaves no world-readable window (vs. write_text then chmod).
         try:
-            os.chmod(token_file, 0o600)
-        except OSError:
-            pass
+            fd = os.open(token_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            existing = token_file.read_text(encoding="utf-8").strip()  # lost a race
+            return existing or token
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(token)
         return token
     except OSError:
         return secrets.token_urlsafe(24)  # ephemeral for this run
 
 
 TOKEN = load_or_create_token()
+_CACHE_HMAC_KEY = TOKEN.encode("utf-8")
 
 
 # ---- Persistent verdict cache ----------------------------------------------
@@ -208,7 +215,9 @@ class VerdictCache:
 
     @staticmethod
     def _key(url):
-        return hashlib.sha256(url.encode("utf-8")).hexdigest()
+        # HMAC with the per-install token so a local reader of the cache file
+        # can't confirm a guessed URL by recomputing a plain SHA-256.
+        return hmac.new(_CACHE_HMAC_KEY, url.encode("utf-8"), hashlib.sha256).hexdigest()
 
     def get(self, url):
         if not url:
@@ -440,6 +449,12 @@ def _env_ports(raw):
 
 ALLOWED_PORTS = _env_ports(os.environ.get("IMGEDGE_FETCH_PORTS", "80,443"))
 FETCH_HTTPS_ONLY = os.environ.get("IMGEDGE_FETCH_HTTPS_ONLY", "0") != "0"
+# Neutral, browser-like UA so the re-fetch doesn't advertise "ImgEdge" to image
+# hosts (privacy: don't reveal the tool or the category being filtered).
+FETCH_UA = os.environ.get(
+    "IMGEDGE_FETCH_UA",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
 ALLOW_HOSTS = tuple(
     h.strip().lower().rstrip(".")
     for h in os.environ.get("IMGEDGE_FETCH_ALLOW_HOSTS", "").split(",")
@@ -631,7 +646,7 @@ def fetch_image_bytes(url, data):
     if sem is not None and not sem.acquire(timeout=FETCH_TIMEOUT):
         return None  # too many concurrent fetches to this host
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "ImgEdge/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": FETCH_UA})
         with _opener.open(req, timeout=FETCH_TIMEOUT) as resp:
             if getattr(resp, "status", 200) != 200:
                 return None
@@ -692,9 +707,11 @@ def classify(url, data, meta=None):
     t1 = time.perf_counter()
     try:
         verdict = ens.classify_bytes(raw, meta, _get_decoder())  # {block, reason, score, votes}
-    except Exception as e:
-        # Can't decode/classify (e.g. SVG, bomb, crafted bytes) -> don't block, don't cache.
-        return {"block": False, "reason": f"error:{e}", "score": 0.0}
+    except Exception:
+        # Can't decode/classify (e.g. SVG, bomb, crafted bytes) -> don't block, don't
+        # cache. Log detail locally; return a generic reason (no internals to client).
+        log.warning("classify failed", exc_info=True)
+        return {"block": False, "reason": "error", "score": 0.0}
     if PROFILE:
         _stats.record(fetch_ms, (time.perf_counter() - t1) * 1000, verdict.get("block"))
 
@@ -702,17 +719,30 @@ def classify(url, data, meta=None):
     return verdict
 
 
-def health_payload():
-    """Status for the popup's /health check (no auth required)."""
+def _health_proof(challenge):
+    """HMAC(token, challenge) hex. Lets the extension verify it's talking to the
+    real classifier (which knows the token) WITHOUT sending the token first, so a
+    local port-squatter that doesn't know the token can't impersonate the server."""
+    return hmac.new(TOKEN.encode("utf-8"), challenge.encode("utf-8"),
+                    hashlib.sha256).hexdigest()
+
+
+def health_payload(full=True):
+    """Status for the popup's /health check.
+
+    Unauthenticated callers get only liveness (status/model); the detailed fields
+    (target taxon, hardware provider, voters, latency, sandbox) require the token,
+    so a local process can't fingerprint the configuration."""
     ens = ensure_ensemble()
     ok = ens is not None
+    payload = {"status": "ok" if ok else "model-missing", "model": ok, "auth_required": True}
+    if not full:
+        return payload
     inat = getattr(ens, "inat", None) if ok else None
-    return {
-        "status": "ok" if ok else "model-missing",
+    payload.update({
         "target": getattr(inat, "target", TARGET),
         "threshold": THRESHOLD,
         "taxa": getattr(inat, "match_count", 0) if ok else 0,
-        "model": ok,
         "backend": getattr(inat, "backend", None) if inat else None,
         "provider": getattr(inat, "provider", None) if inat else None,
         "voters": ens.names if ok else [],
@@ -721,11 +751,13 @@ def health_payload():
         "sandbox": ("appcontainer" if (SANDBOX and SANDBOX_APPCONTAINER
                                        and sys.platform == "win32")
                     else "process" if SANDBOX else None),
-        "auth_required": True,
-    }
+    })
+    return payload
 
 
 class Handler(BaseHTTPRequestHandler):
+    timeout = REQUEST_TIMEOUT  # per-connection inactivity timeout (slowloris guard)
+
     def _authorized(self):
         return secrets.compare_digest(self.headers.get("X-ImgEdge-Token", ""), TOKEN)
 
@@ -741,11 +773,16 @@ class Handler(BaseHTTPRequestHandler):
             pass  # client (extension) aborted or timed out -> ignore, no traceback
 
     def do_GET(self):
-        if self.path.split("?", 1)[0] != "/health":
+        parsed = urlparse(self.path)
+        if parsed.path != "/health":
             self.send_response(404)
             self.end_headers()
             return
-        self._send_json(200, health_payload())
+        payload = health_payload(full=self._authorized())
+        challenge = parse_qs(parsed.query).get("challenge", [None])[0]
+        if challenge:
+            payload = {**payload, "proof": _health_proof(challenge)}
+        self._send_json(200, payload)
 
     def do_POST(self):
         if self.path.split("?", 1)[0] != "/classify":
@@ -805,9 +842,17 @@ class PooledHTTPServer(HTTPServer):
 
 def main():
     ensure_ensemble()
+    try:
+        httpd = PooledHTTPServer((HOST, PORT), Handler)
+    except OSError as e:
+        print(f"[imgedge] ERROR: cannot bind {HOST}:{PORT} ({e}).\n"
+              f"    Another process is already using it. Refusing to start so nothing\n"
+              f"    can impersonate the classifier -- stop the other process and retry.",
+              file=sys.stderr)
+        raise SystemExit(1) from e
     log.info("ImgEdge classifier on http://%s:%s  (blocking: %s)", HOST, PORT, TARGET)
     print(f"[imgedge] access token (paste into the ImgEdge popup):\n    {TOKEN}")
-    PooledHTTPServer((HOST, PORT), Handler).serve_forever()
+    httpd.serve_forever()
 
 
 if __name__ == "__main__":

@@ -194,6 +194,48 @@ async function fetchAsDataUrl(url) {
   }
 }
 
+// ---- Server identity (anti port-squatting, F2) -----------------------------
+// Verify the classifier proves it knows the token (HMAC challenge) before we
+// send the token to it, so a local process that squatted the port can't
+// impersonate it. Cached per (endpoint, token) for the worker's lifetime.
+let serverTrust = { endpoint: null, token: null, ok: false };
+
+async function hmacHex(keyStr, msgStr) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw", enc.encode(keyStr), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(msgStr));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function eqHex(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+
+async function ensureServerTrusted(s) {
+  if (!s.token) return true; // nothing to verify against; server will 401 anyway
+  if (serverTrust.ok && serverTrust.endpoint === s.endpoint && serverTrust.token === s.token) {
+    return true;
+  }
+  try {
+    const nonce = crypto.randomUUID();
+    const cu = new URL("/health", s.endpoint);
+    cu.searchParams.set("challenge", nonce);
+    const r = await fetch(cu.href, { method: "GET" });
+    if (r.ok) {
+      const j = await r.json();
+      if (eqHex(await hmacHex(s.token, nonce), j.proof)) {
+        serverTrust = { endpoint: s.endpoint, token: s.token, ok: true };
+        return true;
+      }
+    }
+  } catch { /* fall through: untrusted */ }
+  return false; // don't cache failure; retry next call
+}
+
 // ---- Classification --------------------------------------------------------
 async function classify(url, data, meta) {
   const s = await getSettings();
@@ -210,6 +252,11 @@ async function classify(url, data, meta) {
   if (whitelist.includes(url)) return { allow: true };
   const host = hostOf(url);
   if (host && domains.includes(host)) return { allow: true };
+
+  if (s.token && !(await ensureServerTrusted(s))) {
+    setHealth("error");
+    return { allow: strict ? false : !s.failClosed, reason: "server-unverified" };
+  }
 
   const body = { url };
   if (meta) body.meta = meta;
@@ -254,6 +301,7 @@ async function classify(url, data, meta) {
 
 // ---- Messaging -------------------------------------------------------------
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id) return false; // ignore non-extension senders
   (async () => {
     try {
       switch (msg && msg.type) {

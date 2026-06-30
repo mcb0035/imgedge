@@ -146,10 +146,12 @@ backgrounds*, and the whitelist / allowed-sites / blocklist.
 | `IMGEDGE_EP` | `auto` | ONNX provider: `auto\|npu\|ovgpu\|cuda\|dml\|cpu` |
 | `IMGEDGE_POOL` | `min(4, cpus)` | TFLite interpreter pool size |
 | `IMGEDGE_WORKERS` | `8` | Max concurrent HTTP request workers |
+| `IMGEDGE_REQUEST_TIMEOUT` | `15` | Per-connection read timeout, seconds (slowloris guard) |
 | `IMGEDGE_FETCH_PORTS` | `80,443` | Allowed image-fetch destination ports (`any` for no limit) |
 | `IMGEDGE_FETCH_HTTPS_ONLY` | `0` | Refuse plaintext `http://` image URLs |
 | `IMGEDGE_FETCH_ALLOW_HOSTS` | _(none)_ | If set, fetch only from these domains (comma-sep; subdomains included) |
 | `IMGEDGE_FETCH_PER_HOST` | `4` | Max concurrent fetches to a single host (`0` disables) |
+| `IMGEDGE_FETCH_UA` | _(generic browser)_ | `User-Agent` the server sends when fetching an image |
 | `IMGEDGE_TOKEN` / `IMGEDGE_TOKEN_FILE` | generated → `~/.imgedge_token` | Access token |
 | `IMGEDGE_CACHE_FILE` | `~/.imgedge_cache.json` | Verdict cache (`none` to disable) |
 | `IMGEDGE_LOG_FILE` | `~/.imgedge.log` | Rotating log (1MB×3 ≈ 4MB cap; `none` to disable) |
