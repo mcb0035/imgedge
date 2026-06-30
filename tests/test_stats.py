@@ -10,9 +10,9 @@ def test_record_and_average():
     snap = s.snapshot()
     assert snap["n"] == 2
     assert snap["blocked"] == 1
-    assert snap["infer_ms"] == 35.0   # (30 + 40) / 2
-    assert snap["fetch_ms"] == 15.0   # (10 + 20) / 2
-    assert snap["avg_ms"] == 50.0     # 40 + 60 / 2
+    assert snap["infer_ms"] == 35.0  # (30 + 40) / 2
+    assert snap["fetch_ms"] == 15.0  # (10 + 20) / 2
+    assert snap["avg_ms"] == 50.0  # 40 + 60 / 2
     assert snap["max_ms"] == 60.0
 
 
@@ -23,7 +23,7 @@ def test_cache_hits_and_empty_snapshot():
     snap = s.snapshot()
     assert snap["cache_hits"] == 2
     assert snap["n"] == 0
-    assert snap["avg_ms"] == 0          # no divide-by-zero with no model runs
+    assert snap["avg_ms"] == 0  # no divide-by-zero with no model runs
 
 
 def test_reset():
@@ -32,6 +32,11 @@ def test_reset():
     s.hit()
     s.reset()
     assert s.snapshot() == {
-        "n": 0, "blocked": 0, "cache_hits": 0,
-        "avg_ms": 0, "infer_ms": 0, "fetch_ms": 0, "max_ms": 0.0,
+        "n": 0,
+        "blocked": 0,
+        "cache_hits": 0,
+        "avg_ms": 0,
+        "infer_ms": 0,
+        "fetch_ms": 0,
+        "max_ms": 0.0,
     }

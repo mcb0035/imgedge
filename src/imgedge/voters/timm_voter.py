@@ -43,8 +43,15 @@ CONTRAST_WEIGHT = float(os.environ.get("IMGEDGE_TIMM_CONTRAST_WEIGHT", "1.0"))
 
 # Real arachnid (Arachnida) classes present in ImageNet-1k -> push toward block.
 BLOCK_TERMS = [
-    "tarantula", "garden spider", "barn spider", "black widow",
-    "wolf spider", "argiope", "scorpion", "tick", "harvestman",
+    "tarantula",
+    "garden spider",
+    "barn spider",
+    "black widow",
+    "wolf spider",
+    "argiope",
+    "scorpion",
+    "tick",
+    "harvestman",
     "daddy longlegs",
 ]
 
@@ -53,15 +60,45 @@ BLOCK_TERMS = [
 # or override with IMGEDGE_TIMM_CONTRAST.
 CONTRAST_TERMS = [
     # other arthropods / insects commonly mistaken for spiders
-    "beetle", "weevil", "ladybug", "ant", "fly", "bee", "wasp",
-    "grasshopper", "cricket", "mantis", "cockroach", "walking stick",
-    "stick insect", "cicada", "leafhopper", "lacewing", "dragonfly",
-    "damselfly", "butterfly", "moth", "admiral", "ringlet", "monarch",
-    "centipede", "millipede", "isopod", "crayfish", "hermit crab",
-    "crab", "lobster",
+    "beetle",
+    "weevil",
+    "ladybug",
+    "ant",
+    "fly",
+    "bee",
+    "wasp",
+    "grasshopper",
+    "cricket",
+    "mantis",
+    "cockroach",
+    "walking stick",
+    "stick insect",
+    "cicada",
+    "leafhopper",
+    "lacewing",
+    "dragonfly",
+    "damselfly",
+    "butterfly",
+    "moth",
+    "admiral",
+    "ringlet",
+    "monarch",
+    "centipede",
+    "millipede",
+    "isopod",
+    "crayfish",
+    "hermit crab",
+    "crab",
+    "lobster",
     # webs / geometric patterns / stylised art
-    "spider web", "honeycomb", "chainlink fence", "window screen",
-    "doily", "quilt", "maze", "comic book",
+    "spider web",
+    "honeycomb",
+    "chainlink fence",
+    "window screen",
+    "doily",
+    "quilt",
+    "maze",
+    "comic book",
 ]
 
 
@@ -90,9 +127,9 @@ def _imagenet_labels(model, num_classes):
     """Best-effort ImageNet index -> human label list (lowercased), or None."""
     try:
         from timm.data import ImageNetInfo  # type: ignore
+
         info = ImageNetInfo()
-        return [str(info.index_to_description(i, detailed=True)).lower()
-                for i in range(num_classes)]
+        return [str(info.index_to_description(i, detailed=True)).lower() for i in range(num_classes)]
     except Exception:
         pass
     try:
@@ -106,8 +143,7 @@ def _imagenet_labels(model, num_classes):
 
 
 class TimmVoter(Voter):
-    def __init__(self, model_name=DEFAULT_MODEL, threshold=0.5, weight=1.0,
-                 contrast_weight=CONTRAST_WEIGHT):
+    def __init__(self, model_name=DEFAULT_MODEL, threshold=0.5, weight=1.0, contrast_weight=CONTRAST_WEIGHT):
         super().__init__(threshold, weight)
         self.name = f"timm:{model_name.split('.')[0]}"
         self.contrast_weight = float(contrast_weight)
@@ -123,8 +159,7 @@ class TimmVoter(Voter):
         num_classes = int(getattr(self.model, "num_classes", 1000))
         block_terms = _split_env("IMGEDGE_TIMM_EXCLUDE") or BLOCK_TERMS
         contrast_terms = _split_env("IMGEDGE_TIMM_CONTRAST") or CONTRAST_TERMS
-        labels = (_imagenet_labels(self.model, num_classes)
-                  if (block_terms or contrast_terms) else None)
+        labels = _imagenet_labels(self.model, num_classes) if (block_terms or contrast_terms) else None
         self.mask = _mask_for(labels, block_terms, num_classes)
         self.contrast_mask = _mask_for(labels, contrast_terms, num_classes)
         self.matched = int(self.mask.sum())
@@ -151,8 +186,8 @@ class TimmVoter(Voter):
         probs = self._infer(img)
         pos = self._sum(probs, self.mask)
         neg = self._sum(probs, self.contrast_mask)
-        evidence = pos - self.contrast_weight * neg   # signed, may be negative
-        score = max(0.0, min(1.0, evidence))          # [0,1] for discrete votes
+        evidence = pos - self.contrast_weight * neg  # signed, may be negative
+        score = max(0.0, min(1.0, evidence))  # [0,1] for discrete votes
         return score, evidence
 
     def score(self, img):

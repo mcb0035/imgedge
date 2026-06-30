@@ -12,10 +12,15 @@ permissions:
   contents: read
   id-token: write # for OpenID Connect authentication with CodSpeed
 
+concurrency:
+  group: codspeed-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   benchmarks:
     name: Run benchmarks
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0

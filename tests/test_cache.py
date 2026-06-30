@@ -17,8 +17,8 @@ def test_get_refreshes_recency(tmp_path):
     c = server.VerdictCache(tmp_path / "c.json", cap=2, flush_every=1000)
     c.put("a", {"x": 1})
     c.put("b", {"x": 2})
-    assert c.get("a") == {"x": 1}   # touch "a" so "b" becomes the LRU entry
-    c.put("c", {"x": 3})            # evicts "b"
+    assert c.get("a") == {"x": 1}  # touch "a" so "b" becomes the LRU entry
+    c.put("c", {"x": 3})  # evicts "b"
     assert c.get("b") is None
     assert c.get("a") == {"x": 1}
 

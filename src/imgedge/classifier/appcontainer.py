@@ -36,15 +36,24 @@ _ERROR_ALREADY_EXISTS = 0x800700B7  # HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS)
 
 class _STARTUPINFOW(ctypes.Structure):
     _fields_ = [
-        ("cb", wintypes.DWORD), ("lpReserved", wintypes.LPWSTR),
-        ("lpDesktop", wintypes.LPWSTR), ("lpTitle", wintypes.LPWSTR),
-        ("dwX", wintypes.DWORD), ("dwY", wintypes.DWORD),
-        ("dwXSize", wintypes.DWORD), ("dwYSize", wintypes.DWORD),
-        ("dwXCountChars", wintypes.DWORD), ("dwYCountChars", wintypes.DWORD),
-        ("dwFillAttribute", wintypes.DWORD), ("dwFlags", wintypes.DWORD),
-        ("wShowWindow", wintypes.WORD), ("cbReserved2", wintypes.WORD),
-        ("lpReserved2", ctypes.c_void_p), ("hStdInput", wintypes.HANDLE),
-        ("hStdOutput", wintypes.HANDLE), ("hStdError", wintypes.HANDLE),
+        ("cb", wintypes.DWORD),
+        ("lpReserved", wintypes.LPWSTR),
+        ("lpDesktop", wintypes.LPWSTR),
+        ("lpTitle", wintypes.LPWSTR),
+        ("dwX", wintypes.DWORD),
+        ("dwY", wintypes.DWORD),
+        ("dwXSize", wintypes.DWORD),
+        ("dwYSize", wintypes.DWORD),
+        ("dwXCountChars", wintypes.DWORD),
+        ("dwYCountChars", wintypes.DWORD),
+        ("dwFillAttribute", wintypes.DWORD),
+        ("dwFlags", wintypes.DWORD),
+        ("wShowWindow", wintypes.WORD),
+        ("cbReserved2", wintypes.WORD),
+        ("lpReserved2", ctypes.c_void_p),
+        ("hStdInput", wintypes.HANDLE),
+        ("hStdOutput", wintypes.HANDLE),
+        ("hStdError", wintypes.HANDLE),
     ]
 
 
@@ -53,22 +62,37 @@ class _STARTUPINFOEXW(ctypes.Structure):
 
 
 class _PROCESS_INFORMATION(ctypes.Structure):
-    _fields_ = [("hProcess", wintypes.HANDLE), ("hThread", wintypes.HANDLE),
-                ("dwProcessId", wintypes.DWORD), ("dwThreadId", wintypes.DWORD)]
+    _fields_ = [
+        ("hProcess", wintypes.HANDLE),
+        ("hThread", wintypes.HANDLE),
+        ("dwProcessId", wintypes.DWORD),
+        ("dwThreadId", wintypes.DWORD),
+    ]
 
 
 class _SECURITY_CAPABILITIES(ctypes.Structure):
-    _fields_ = [("AppContainerSid", ctypes.c_void_p), ("Capabilities", ctypes.c_void_p),
-                ("CapabilityCount", wintypes.DWORD), ("Reserved", wintypes.DWORD)]
+    _fields_ = [
+        ("AppContainerSid", ctypes.c_void_p),
+        ("Capabilities", ctypes.c_void_p),
+        ("CapabilityCount", wintypes.DWORD),
+        ("Reserved", wintypes.DWORD),
+    ]
 
 
 _userenv.CreateAppContainerProfile.restype = ctypes.c_long
 _userenv.CreateAppContainerProfile.argtypes = [
-    wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.LPCWSTR,
-    ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(ctypes.c_void_p)]
+    wintypes.LPCWSTR,
+    wintypes.LPCWSTR,
+    wintypes.LPCWSTR,
+    ctypes.c_void_p,
+    wintypes.DWORD,
+    ctypes.POINTER(ctypes.c_void_p),
+]
 _userenv.DeriveAppContainerSidFromAppContainerName.restype = ctypes.c_long
 _userenv.DeriveAppContainerSidFromAppContainerName.argtypes = [
-    wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_void_p)]
+    wintypes.LPCWSTR,
+    ctypes.POINTER(ctypes.c_void_p),
+]
 _adv.ConvertSidToStringSidW.restype = wintypes.BOOL
 _adv.ConvertSidToStringSidW.argtypes = [ctypes.c_void_p, ctypes.POINTER(wintypes.LPWSTR)]
 
@@ -77,11 +101,10 @@ def ensure_sid():
     """Create (or derive if it exists) the AppContainer SID. Returns (psid, str)."""
     sid = ctypes.c_void_p()
     hr = _userenv.CreateAppContainerProfile(
-        _PROFILE_NAME, _PROFILE_NAME, "ImgEdge decode sandbox",
-        None, 0, ctypes.byref(sid))
+        _PROFILE_NAME, _PROFILE_NAME, "ImgEdge decode sandbox", None, 0, ctypes.byref(sid)
+    )
     if hr != 0 and (hr & 0xFFFFFFFF) == _ERROR_ALREADY_EXISTS:
-        if _userenv.DeriveAppContainerSidFromAppContainerName(
-                _PROFILE_NAME, ctypes.byref(sid)) != 0:
+        if _userenv.DeriveAppContainerSidFromAppContainerName(_PROFILE_NAME, ctypes.byref(sid)) != 0:
             raise OSError("DeriveAppContainerSidFromAppContainerName failed")
     elif hr != 0:
         raise OSError(f"CreateAppContainerProfile failed: 0x{hr & 0xFFFFFFFF:08x}")
@@ -99,7 +122,9 @@ def grant(path, sid_str, perm="(RX)"):
     would be missed; that doesn't occur in a normal pip venv.)"""
     r = subprocess.run(
         ["icacls", str(path), "/grant", f"*{sid_str}:(OI)(CI){perm}", "/C", "/Q"],
-        capture_output=True, text=True)
+        capture_output=True,
+        text=True,
+    )
     return r.returncode == 0
 
 
@@ -111,14 +136,23 @@ _INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 
 
 class _SECURITY_ATTRIBUTES(ctypes.Structure):
-    _fields_ = [("nLength", wintypes.DWORD), ("lpSecurityDescriptor", ctypes.c_void_p),
-                ("bInheritHandle", wintypes.BOOL)]
+    _fields_ = [
+        ("nLength", wintypes.DWORD),
+        ("lpSecurityDescriptor", ctypes.c_void_p),
+        ("bInheritHandle", wintypes.BOOL),
+    ]
 
 
 _k32.CreateFileW.restype = wintypes.HANDLE
 _k32.CreateFileW.argtypes = [
-    wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
-    wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    wintypes.LPCWSTR,
+    wintypes.DWORD,
+    wintypes.DWORD,
+    ctypes.c_void_p,
+    wintypes.DWORD,
+    wintypes.DWORD,
+    wintypes.HANDLE,
+]
 
 
 def spawn(cmdline, sid, cwd, inherit_handles=None):
@@ -136,11 +170,16 @@ def spawn(cmdline, sid, cwd, inherit_handles=None):
     buf = (ctypes.c_byte * size.value)()
     if not _k32.InitializeProcThreadAttributeList(buf, nattr, 0, ctypes.byref(size)):
         raise ctypes.WinError(ctypes.get_last_error())
-    caps = _SECURITY_CAPABILITIES(AppContainerSid=sid, Capabilities=None,
-                                  CapabilityCount=0, Reserved=0)
+    caps = _SECURITY_CAPABILITIES(AppContainerSid=sid, Capabilities=None, CapabilityCount=0, Reserved=0)
     if not _k32.UpdateProcThreadAttribute(
-            buf, 0, _PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES,
-            ctypes.byref(caps), ctypes.sizeof(caps), None, None):
+        buf,
+        0,
+        _PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES,
+        ctypes.byref(caps),
+        ctypes.sizeof(caps),
+        None,
+        None,
+    ):
         raise ctypes.WinError(ctypes.get_last_error())
     si = _STARTUPINFOEXW()
     si.StartupInfo.cb = ctypes.sizeof(_STARTUPINFOEXW)
@@ -148,10 +187,12 @@ def spawn(cmdline, sid, cwd, inherit_handles=None):
     nul = None
     harr = None  # keep the handle array alive until after CreateProcess
     if inherit_handles:
-        sa = _SECURITY_ATTRIBUTES(nLength=ctypes.sizeof(_SECURITY_ATTRIBUTES),
-                                  lpSecurityDescriptor=None, bInheritHandle=True)
-        nul = _k32.CreateFileW("NUL", _GENERIC_RW, _FILE_SHARE_RW, ctypes.byref(sa),
-                               _OPEN_EXISTING, 0, None)
+        sa = _SECURITY_ATTRIBUTES(
+            nLength=ctypes.sizeof(_SECURITY_ATTRIBUTES),
+            lpSecurityDescriptor=None,
+            bInheritHandle=True,
+        )
+        nul = _k32.CreateFileW("NUL", _GENERIC_RW, _FILE_SHARE_RW, ctypes.byref(sa), _OPEN_EXISTING, 0, None)
         if not nul or nul == _INVALID_HANDLE_VALUE:
             raise ctypes.WinError(ctypes.get_last_error())
         si.StartupInfo.dwFlags |= _STARTF_USESTDHANDLES
@@ -161,15 +202,23 @@ def spawn(cmdline, sid, cwd, inherit_handles=None):
         all_h = list(inherit_handles) + [nul]
         harr = (wintypes.HANDLE * len(all_h))(*[wintypes.HANDLE(h) for h in all_h])
         if not _k32.UpdateProcThreadAttribute(
-                buf, 0, _PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                harr, ctypes.sizeof(harr), None, None):
+            buf, 0, _PROC_THREAD_ATTRIBUTE_HANDLE_LIST, harr, ctypes.sizeof(harr), None, None
+        ):
             raise ctypes.WinError(ctypes.get_last_error())
     pi = _PROCESS_INFORMATION()
     cmd = ctypes.create_unicode_buffer(cmdline)
     ok = _k32.CreateProcessW(
-        None, cmd, None, None, bool(inherit_handles),
+        None,
+        cmd,
+        None,
+        None,
+        bool(inherit_handles),
         _EXTENDED_STARTUPINFO_PRESENT | _CREATE_NO_WINDOW,
-        None, str(cwd), ctypes.byref(si), ctypes.byref(pi))
+        None,
+        str(cwd),
+        ctypes.byref(si),
+        ctypes.byref(pi),
+    )
     err = ctypes.get_last_error()
     _k32.DeleteProcThreadAttributeList(buf)
     if nul:
@@ -208,8 +257,7 @@ def demo():
     from imgedge.classifier.ac_pool import AppContainerPool
 
     buf = io.BytesIO()
-    Image.fromarray(
-        (np.random.default_rng(0).random((16, 16, 3)) * 255).astype("uint8")).save(buf, "PNG")
+    Image.fromarray((np.random.default_rng(0).random((16, 16, 3)) * 255).astype("uint8")).save(buf, "PNG")
     pool = AppContainerPool(workers=1, recycle=10)
     try:
         arr, ow, oh = pool.decode(buf.getvalue())

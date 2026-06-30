@@ -24,10 +24,15 @@ def main():
     if not TFLITE.exists():
         sys.exit(f"TFLite model not found: {TFLITE}\nRun: python download_models.py")
     cmd = [
-        sys.executable, "-m", "tf2onnx.convert",
-        "--tflite", str(TFLITE),
-        "--output", str(ONNX),
-        "--opset", "17",
+        sys.executable,
+        "-m",
+        "tf2onnx.convert",
+        "--tflite",
+        str(TFLITE),
+        "--output",
+        str(ONNX),
+        "--opset",
+        "17",
     ]
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, check=True)

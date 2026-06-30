@@ -55,6 +55,7 @@ def test_data_url_without_comma_returns_none():
 def _fake_getaddrinfo(ip):
     def _inner(host, port, *a, **k):
         return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, port or 0))]
+
     return _inner
 
 
@@ -80,6 +81,7 @@ def test_pinned_resolver_allows_public(monkeypatch):
 
 
 # --- IP classification hardening: IPv4-mapped / NAT64 / CGNAT ---
+
 
 def _ip(s):
     return ipaddress.ip_address(s)
@@ -115,6 +117,7 @@ def test_cgnat_blocked():
 
 # --- URL policy: ports / https-only / host allow-list ---
 
+
 def test_port_allow_list(monkeypatch):
     monkeypatch.setattr(server, "ALLOWED_PORTS", {80, 443})
     assert server._url_allowed("http://example.com/x.png") is True
@@ -145,6 +148,7 @@ def test_host_allow_list(monkeypatch):
 
 # --- response content-type gate ---
 
+
 def test_content_type_rejects_non_image():
     assert server._content_type_ok("text/html; charset=utf-8") is False
     assert server._content_type_ok("application/json") is False
@@ -158,6 +162,7 @@ def test_content_type_allows_image_and_ambiguous():
 
 
 # --- per-host concurrency cap ---
+
 
 def test_host_slot_caps_concurrency(monkeypatch):
     monkeypatch.setattr(server, "FETCH_PER_HOST", 2)

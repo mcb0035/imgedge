@@ -42,12 +42,9 @@ ASSETS = {
 # --allow-unverified. Re-pin only after vetting new files from a trusted source
 # (python download_models.py --print-hashes).
 CHECKSUMS = {
-    "INatVision_Small_2_fact256_8bit.tflite":
-        "eae277b24efa629b998d5f9c091da0576162cb1aad498786087acd001dc86d2c",
-    "taxonomy.csv":
-        "bd18483667d8a0ce7c1676ad4160a61589390ef090b0fb8092da50832dcecb69",
-    "taxonomy.json":
-        "7df72a7a05afe53f20344339552b6c980423e1bd25e5cc69587f4f4619edc0e8",
+    "INatVision_Small_2_fact256_8bit.tflite": "eae277b24efa629b998d5f9c091da0576162cb1aad498786087acd001dc86d2c",
+    "taxonomy.csv": "bd18483667d8a0ce7c1676ad4160a61589390ef090b0fb8092da50832dcecb69",
+    "taxonomy.json": "7df72a7a05afe53f20344339552b6c980423e1bd25e5cc69587f4f4619edc0e8",
 }
 
 MAX_BYTES = 256 * 1024 * 1024  # cap so a hostile/oversized response can't fill the disk
@@ -63,6 +60,7 @@ def _host_ok(host):
 
 class _HostCheckedRedirect(urllib.request.HTTPRedirectHandler):
     """Follow redirects, but only to HTTPS URLs on an allow-listed host."""
+
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         u = urlparse(newurl)
         if u.scheme != "https" or not _host_ok(u.hostname):
@@ -84,8 +82,7 @@ def sha256_of(path):
 def download(url, dest, expected, allow_unverified=False):
     name = dest.name
     if expected is None and not allow_unverified:
-        raise RuntimeError(f"no pinned checksum for {name}; refusing "
-                           "(pass --allow-unverified to override)")
+        raise RuntimeError(f"no pinned checksum for {name}; refusing (pass --allow-unverified to override)")
 
     if dest.exists():
         if expected is None or sha256_of(dest) == expected:
@@ -117,8 +114,7 @@ def download(url, dest, expected, allow_unverified=False):
                     print(f"\r-> {name}  {read * 100 // total:3d}%", end="", flush=True)
         digest = h.hexdigest()
         if expected is not None and digest != expected:
-            raise RuntimeError(
-                f"checksum mismatch for {name}\n  expected {expected}\n  got      {digest}")
+            raise RuntimeError(f"checksum mismatch for {name}\n  expected {expected}\n  got      {digest}")
         tmp.replace(dest)
         print(f"\r-> {name}  done ({read // 1024} KB, {'verified' if expected else 'UNVERIFIED'})")
     except BaseException as e:
@@ -130,16 +126,23 @@ def download(url, dest, expected, allow_unverified=False):
 
 def main():
     p = argparse.ArgumentParser(description="Download + verify iNaturalist model assets.")
-    p.add_argument("--out", default=None,
-                   help="output directory (default: <this script>/models, where "
-                        "the classifier server looks)")
+    p.add_argument(
+        "--out",
+        default=None,
+        help="output directory (default: <this script>/models, where the classifier server looks)",
+    )
     p.add_argument("--all", action="store_true", help="also fetch geomodel + common names")
-    p.add_argument("--verify", action="store_true",
-                   help="only check on-disk files against the pinned SHA-256s")
-    p.add_argument("--allow-unverified", action="store_true",
-                   help="permit assets that have no pinned checksum (NOT recommended)")
-    p.add_argument("--print-hashes", action="store_true",
-                   help="print SHA-256 of the selected on-disk files and exit")
+    p.add_argument("--verify", action="store_true", help="only check on-disk files against the pinned SHA-256s")
+    p.add_argument(
+        "--allow-unverified",
+        action="store_true",
+        help="permit assets that have no pinned checksum (NOT recommended)",
+    )
+    p.add_argument(
+        "--print-hashes",
+        action="store_true",
+        help="print SHA-256 of the selected on-disk files and exit",
+    )
     args = p.parse_args()
 
     # Default next to this script (inat/models) so the server finds the files

@@ -2,18 +2,22 @@ name: Release
 
 # Tag a release with e.g. `git tag v0.2.0 && git push origin v0.2.0`.
 # This verifies the tag matches the manifest version, builds the store ZIP, and
-# publishes a GitHub Release with auto-generated notes.
+# publishes a GitHub Release with auto notes + a signed build-provenance
+# attestation for the ZIP.
 on:
   push:
     tags: ["v*"]
 
 permissions:
   contents: write
+  id-token: write # provenance attestation signing (OIDC)
+  attestations: write # record the provenance attestation
 
 jobs:
   release:
     name: Package + GitHub Release
     runs-on: windows-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -30,6 +34,11 @@ jobs:
       - name: Build extension package
         shell: pwsh
         run: ./package.ps1
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: dist/imgedge-*.zip
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1

@@ -44,12 +44,14 @@ def _ping():
 
 def _integrity_probe():
     from imgedge.classifier import confine
+
     return confine.current_integrity()
 
 
 def _env_probe():
     """Report the worker's BLAS/OMP thread caps (used by the perf-regression tests)."""
     import os
+
     return os.environ.get("OPENBLAS_NUM_THREADS"), os.environ.get("OMP_NUM_THREADS")
 
 
@@ -62,8 +64,16 @@ class DecodePool:
 
     kind = "process"
 
-    def __init__(self, workers=2, recycle=200, cap=1024, timeout=8.0,
-                 confine_os=True, mem_mb=1024, low_il=False):
+    def __init__(
+        self,
+        workers=2,
+        recycle=200,
+        cap=1024,
+        timeout=8.0,
+        confine_os=True,
+        mem_mb=1024,
+        low_il=False,
+    ):
         self.workers = max(1, int(workers))
         self.recycle = max(1, int(recycle))
         self.cap = int(cap)
@@ -82,8 +92,11 @@ class DecodePool:
 
     def _new_pool(self):
         return ProcessPoolExecutor(
-            max_workers=self.workers, max_tasks_per_child=self.recycle,
-            initializer=confine.worker_init, initargs=(self.mem_bytes, self.low_il))
+            max_workers=self.workers,
+            max_tasks_per_child=self.recycle,
+            initializer=confine.worker_init,
+            initargs=(self.mem_bytes, self.low_il),
+        )
 
     def _assign_new(self):
         """Assign any not-yet-confined worker PIDs to the Job (cheap; no IPC)."""

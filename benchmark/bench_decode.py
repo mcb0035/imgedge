@@ -8,6 +8,7 @@ Each row decodes the SAME JPEG and returns the real uint8 RGB array, so the pool
 rows include the full IPC round-trip (the decoded array copied back to the
 parent), not just a fire-and-forget call. AppContainer rows run on Windows only.
 """
+
 import argparse
 import io
 import statistics
@@ -18,6 +19,7 @@ import time
 def _jpeg(side):
     import numpy as np
     from PIL import Image
+
     buf = io.BytesIO()
     arr = (np.random.default_rng(0).random((side, side, 3)) * 255).astype("uint8")
     Image.fromarray(arr).save(buf, "JPEG", quality=85)
@@ -60,11 +62,11 @@ def main():
     ac = None
     if sys.platform == "win32":
         from imgedge.classifier.ac_pool import AppContainerPool
+
         t0 = time.perf_counter()
         ac = AppContainerPool(workers=args.workers)
         ac.decode(_jpeg(64))
-        print(f"AppContainer cold spawn -> warm-ready: "
-              f"{(time.perf_counter() - t0) * 1000:.0f} ms (one-time)\n")
+        print(f"AppContainer cold spawn -> warm-ready: {(time.perf_counter() - t0) * 1000:.0f} ms (one-time)\n")
 
     try:
         for side in sizes:

@@ -14,8 +14,7 @@ from PIL import Image
 
 pytestmark = pytest.mark.skipif(
     sys.platform != "win32" or os.environ.get("IMGEDGE_TEST_APPCONTAINER") != "1",
-    reason="AppContainer pool test is Windows-only and opt-in "
-           "(set IMGEDGE_TEST_APPCONTAINER=1)",
+    reason="AppContainer pool test is Windows-only and opt-in (set IMGEDGE_TEST_APPCONTAINER=1)",
 )
 
 
@@ -33,7 +32,7 @@ def test_decode_and_isolation():
     try:
         assert pool.confined  # Job object attached
         arr, ow, oh = pool.decode(_png(30, 20))
-        assert (ow, oh) == (30, 20)              # original size preserved
+        assert (ow, oh) == (30, 20)  # original size preserved
         assert arr.ndim == 3 and arr.shape[2] == 3
         assert arr.dtype == np.uint8
         # the security guarantee: from inside the container, both are denied
