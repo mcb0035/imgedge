@@ -8,11 +8,11 @@ can't be turned into a foothold by a web page or another local process.
 ## Supported versions
 
 This is an early-stage personal project. Only the latest `main` (currently
-`0.2.0`) receives security fixes. Pin to a commit if you need stability.
+`0.3.0`) receives security fixes. Pin to a commit if you need stability.
 
 | Version | Supported |
 | ------- | --------- |
-| `main` / `0.2.0` | ✅ |
+| `main` / `0.3.0` | ✅ |
 | older commits | ❌ |
 
 ## Reporting a vulnerability
@@ -29,9 +29,51 @@ reporting](https://github.com/mcb0035/imgedge/security/advisories/new):
 2. Include: affected file/component, reproduction steps or a proof of concept,
    impact, and any suggested fix.
 
-You'll get an acknowledgement as soon as the maintainer sees it. Because this is
-a single-maintainer hobby project, please allow reasonable time before any
-public disclosure, and coordinate a disclosure date in the report thread.
+You'll get an acknowledgement **within 14 days** of the report — usually within a
+few days (see the targets below). Please allow reasonable time before any public
+disclosure, and coordinate a disclosure date in the report thread.
+
+## Response and fix targets
+
+ImgEdge is a **single-maintainer** project, so these are deliberately achievable
+one-person commitments, not a staffed-team SLA. They are targets the maintainer
+holds to — and anyone triaging or reviewing on the project's behalf is expected
+to uphold them too.
+
+| Commitment | Target |
+| ---------- | ------ |
+| **Acknowledge a vulnerability report** (initial response) | **≤ 14 days** from receipt, for every report. |
+| **Fix a confirmed vulnerability** in ImgEdge's own code | **≤ 60 days** from confirmation for any **medium-or-higher severity** exploitable issue; criticals are prioritised immediately. |
+| **Acknowledge a bug report** (non-security) | **≤ 14 days**; the acknowledgement need not include a fix. |
+| **Respond to an enhancement request** | **≤ 30 days**; the response may be "yes", "no", or a discussion of merits. |
+
+**Severity** uses the CVSS base qualitative score (v3.1 or later): *medium or
+higher* is a base score of **4.0 or above**, taken from a recognised database
+such as the [NVD](https://nvd.nist.gov/) when one exists, otherwise calculated by
+the maintainer with the inputs disclosed once the issue is public.
+
+**Findings from the project's own analysis are held to the same fix target.** A
+medium-or-higher severity exploitable vulnerability confirmed by **static
+analysis** (CodeQL, the CI Ruff ruleset) or **dynamic analysis** (the test suite
+or the ClusterFuzzLite fuzzers) is fixed on the same **≤ 60-day** timeline after
+it is confirmed. Where a given method has found no such vulnerability, that
+method is N/A.
+
+## Release notes and disclosure
+
+ImgEdge is installed by users who update it themselves, so its release notes
+carry vulnerability information (this is **not** N/A for us). Every release lists
+— in [CHANGELOG.md](CHANGELOG.md) and the matching
+[GitHub Release](https://github.com/mcb0035/imgedge/releases) — **every publicly
+known run-time vulnerability in ImgEdge's own code that already had a CVE (or
+comparable) identifier when the release was prepared**, with the identifier and
+what/where it was fixed, so you can judge whether an update matters to you.
+
+This covers the **project's own code only.** Vulnerabilities in third-party
+dependencies are tracked continuously by `pip-audit` (CI), Dependabot, and the
+OpenSSF Scorecard instead of being re-listed per release, because enumerating
+every transitive dependency's advisories does not scale. A release that fixes no
+such publicly known project vulnerability simply lists none.
 
 ## Security model
 
