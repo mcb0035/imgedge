@@ -103,14 +103,20 @@ The model is tiny, so the CPU pool is usually plenty. To offload to the Intel
 NPU (default), a GPU, etc.:
 
 ```powershell
-pip install -e ".[onnx]"; pip install tf2onnx onnx onnxruntime-openvino  # OpenVINO NPU/GPU
-python -m imgedge.inat.convert_to_onnx          # TFLite → ONNX
-imgedge-server                                  # auto-prefers ONNX; prints provider
+# one-time: convert the bundled TFLite model to ONNX (tf2onnx needs TensorFlow)
+pip install tf2onnx onnx tensorflow
+python -m imgedge.inat.convert_to_onnx          # writes the .onnx next to the model
+
+# runtime: install ONE ONNX Runtime build for your accelerator, then start the server
+pip install onnxruntime-openvino                # Intel NPU / GPU (OpenVINO)
+imgedge-server                                  # auto-prefers ONNX; prints the provider
 ```
 
 The server picks a provider in this order by default: **NPU (OpenVINO)** → GPU
-→ CPU. Force one with `IMGEDGE_EP=npu|ovgpu|cuda|dml|cpu`. Other runtimes:
-`onnxruntime-directml` (any DX12 GPU) or `onnxruntime-gpu` (NVIDIA CUDA).
+→ CPU. Force one with `IMGEDGE_EP=npu|ovgpu|cuda|dml|cpu`. Install a single
+matching runtime: `onnxruntime-openvino` (Intel NPU/GPU), `onnxruntime-directml`
+(any DX12 GPU), `onnxruntime-gpu` (NVIDIA CUDA), or plain `onnxruntime` via
+`pip install -e ".[onnx]"` (CPU).
 
 ## Voting ensemble (optional second model)
 

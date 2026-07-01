@@ -151,7 +151,8 @@ These are deliberately documented rather than hidden:
 
 ## Hardening recommendations for users
 
-- Keep Python dependencies current: `pip install -U pillow onnxruntime*`.
+- Keep Python dependencies current, e.g. `pip install -U pillow` (and whichever
+  `onnxruntime` package you installed).
 - Leave the access token enabled (don't set an empty `IMGEDGE_TOKEN`).
 - On Windows, consider `IMGEDGE_SANDBOX_APPCONTAINER=1` to decode untrusted
   images in a no-network AppContainer (the first run does a one-time, near-instant
