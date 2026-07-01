@@ -21,6 +21,8 @@ The image is decoded once (with the same hardening as the single-model path)
 and the open PIL image is handed to each voter, so codecs run only once.
 """
 
+import time
+
 from imgedge.inat.inat_filter import open_guarded  # reuse decode hardening
 from imgedge.voters.salience import image_salience
 
@@ -87,13 +89,17 @@ class VoteEnsemble:
             return self.classify(img, meta, threshold, salience)
 
     def _assess(self, v, img):
-        """Run one voter, isolating failures: a broken voter abstains (0, 0)."""
+        """Run one voter, isolating failures: a broken voter abstains (0, 0).
+        The voter's wall-clock cost is recorded in its breakdown as ``ms``."""
+        t0 = time.perf_counter()
         try:
             out = v.assess(img)
             d = out[2] if len(out) > 2 else None  # optional per-voter breakdown
-            return (v, float(out[0]), float(out[1]), d)
+            ms = round((time.perf_counter() - t0) * 1000, 3)
+            return (v, float(out[0]), float(out[1]), {**(d or {}), "ms": ms})
         except Exception:
-            return (v, 0.0, 0.0, None)  # never crash the verdict
+            ms = round((time.perf_counter() - t0) * 1000, 3)
+            return (v, 0.0, 0.0, {"ms": ms, "error": True})  # never crash the verdict
 
     def classify(self, img, meta=None, threshold=None, salience=None):
         deferred = [v for v in self.voters if getattr(v, "deferred", False)]
@@ -109,7 +115,7 @@ class VoteEnsemble:
             if self.gate <= cheap < thr:
                 rows += [self._assess(v, img) for v in deferred]
             else:
-                rows += [(v, 0.0, 0.0, {"skipped": True}) for v in deferred]
+                rows += [(v, 0.0, 0.0, {"skipped": True, "ms": 0.0}) for v in deferred]
         else:
             rows = [self._assess(v, img) for v in self.voters]
 
