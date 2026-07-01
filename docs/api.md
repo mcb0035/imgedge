@@ -86,6 +86,15 @@ Invoke-RestMethod -Uri http://127.0.0.1:8723/classify -Method Post `
   -Body '{"url":"https://example.com/cat.jpg","meta":{"kind":"img","w":800,"h":600}}'
 ```
 
+Or with `curl`:
+
+```bash
+token=$(cat ~/.imgedge_token)
+curl -s http://127.0.0.1:8723/classify \
+  -H "X-ImgEdge-Token: $token" -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/cat.jpg","meta":{"kind":"img","w":800,"h":600}}'
+```
+
 ### `GET /health`
 
 Liveness and (with the token) configuration status — used by the popup badge.

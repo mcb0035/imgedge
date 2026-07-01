@@ -5,6 +5,16 @@ extension see the [Quick start](../README.md#quick-start); for the HTTP/CLI
 surface see the [interface reference](api.md); for every tunable see the
 [configuration reference](configuration.md).
 
+> **Shells & platforms.** Commands are shown for **PowerShell 7** (`pwsh` —
+> MIT-licensed, cross-platform). On bash/zsh, activate the venv with
+> `source .venv/bin/activate`, set variables with `export VAR=value`, and use
+> `curl` / `cat` where the examples use `Invoke-RestMethod` / `Get-Content`. The
+> classifier and its tests are cross-platform (CI runs on Linux **and** Windows);
+> only the AppContainer decode sandbox and
+> [`footprint.py`](../benchmark/footprint.py) are Windows-specific. The **entire
+> build/test toolchain is FLOSS** — pip, setuptools, pytest, Ruff, ESLint,
+> pre-commit, and PowerShell 7.
+
 ## Prerequisites
 
 - **Python 3.13+** — the classifier backend.
@@ -80,7 +90,7 @@ run in the **Windows (tests)** CI job).
 
 ```powershell
 npm ci
-npx eslint .
+npx eslint . --max-warnings 0
 npm test           # node:test unit tests for background.js / popup.js
 ```
 
@@ -121,7 +131,10 @@ In CI these run as the **Performance guards** job (`pytest -m perf`) and the
 ## Continuous integration
 
 Every push and pull request runs the checks below, and a pull request must be
-green to merge. All third-party actions are pinned to a full commit SHA.
+green to merge. Lint findings are treated as errors — Ruff's `W` (warning) rules
+fail `ruff check`, and ESLint runs with `--max-warnings 0` — so warnings are
+addressed before merge, never accumulated. All third-party actions are pinned to
+a full commit SHA.
 
 [`ci.yml`](../.github/workflows/ci.yml) is the core gate:
 
