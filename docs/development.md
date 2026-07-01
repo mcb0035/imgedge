@@ -84,6 +84,10 @@ npx eslint .
 npm test           # node:test unit tests for background.js / popup.js
 ```
 
+The JS tests live in [`tests/js/`](../tests/js/) and evaluate the real classic
+scripts in a `node:vm` sandbox (with `chrome` / DOM / `crypto` mocked), so add a
+test there alongside any change to the extension's logic.
+
 **Pre-commit** — run the lint/format/compile checks on every commit:
 
 ```powershell

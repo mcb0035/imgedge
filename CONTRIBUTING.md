@@ -93,6 +93,14 @@ checks — see the [developer guide](docs/development.md#continuous-integration)
   npx eslint .
   ```
 
+- **Test with [`node:test`](https://nodejs.org/api/test.html)** — unit tests for
+  the extension scripts live in [`tests/js/`](tests/js/) and run the real code in
+  a `node:vm` sandbox:
+
+  ```powershell
+  npm test
+  ```
+
 - No `innerHTML` / `eval` / dynamic-code sinks — the content script runs in
   every frame of every site, so use `textContent` and keep the blast radius
   small.
