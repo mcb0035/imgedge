@@ -46,6 +46,10 @@ known-first-party = ["imgedge"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# Treat any Python warning as an error so deprecations / resource leaks fail the
+# suite instead of accumulating. Add "ignore::DeprecationWarning:<module>" entries
+# only for unfixable third-party noise.
+filterwarnings = ["error"]
 markers = [
     "perf: performance-regression guards (run via the CI 'perf' job; not in the default gate)",
 ]
