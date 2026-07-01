@@ -38,7 +38,7 @@ jobs:
         run: pytest -m "not perf" --cov=imgedge --cov-report=term-missing --cov-fail-under=55
 
   javascript:
-    name: Extension JS (eslint)
+    name: Extension JS (lint + tests)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -53,6 +53,8 @@ jobs:
       - run: npm ci
       - name: Lint (eslint)
         run: npx eslint . --max-warnings 0
+      - name: Tests (node:test)
+        run: node --test "tests/js/**/*.test.mjs"
 
   security:
     name: Dependency audit (pip-audit)
