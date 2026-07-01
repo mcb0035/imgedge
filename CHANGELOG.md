@@ -8,6 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Settings export / import.** The popup's new **Advanced → Backup** section
+  saves your setup to a JSON file and loads it back. The file contains only the
+  detection mode, tuning sliders, toggles, and endpoint — never the access token
+  or the allow/block lists — so it holds no secrets or browsing URLs. Import
+  applies only those validated fields, keeps the existing token, and rejects any
+  non-local endpoint. The popup also now states that settings live in
+  `chrome.storage.local` and never leave the machine (see `PRIVACY.md`).
 - **Easy-mode detection presets.** The popup gains a **Fast / Balanced /
   Accurate** selector (iNat+timm / +MobileCLIP / +SigLIP) that picks the voter
   subset per request; the existing endpoint/token/threshold/salience controls

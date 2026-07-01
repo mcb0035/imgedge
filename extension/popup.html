@@ -133,6 +133,23 @@
         font-size: 13px;
         margin: 4px 0;
       }
+      .note {
+        margin: 4px 0 6px;
+        font-size: 11px;
+        color: #888;
+      }
+      .btnrow {
+        display: flex;
+        gap: 8px;
+      }
+      .privacy {
+        margin: 12px 0 2px;
+        font-size: 11px;
+        color: #888;
+      }
+      .privacy code {
+        font-size: 10.5px;
+      }
       button {
         cursor: pointer;
         padding: 4px 10px;
@@ -257,6 +274,18 @@
       </label>
 
       <button id="save">Save settings</button>
+
+      <h2>Backup</h2>
+      <p id="backupNote" class="note">
+        Save your setup to a JSON file or load one. The file holds only your
+        detection mode, sliders, toggles, and endpoint &mdash; never your server
+        token or any allowed/blocked URLs.
+      </p>
+      <div class="btnrow">
+        <button id="exportSettings" type="button">Export settings</button>
+        <button id="importSettings" type="button">Import settings</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden />
+      </div>
     </details>
 
     <h2>Whitelisted images</h2>
@@ -267,6 +296,12 @@
 
     <h2>Blocked images</h2>
     <ul id="blocklist"></ul>
+
+    <p id="privacyNote" class="privacy">
+      Your settings and lists are stored locally in this browser
+      (<code>chrome.storage.local</code>) and never leave your machine. Image
+      classification is done by the local server you point to above.
+    </p>
 
     <script src="popup.js"></script>
   </body>

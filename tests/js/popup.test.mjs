@@ -74,3 +74,58 @@ test("applyProfiles greys out unavailable presets and falls back to the best ava
   assert.equal(radios.find((r) => r.value === "accurate").checked, true); // fell back
   assert.match(hint.textContent, /Balanced/);
 });
+
+test("buildExport includes only non-secret settings (no token, no lists)", () => {
+  const s = {
+    enabled: true, endpoint: "http://localhost:8723/classify", token: "SECRET-TOKEN",
+    sendData: false, failClosed: true, strict: false, scanBackgrounds: true,
+    threshold: 0.3, salience: 0.8, profile: "accurate",
+  };
+  const out = context.buildExport(s);
+  assert.equal(out.app, "imgedge");
+  assert.equal(out.kind, "settings");
+  assert.ok(!("token" in out.settings), "token must never be exported");
+  assert.equal(JSON.stringify(out).includes("SECRET-TOKEN"), false);
+  assert.deepEqual(Object.keys(out.settings).sort(), [
+    "enabled", "endpoint", "failClosed", "profile", "salience",
+    "scanBackgrounds", "sendData", "strict", "threshold",
+  ]);
+  assert.equal(out.settings.profile, "accurate");
+});
+
+test("sanitizeImport applies whitelisted keys but never imports a token or unknown keys", () => {
+  const current = { token: "KEEP-ME", endpoint: "http://localhost:8723/classify", profile: "fast" };
+  const incoming = {
+    settings: {
+      token: "EVIL", enabled: false, threshold: 0.42, salience: 0.5,
+      profile: "accurate", scanBackgrounds: false, bogus: "ignored",
+    },
+  };
+  const s = context.sanitizeImport(incoming, current);
+  assert.equal(s.token, "KEEP-ME"); // file's token ignored, current kept
+  assert.equal(s.enabled, false);
+  assert.equal(s.threshold, 0.42);
+  assert.equal(s.salience, 0.5);
+  assert.equal(s.profile, "accurate");
+  assert.equal(s.scanBackgrounds, false);
+  assert.ok(!("bogus" in s)); // unknown keys dropped
+});
+
+test("sanitizeImport rejects a non-local endpoint and clamps/validates values", () => {
+  const current = { token: "", endpoint: "http://localhost:8723/classify" };
+  const incoming = {
+    settings: { endpoint: "http://evil.example.com/classify", threshold: 9, salience: -3, profile: "nope" },
+  };
+  const s = context.sanitizeImport(incoming, current);
+  assert.equal(s.endpoint, "http://localhost:8723/classify"); // off-localhost ignored
+  assert.equal(s.threshold, 0.95); // clamped to max
+  assert.equal(s.salience, 0); // clamped to min
+  assert.equal(s.profile, "balanced"); // invalid preset -> default kept
+});
+
+test("sanitizeImport tolerates a bare settings object and junk input", () => {
+  const current = { token: "T" };
+  assert.equal(context.sanitizeImport({ threshold: 0.2 }, current).threshold, 0.2); // no wrapper
+  assert.equal(context.sanitizeImport(null, current).token, "T"); // junk -> keeps token
+  assert.equal(context.sanitizeImport("nope", current).token, "T");
+});

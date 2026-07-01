@@ -18,6 +18,12 @@ allowed), *Scan CSS backgrounds*, and the **Block threshold** and **Salience
 weighting** tuning sliders (sent per request, so they tune live and override the
 server defaults below). The whitelist / allowed-sites / blocklist stay visible.
 
+Under **Advanced → Backup**, *Export settings* saves your setup to a JSON file and
+*Import settings* loads one back. The file holds only the detection mode, sliders,
+toggles, and endpoint — never your token or any allow/block URLs. All settings and
+lists live in the browser's local `chrome.storage.local` and never leave your
+machine (see [PRIVACY.md](../PRIVACY.md)).
+
 ## Server (environment variables)
 
 | Variable | Default | Purpose |
