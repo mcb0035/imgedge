@@ -70,6 +70,8 @@ flowchart LR
   `/health`) and the CLI, with request/response schemas.
 - **[Configuration reference](docs/configuration.md)** — every popup setting and
   `IMGEDGE_*` environment variable.
+- **[Evaluation & profiling](docs/evaluation.md)** — measure recall / FPR and
+  decision latency of the voting ensemble.
 - **[Threat model](docs/threat-model.md)** — STRIDE + LINDDUN analysis.
 - **[Security policy](SECURITY.md)** · **[Privacy](PRIVACY.md)** ·
   **[Contributing](CONTRIBUTING.md)**

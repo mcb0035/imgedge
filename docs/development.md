@@ -221,6 +221,8 @@ against tagging before the version bump has merged.
 - [Interface reference](api.md) — the local HTTP API and CLI.
 - [Configuration reference](configuration.md) — every popup setting and
   `IMGEDGE_*` variable.
+- [Evaluation & profiling](evaluation.md) — measure ensemble recall / FPR and
+  decision latency.
 - [Threat model](threat-model.md) · [Security policy](../SECURITY.md).
 - [CONTRIBUTING](../CONTRIBUTING.md) — contribution process and the standards a
   change has to meet.

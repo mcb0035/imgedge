@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Eval harness: ensemble decision-latency profiling.** Each voter is timed and
+  the report gains a `latency` block (per-image decision percentiles + per-voter
+  cost), a progress meter (count / rate / ETA on stderr, `--no-progress` to
+  silence), and `--siglip` / `--mobileclip` flags to pick the voter set per run
+  (deterministic — no environment to set/unset). See `docs/evaluation.md`.
+
 ## [0.3.0] - 2026-06-30
 
 ### Changed

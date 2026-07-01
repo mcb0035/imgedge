@@ -47,6 +47,7 @@ import json
 import math
 import os
 import sys
+import time
 from pathlib import Path
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
@@ -187,7 +188,10 @@ def classify_sample(ens, raw, threshold=None, salience=None):
     """Return a flat record for one image's verdict (no pixels retained). A
     decode/classify failure (e.g. an oversized image the guard rejects) is
     recorded as not-blocked -- matching the server's fail-open behaviour -- so a
-    single bad image never aborts a whole run."""
+    single bad image never aborts a whole run. ``decision_ms`` is the full
+    per-image decision time; ``voter_ms`` is each voter's own cost (0 when the
+    cascade skipped it)."""
+    t0 = time.perf_counter()
     try:
         verdict = ens.classify_bytes(raw, None, None, threshold, salience)
     except Exception:
@@ -206,8 +210,11 @@ def classify_sample(ens, raw, threshold=None, salience=None):
             "mobileclip": None,
             "salience": None,
             "votes": {},
+            "decision_ms": round((time.perf_counter() - t0) * 1000, 3),
+            "voter_ms": {},
             "error": True,
         }
+    decision_ms = round((time.perf_counter() - t0) * 1000, 3)
     dbg = verdict.get("dbg") or {}
     voters = {v.get("name", ""): v for v in dbg.get("voters", [])}
     inat_v = next((v for n, v in voters.items() if n.startswith("inat")), None)
@@ -230,14 +237,85 @@ def classify_sample(ens, raw, threshold=None, salience=None):
         "mobileclip": _as_float(mobileclip_v.get("score")) if mobileclip_v else None,
         "salience": dbg.get("salience"),
         "votes": verdict.get("votes", {}),
+        "decision_ms": decision_ms,
+        "voter_ms": {name: (vv.get("details") or {}).get("ms") for name, vv in voters.items()},
     }
 
 
-def evaluate(path, threshold=None, salience=None, password=None, sample_per_class=None, seed=1234):
+def _fmt_dur(seconds):
+    s = int(seconds)
+    if s >= 3600:
+        return f"{s // 3600}h{(s % 3600) // 60:02d}m"
+    if s >= 60:
+        return f"{s // 60}m{s % 60:02d}s"
+    return f"{s}s"
+
+
+class _Progress:
+    """Dependency-free progress meter on stderr, so it never mixes into the
+    report on stdout. A single line redrawn in place on a TTY; a sparse line
+    every ~5% when stderr is redirected (log-friendly)."""
+
+    def __init__(self, total, enabled=True, stream=None):
+        self.total = int(total)
+        self.stream = stream or sys.stderr
+        self.enabled = bool(enabled) and self.total > 0
+        self.tty = self.enabled and hasattr(self.stream, "isatty") and self.stream.isatty()
+        self.n = 0
+        self.start = time.perf_counter()
+        self._last_draw = 0.0
+        self._last_step = -1
+
+    def tick(self, k=1):
+        if not self.enabled:
+            return
+        self.n += k
+        done = self.n >= self.total
+        now = time.perf_counter()
+        if self.tty:
+            if not done and now - self._last_draw < 0.2:
+                return
+            self._last_draw = now
+            self._draw("\r")
+            if done:
+                self.stream.write("\n")
+                self.stream.flush()
+        else:
+            step = int(20 * self.n / self.total)
+            if step != self._last_step or done:
+                self._last_step = step
+                self._draw("\n")
+
+    def _draw(self, end):
+        elapsed = time.perf_counter() - self.start
+        rate = self.n / elapsed if elapsed > 0 else 0.0
+        pct = 100 * self.n / self.total
+        eta = (self.total - self.n) / rate if rate > 0 else 0.0
+        bar = ""
+        if self.tty:
+            width = 24
+            filled = int(width * self.n / self.total)
+            bar = "[" + "#" * filled + "." * (width - filled) + "] "
+        self.stream.write(
+            f"{bar}{self.n}/{self.total} ({pct:4.1f}%)  {rate:5.1f} img/s  "
+            f"elapsed {_fmt_dur(elapsed)}  ETA {_fmt_dur(eta)}      {end}"
+        )
+        self.stream.flush()
+
+    def close(self):
+        if self.enabled and self.tty and self.n < self.total:
+            self.stream.write("\n")
+            self.stream.flush()
+
+
+def evaluate(path, threshold=None, salience=None, password=None, sample_per_class=None, seed=1234, progress=True):
     """Classify labelled images; return records with label + scores only.
-    `sample_per_class` scores a random N per class instead of the whole set."""
+    `sample_per_class` scores a random N per class instead of the whole set.
+    A progress meter prints to stderr unless `progress=False`."""
     ens = load_pipeline()
     only = _sample_names(path, password, sample_per_class, seed) if sample_per_class else None
+    total = len(only) if only is not None else sum(1 for _ in _labeled_names(path, password))
+    prog = _Progress(total, enabled=progress)
     records = []
     for label, name, raw in iter_samples(path, password, only):
         rec = classify_sample(ens, raw, threshold, salience)
@@ -245,6 +323,8 @@ def evaluate(path, threshold=None, salience=None, password=None, sample_per_clas
         rec["name"] = name
         records.append(rec)
         del raw  # drop the bytes promptly
+        prog.tick()
+    prog.close()
     return records
 
 
@@ -371,6 +451,37 @@ def _op_threshold(records, override):
     return 0.5
 
 
+def _percentiles(values):
+    if not values:
+        return {}
+    xs = sorted(values)
+    n = len(xs)
+    return {
+        "n": n,
+        "mean": round(sum(xs) / n, 3),
+        "p50": round(xs[min(n - 1, n // 2)], 3),
+        "p90": round(xs[min(n - 1, int(0.90 * n))], 3),
+        "p95": round(xs[min(n - 1, int(0.95 * n))], 3),
+        "max": round(xs[-1], 3),
+    }
+
+
+def _latency_summary(records):
+    """Per-image decision latency plus each voter's own cost, over the images
+    where it actually ran (the cascade skips the deferred voters on clear
+    allows, so their count is lower than the total)."""
+    decision = [r["decision_ms"] for r in records if r.get("decision_ms") is not None and not r.get("error")]
+    per_voter = {}
+    for r in records:
+        for name, ms in (r.get("voter_ms") or {}).items():
+            if ms:  # skipped voters report 0 -> excluded from the per-voter cost
+                per_voter.setdefault(name, []).append(ms)
+    return {
+        "decision_ms": _percentiles(decision),
+        "per_voter_ms": {name: _percentiles(vals) for name, vals in sorted(per_voter.items())},
+    }
+
+
 def build_report(records, threshold, salience, sweep_on=True):
     fns, fps = misses(records, threshold)
     rep = {
@@ -378,6 +489,7 @@ def build_report(records, threshold, salience, sweep_on=True):
         "positives": sum(1 for r in records if r["label"] == "block"),
         "negatives": sum(1 for r in records if r["label"] == "allow"),
         "errors": sum(1 for r in records if r.get("error")),
+        "latency": _latency_summary(records),
         "operating_point": {
             "threshold": threshold,
             "salience": salience,
@@ -424,6 +536,14 @@ def print_report(rep):
             if name in sv:
                 m = sv[name]
                 print(f"  {name:11s} recall {_pct(m['recall'])}    FPR {_pct(m['fpr'])}")
+
+    lat = rep.get("latency", {})
+    if lat.get("decision_ms"):
+        d = lat["decision_ms"]
+        print(f"\nDecision latency (ms/image, n={d['n']}):")
+        print(f"  total       mean {d['mean']:6.1f}  p50 {d['p50']:6.1f}  p90 {d['p90']:6.1f}  p95 {d['p95']:6.1f}")
+        for name, pv in lat.get("per_voter_ms", {}).items():
+            print(f"  {name[:26]:26s} mean {pv['mean']:6.1f}  p50 {pv['p50']:6.1f}  (ran {pv['n']}x)")
 
     if rep["false_negatives"]:
         rows = rep["false_negatives"]
@@ -814,6 +934,11 @@ def main(argv=None):
     pe.add_argument("--no-sweep", action="store_true", help="skip the threshold/salience sweeps")
     pe.add_argument("--sample-per-class", type=int, default=None, help="score a random N per class (sample the set)")
     pe.add_argument("--seed", type=int, default=1234, help="sampling seed")
+    pe.add_argument("--no-progress", action="store_true", help="disable the stderr progress meter")
+    pe.add_argument("--siglip", action="store_true", help="enable the SigLIP voter (needs the siglip extra)")
+    pe.add_argument(
+        "--mobileclip", action="store_true", help="enable the MobileCLIP voter (needs the mobileclip extra)"
+    )
 
     pd = sub.add_parser("build-dir", help="encrypt a block/+allow/ folder into an AES zip")
     pd.add_argument("src_dir")
@@ -847,8 +972,22 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     if args.cmd == "eval":
+        # Pick voters by flag, not the ambient environment: set the enable vars
+        # explicitly (on OR off) BEFORE the server module is imported (it
+        # snapshots them into module constants), so the run is deterministic
+        # regardless of leftover shell state.
+        os.environ["IMGEDGE_SIGLIP"] = "1" if args.siglip else "0"
+        os.environ["IMGEDGE_MOBILECLIP"] = "1" if args.mobileclip else "0"
         password = _get_password(required=str(args.dataset).lower().endswith(".zip"))
-        records = evaluate(args.dataset, args.threshold, args.salience, password, args.sample_per_class, args.seed)
+        records = evaluate(
+            args.dataset,
+            args.threshold,
+            args.salience,
+            password,
+            args.sample_per_class,
+            args.seed,
+            progress=not args.no_progress,
+        )
         if not records:
             raise SystemExit("No labelled images found (expected block/ and allow/ entries).")
         report = build_report(records, args.threshold, args.salience, sweep_on=not args.no_sweep)
