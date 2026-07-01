@@ -21,8 +21,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   prompts (egg sacs, molts, spiderlings, mites, specimen shots) are carried by
   the MobileCLIP voter only. SigLIP (weight 2.0) is the dominant web
   false-positive contributor while MobileCLIP is near-silent on web negatives, so
-  this trims SigLIP's web FPR while keeping the atypical coverage.
-  `IMGEDGE_SIGLIP_PROMPTS` / `IMGEDGE_MOBILECLIP_PROMPTS` still override.
+  this trims SigLIP's web false positives. Measured on the reference sets:
+  SigLIP-only web FPR fell 1.05% -> 0.94% (target met) at 98.7% web-recall; the
+  4-model holds ~91% recall at ~1.0% web FPR. `IMGEDGE_SIGLIP_PROMPTS` /
+  `IMGEDGE_MOBILECLIP_PROMPTS` still override.
 
 ## [0.3.0] - 2026-06-30
 
