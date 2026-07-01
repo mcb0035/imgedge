@@ -57,7 +57,7 @@ flowchart LR
 | `src/imgedge/classifier/server.py` | Local HTTP classifier (`/classify`, `/health`) |
 | `src/imgedge/voters/` | Voting ensemble: base classes, iNaturalist + timm voters, image-salience weighting |
 | `src/imgedge/inat/` | iNaturalist model: download, TFLite + ONNX backends, taxonomy filter |
-| `tests/` | pytest suite (SSRF, integrity, cache, voting, salience, decode sandbox, perf guards) |
+| `tests/` | pytest suite (SSRF, integrity, cache, voting, salience, decode sandbox, perf guards) + `tests/js/` node:test extension tests |
 | `benchmark/` | Decode-latency + memory-footprint scripts, plus the CodSpeed suite (`pytest benchmark/ --codspeed`) — see [benchmark/README.md](benchmark/README.md) |
 | `training/` | **Optional / not used by default** — a from-scratch MobileNetV3 fine-tune pipeline |
 | `package.ps1` | Build a store-ready ZIP (and optional `.crx`) of the extension |
@@ -89,6 +89,10 @@ imgedge-server
 # 4. Load the extension: edge://extensions → Developer mode → Load unpacked → this folder
 # 5. Open the ImgEdge popup, paste the token into "Server token", Save.
 ```
+
+> Commands are shown for PowerShell; on bash/zsh use `source .venv/bin/activate`
+> and `export VAR=…`. The whole toolchain is FLOSS — see the
+> [developer guide](docs/development.md).
 
 Browse — arachnid images are hidden. The toolbar badge shows the blocked count;
 its tooltip and the popup show classifier health.
