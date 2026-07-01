@@ -2,12 +2,14 @@
 # https://google.github.io/clusterfuzzlite/build-integration/python/
 FROM gcr.io/oss-fuzz-base/base-builder-python
 
-# Install the package + its runtime deps (numpy / Pillow / ai-edge-litert) so the
-# harness can import the decode path. The OSS-Fuzz base image ships Python 3.11
-# while the project floor is 3.13, so ignore the Requires-Python gate -- the
-# decode path uses no >=3.12 syntax, so it imports fine on 3.11.
+# The OSS-Fuzz base image ships Python 3.11, but the project pins numpy / Pillow
+# versions that only publish 3.12+ wheels. The decode fuzzer needs only Pillow +
+# numpy (inat_filter imports the TFLite runtime lazily, and the fuzzer never hits
+# it), so install 3.11-compatible wheels and add the package itself without its
+# pinned deps.
 COPY . $SRC/imgedge
 WORKDIR $SRC/imgedge
-RUN pip3 install --ignore-requires-python .
+RUN pip3 install --no-cache-dir "numpy<2.3" "pillow<12" && \
+    pip3 install --no-deps --ignore-requires-python .
 
 COPY .clusterfuzzlite/build.sh $SRC/
