@@ -468,7 +468,7 @@ def load_ensemble():
             voters.append(mv)
             log.info("mobileclip voter: %s on %s, %d prompt(s)", mv.name, mv.provider, len(mv.prompts))
         except Exception as e:
-            log.info('mobileclip voter skipped (%s); needs .[voters,mobileclip] + IMGEDGE_MOBILECLIP=1.', e)
+            log.info("mobileclip voter skipped (%s); needs .[voters,mobileclip] + IMGEDGE_MOBILECLIP=1.", e)
     if not voters:
         return None
     from imgedge.voters.base import VoteEnsemble

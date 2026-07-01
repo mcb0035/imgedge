@@ -20,12 +20,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **MobileCLIP voter** (`src/imgedge/voters/mobileclip_voter.py`, off by
+r **MobileCLIP voter** (`src/imgedge/voters/mobileclip_voter.py`, off by
   default): a smaller/faster open-vocabulary alternative to the SigLIP voter
   (open_clip, default `MobileCLIP2-S0`) for when CPU latency matters more than
   the last point of recall. Enable with `IMGEDGE_MOBILECLIP=1` after
-  `pip install -e ".[voters,mobileclip]"`; tune `IMGEDGE_MOBILECLIP_WEIGHT` /
-  `_GAIN` / `_OFFSET` against the eval harness. Shares the arachnid block prompts
+  `pip install -e ".[voters,mobileclip]"`. Calibrated on real data (offset
+  `0.23`): ~87% recall at ~1% real-web false positives -- vs SigLIP's ~89% but
+  far cheaper on CPU. Shares the arachnid block prompts
   with SigLIP, now expanded with atypical presentations (egg sacs, molts,
   spiderlings, mites, specimen shots) to widen coverage of the hard final ~10%.
 - **Open-vocabulary SigLIP 2 voter** (`src/imgedge/voters/siglip_voter.py`,

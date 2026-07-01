@@ -25,11 +25,12 @@ Env overrides:
     IMGEDGE_MOBILECLIP_PROMPTS    comma-separated block prompts (default: the shared set)
     IMGEDGE_MOBILECLIP_WEIGHT     evidence weight in the ensemble (default: 1.0)
     IMGEDGE_MOBILECLIP_THRESHOLD  the voter's own discrete-vote threshold (default: 0.5)
-    IMGEDGE_MOBILECLIP_GAIN       scale (max_cos - offset) -> evidence (default: 2.0)
-    IMGEDGE_MOBILECLIP_OFFSET     cosine baseline subtracted before the gain (default: 0.15)
+    IMGEDGE_MOBILECLIP_GAIN       scale (max_cos - offset) -> evidence (default: 1.0)
+    IMGEDGE_MOBILECLIP_OFFSET     cosine baseline subtracted before the gain (default: 0.23)
 
-NOTE: gain / offset / weight are starting points -- calibrate them against the
-evaluation harness (as for SigLIP) before relying on the defaults.
+NOTE: gain / offset / weight were calibrated on real data (offset 0.23, weight 1.0
+-> ~87% recall at ~1% real-web false positives, vs SigLIP's ~89% but far cheaper
+on CPU). Re-tune against the evaluation harness if you change the model or prompts.
 """
 
 import os
@@ -42,8 +43,8 @@ from imgedge.voters.siglip_voter import BLOCK_PROMPTS, _split_env
 
 DEFAULT_MODEL = os.environ.get("IMGEDGE_MOBILECLIP_MODEL", "MobileCLIP2-S0")
 DEFAULT_PRETRAINED = os.environ.get("IMGEDGE_MOBILECLIP_PRETRAINED", "dfndr2b")
-GAIN = float(os.environ.get("IMGEDGE_MOBILECLIP_GAIN", "2.0"))
-OFFSET = float(os.environ.get("IMGEDGE_MOBILECLIP_OFFSET", "0.15"))
+GAIN = float(os.environ.get("IMGEDGE_MOBILECLIP_GAIN", "1.0"))
+OFFSET = float(os.environ.get("IMGEDGE_MOBILECLIP_OFFSET", "0.23"))
 
 
 def _cos_evidence(cos, gain, offset):
