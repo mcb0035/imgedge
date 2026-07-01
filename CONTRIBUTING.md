@@ -45,6 +45,11 @@ response.
 4. Open a pull request describing the *why*, not just the *what*. Keep PRs
    focused — one concern per PR merges fastest.
 
+**Testing policy.** Any change that adds or alters behaviour must add or update
+automated tests that cover it, and bug fixes should include a regression test —
+the CI coverage gate enforces this. As new functionality lands, its tests land
+with it, in the same PR.
+
 New to the codebase? The [README](README.md#project-layout) project-layout table
 and the [threat model](docs/threat-model.md) are the fastest way in.
 

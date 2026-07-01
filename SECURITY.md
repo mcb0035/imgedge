@@ -94,6 +94,29 @@ Hardening that is implemented today:
 - **Minimal on-disk footprint.** The verdict cache is keyed by a keyed hash
   (HMAC) of the URL (never the URL itself) and stores only verdicts.
 
+## Cryptography
+
+ImgEdge is not a cryptographic product and implements none of its own crypto — it
+uses only standard, published primitives from the Python standard library:
+
+- **Access token** — generated with `secrets.token_urlsafe(24)` (a CSPRNG,
+  ~144 bits of entropy) and compared in constant time (`secrets.compare_digest`).
+- **Cache keys & server-identity proof** — `HMAC-SHA-256` keyed by the token, so
+  the on-disk cache can't confirm a guessed URL and a port-squatter can't forge
+  the `/health` identity proof.
+- **Asset integrity** — model / taxonomy files are pinned to a **SHA-256**,
+  verified on download *and* before load; Python dependencies are hash-pinned
+  (`pip install --require-hashes`).
+- **Transport** — model downloads and image fetches use **HTTPS** (platform TLS);
+  the fetch follows no redirects.
+
+No broken or weak algorithms are used (no MD5, SHA-1, RC4, or single DES) and no
+cipher modes are configured; SHA-256 and a ~144-bit token meet the NIST-2030
+minimums. No user passwords are stored — the token is a random secret, not a
+password — so no password hashing (Argon2/bcrypt/scrypt/PBKDF2) is involved. All
+of the above is implementable with FLOSS (`hashlib`, `hmac`, `secrets`, platform
+TLS).
+
 ## Known limitations & residual risks
 
 These are deliberately documented rather than hidden:
