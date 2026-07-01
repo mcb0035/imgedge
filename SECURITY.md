@@ -8,18 +8,19 @@ can't be turned into a foothold by a web page or another local process.
 ## Supported versions
 
 This is an early-stage personal project. Only the latest `main` (currently
-`0.1.0`) receives security fixes. Pin to a commit if you need stability.
+`0.2.0`) receives security fixes. Pin to a commit if you need stability.
 
 | Version | Supported |
 | ------- | --------- |
-| `main` / `0.1.0` | ✅ |
+| `main` / `0.2.0` | ✅ |
 | older commits | ❌ |
 
 ## Reporting a vulnerability
 
 **Please do not open a public issue for security problems.**
 
-Report privately via GitHub:
+Report privately via GitHub's [private vulnerability
+reporting](https://github.com/mcb0035/imgedge/security/advisories/new):
 
 1. Go to the repository's **Security** tab → **Report a vulnerability**
    (GitHub *private vulnerability reporting*). If that button isn't present,
