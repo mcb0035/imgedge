@@ -44,8 +44,9 @@ voters are opt‑in, so you select the configuration you want to measure:
 | 3-model | base + MobileCLIP | `--mobileclip` — needs `.[mobileclip]` |
 | 4-model | base + SigLIP + MobileCLIP | `--siglip --mobileclip` |
 
-The flags are authoritative: an omitted voter is off even if `IMGEDGE_SIGLIP` /
-`IMGEDGE_MOBILECLIP` is set in your shell. Their fine-tuning knobs
+The flags are authoritative: the harness pins `IMGEDGE_SIGLIP` /
+`IMGEDGE_MOBILECLIP` per run, so an omitted voter stays off regardless of your
+shell or the server's load-if-installed default. Their fine-tuning knobs
 (`IMGEDGE_SIGLIP_WEIGHT`, `IMGEDGE_SIGLIP_GATE`, `IMGEDGE_THRESHOLD`, …) stay as
 environment variables — see the [configuration reference](configuration.md).
 

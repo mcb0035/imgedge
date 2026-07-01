@@ -68,6 +68,8 @@ export function loadExtensionScript(file) {
     document: {
       getElementById: () => makeElement(),
       createElement: () => makeElement(),
+      querySelector: () => null,
+      querySelectorAll: () => [],
       addEventListener() {},
     },
     chrome: {

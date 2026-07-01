@@ -81,6 +81,58 @@
         font-size: 11px;
         color: #888;
       }
+      .presets {
+        display: flex;
+        gap: 6px;
+        margin: 6px 0 2px;
+      }
+      .preset {
+        flex: 1;
+        display: flex;
+        align-items: flex-start;
+        gap: 5px;
+        padding: 6px 7px;
+        border: 1px solid #8886;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .preset:has(input:checked) {
+        border-color: #2e7d32;
+        background: #2e7d3214;
+      }
+      .preset:has(input:disabled) {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .preset input {
+        margin: 2px 0 0;
+      }
+      .preset-body {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.25;
+      }
+      .preset-body small {
+        color: #888;
+        font-size: 10.5px;
+      }
+      .presethint {
+        margin: 4px 0 2px;
+        font-size: 11px;
+        color: #b8860b;
+      }
+      .presethint:empty {
+        display: none;
+      }
+      details.advanced {
+        margin: 10px 0 2px;
+      }
+      details.advanced > summary {
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        margin: 4px 0;
+      }
       button {
         cursor: pointer;
         padding: 4px 10px;
@@ -135,56 +187,77 @@
       Filtering enabled
     </label>
 
-    <label class="field">
-      Classifier endpoint
-      <input type="text" id="endpoint" placeholder="http://localhost:8723/classify" />
-    </label>
+    <h2>Detection mode</h2>
+    <div id="presets" class="presets">
+      <label class="preset">
+        <input type="radio" name="profile" value="fast" />
+        <span class="preset-body"><b>Fast</b><small>Fastest &middot; 2 models</small></span>
+      </label>
+      <label class="preset">
+        <input type="radio" name="profile" value="balanced" />
+        <span class="preset-body"><b>Balanced</b><small>+ MobileCLIP</small></span>
+      </label>
+      <label class="preset">
+        <input type="radio" name="profile" value="accurate" />
+        <span class="preset-body"><b>Accurate</b><small>Most thorough</small></span>
+      </label>
+    </div>
+    <p id="presethint" class="presethint"></p>
 
-    <label class="field">
-      Server token
-      <input type="password" id="token" placeholder="paste from the server console" />
-    </label>
+    <details id="advanced" class="advanced">
+      <summary>Advanced</summary>
 
-    <label class="row">
-      <input type="checkbox" id="showToken" />
-      Show token
-    </label>
+      <label class="field">
+        Classifier endpoint
+        <input type="text" id="endpoint" placeholder="http://localhost:8723/classify" />
+      </label>
 
-    <label class="row">
-      <input type="checkbox" id="sendData" />
-      Send image bytes (base64) too
-    </label>
+      <label class="field">
+        Server token
+        <input type="password" id="token" placeholder="paste from the server console" />
+      </label>
 
-    <label class="row">
-      <input type="checkbox" id="failClosed" />
-      Block when classifier is unreachable
-    </label>
+      <label class="row">
+        <input type="checkbox" id="showToken" />
+        Show token
+      </label>
 
-    <label class="row">
-      <input type="checkbox" id="strict" />
-      Strict mode (block until classifier allows)
-    </label>
+      <label class="row">
+        <input type="checkbox" id="sendData" />
+        Send image bytes (base64) too
+      </label>
 
-    <label class="row">
-      <input type="checkbox" id="scanBackgrounds" />
-      Scan CSS background images
-    </label>
+      <label class="row">
+        <input type="checkbox" id="failClosed" />
+        Block when classifier is unreachable
+      </label>
 
-    <h2>Tuning</h2>
+      <label class="row">
+        <input type="checkbox" id="strict" />
+        Strict mode (block until classifier allows)
+      </label>
 
-    <label class="field">
-      Block threshold <span id="thresholdVal" class="sliderval"></span>
-      <input type="range" id="threshold" min="0.05" max="0.95" step="0.01" value="0.18" />
-      <span class="sliderhint"><span>Block more</span><span>Block less</span></span>
-    </label>
+      <label class="row">
+        <input type="checkbox" id="scanBackgrounds" />
+        Scan CSS background images
+      </label>
 
-    <label class="field">
-      Salience (size/detail) weighting <span id="salienceVal" class="sliderval"></span>
-      <input type="range" id="salience" min="0" max="1" step="0.1" />
-      <span class="sliderhint"><span>Block more</span><span>Block less</span></span>
-    </label>
+      <h2>Tuning</h2>
 
-    <button id="save">Save settings</button>
+      <label class="field">
+        Block threshold <span id="thresholdVal" class="sliderval"></span>
+        <input type="range" id="threshold" min="0.05" max="0.95" step="0.01" value="0.18" />
+        <span class="sliderhint"><span>Block more</span><span>Block less</span></span>
+      </label>
+
+      <label class="field">
+        Salience (size/detail) weighting <span id="salienceVal" class="sliderval"></span>
+        <input type="range" id="salience" min="0" max="1" step="0.1" />
+        <span class="sliderhint"><span>Block more</span><span>Block less</span></span>
+      </label>
+
+      <button id="save">Save settings</button>
+    </details>
 
     <h2>Whitelisted images</h2>
     <ul id="whitelist"></ul>

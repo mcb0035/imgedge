@@ -14,6 +14,7 @@ const DEFAULTS = {
   scanBackgrounds: true,
   threshold: 0.18,
   salience: 1.0,
+  profile: "balanced", // easy-mode preset: fast | balanced | accurate
 };
 
 const $ = (id) => document.getElementById(id);
@@ -37,6 +38,7 @@ async function load() {
   $("scanBackgrounds").checked = s.scanBackgrounds;
   $("threshold").value = s.threshold;
   $("salience").value = s.salience;
+  setProfile(s.profile);
   updateSliderLabels();
   for (const id of Object.keys(LISTS)) renderList(id, data[LISTS[id].key] || []);
   loadCounts();
@@ -111,6 +113,7 @@ async function checkHealth() {
       const vote = j.voters && j.voters.length > 1 ? ` \u00B7 vote:${j.policy} \u00d7${j.voters.length}` : "";
       const perf = j.stats && j.stats.n ? ` \u00B7 ${j.stats.infer_ms}ms/img (n=${j.stats.n})` : "";
       setHealthLine(el, "ok", `Classifier: verified${ver} \u00B7 ${j.target} (${j.taxa} taxa)${prov}${vote}${perf}`);
+      applyProfiles(j.profiles);
     } else {
       setHealthLine(el, "warn", "Classifier: model not loaded");
     }
@@ -168,6 +171,47 @@ function isLocalEndpoint(u) {
   return h === "localhost" || h === "127.0.0.1" || h === "::1";
 }
 
+// ---- Easy-mode presets -----------------------------------------------------
+const PROFILE_ORDER = ["fast", "balanced", "accurate"];
+
+function checkedProfile() {
+  const r = document.querySelector('input[name="profile"]:checked');
+  return r ? r.value : DEFAULTS.profile;
+}
+
+function setProfile(v) {
+  const r = document.querySelector('input[name="profile"][value="' + v + '"]');
+  if (r) r.checked = true;
+}
+
+async function persistProfile() {
+  const data = await chrome.storage.local.get([KEYS.settings]);
+  const s = Object.assign({}, DEFAULTS, data[KEYS.settings] || {});
+  s.profile = checkedProfile();
+  await chrome.storage.local.set({ [KEYS.settings]: s });
+}
+
+// Grey out presets whose voter isn't loaded on the server (from /health), and
+// if the current choice is unavailable, fall back to the best available one.
+function applyProfiles(profiles) {
+  if (!profiles || typeof profiles !== "object") return;
+  for (const r of document.querySelectorAll('input[name="profile"]')) {
+    r.disabled = profiles[r.value] === false;
+  }
+  if (profiles[checkedProfile()] === false) {
+    const best = [...PROFILE_ORDER].reverse().find((p) => profiles[p]) || "fast";
+    setProfile(best);
+    persistProfile();
+  }
+  const off = PROFILE_ORDER.filter((p) => profiles[p] === false);
+  const hint = $("presethint");
+  if (hint) {
+    hint.textContent = off.length
+      ? `${off.map((p) => p[0].toUpperCase() + p.slice(1)).join(" & ")} need the server started with that voter installed.`
+      : "";
+  }
+}
+
 async function save() {
   const endpoint = $("endpoint").value.trim() || DEFAULTS.endpoint;
   const btn = $("save");
@@ -186,6 +230,7 @@ async function save() {
     scanBackgrounds: $("scanBackgrounds").checked,
     threshold: Number($("threshold").value),
     salience: Number($("salience").value),
+    profile: checkedProfile(),
   };
   await chrome.storage.local.set({ [KEYS.settings]: settings });
   btn.textContent = "Saved";
@@ -226,6 +271,11 @@ async function persistSlider(id) {
 for (const id of SLIDERS) {
   $(id).addEventListener("input", updateSliderLabels);
   $(id).addEventListener("change", () => persistSlider(id));
+}
+
+// Preset radios persist immediately (like the toggles).
+for (const r of document.querySelectorAll('input[name="profile"]')) {
+  r.addEventListener("change", persistProfile);
 }
 
 load();

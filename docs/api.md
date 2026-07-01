@@ -43,6 +43,7 @@ Classify one image and return a block/allow verdict.
 | `meta` | object | no | Page hints for salience: `{ "kind": "img\|input\|svg\|poster\|bg", "w": <int px>, "h": <int px> }`. |
 | `threshold` | number | no | Per-request block-threshold override, clamped to `0..1` (the popup's slider). |
 | `salience` | number | no | Per-request salience-weight override, clamped to `0..1`. |
+| `profile` | string | no | Easy-mode preset -- which voter subset to run: `fast` (iNat+timm), `balanced` (+MobileCLIP), `accurate` (+SigLIP). Absent/unknown runs every loaded voter; a preset degrades to the voters actually loaded. |
 
 \* Either `url` or `data` must identify an image; `data` alone still needs `url`
 present as the cache key.
@@ -125,6 +126,7 @@ With a valid `X-ImgEdge-Token`, the full payload adds configuration + telemetry:
 | `backend` | string | Model backend (`tflite` / `onnx`). |
 | `provider` | string | Execution provider (`cpu`, `npu`, `cuda`, …). |
 | `voters` | string[] | Active voter names. |
+| `profiles` | object | Which presets are selectable given the loaded voters, e.g. `{ "fast": true, "balanced": false, "accurate": true }`; the popup greys out the rest. |
 | `policy` | string | Ensemble policy (`evidence`, `any`, …). |
 | `inat_override` | number | iNat P(block) that blocks outright. |
 | `stats` | object\|null | Rolling latency snapshot when `IMGEDGE_PROFILE=1`. |

@@ -17,11 +17,11 @@ contributes positive evidence only. It carries the full shared block-prompt set
 just the core, so MobileCLIP covers the atypical presentations (egg sacs, molts,
 mites, specimen shots) that would otherwise lift SigLIP's web false-positive rate.
 
-Off by default. Enable with IMGEDGE_MOBILECLIP=1 and install the deps:
+Loaded whenever its extra is installed (set IMGEDGE_MOBILECLIP=0 to skip). Install:
     pip install -e ".[voters,mobileclip]"
 
 Env overrides:
-    IMGEDGE_MOBILECLIP            1 to enable the voter (read by the server; default 0)
+    IMGEDGE_MOBILECLIP            0 to skip loading the voter (read by the server; default 1)
     IMGEDGE_MOBILECLIP_MODEL      open_clip model name (default: MobileCLIP2-S0)
     IMGEDGE_MOBILECLIP_PRETRAINED open_clip pretrained tag (default: dfndr2b)
     IMGEDGE_MOBILECLIP_PROMPTS    comma-separated block prompts (default: full shared set = core + atypical)

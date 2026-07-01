@@ -151,9 +151,10 @@ block / contrast term lists in [src/imgedge/voters/timm_voter.py](src/imgedge/vo
 
 ## Configuration
 
-ImgEdge is configured in the extension **popup** (per-browser: endpoint + token,
-fail-closed / strict toggles, CSS-background scanning, the live **Block
-threshold** / **Salience weighting** sliders, and the allow/block lists) and via
+ImgEdge is configured in the extension **popup** (per-browser: the **Detection
+mode** preset, endpoint + token, fail-closed / strict toggles, CSS-background
+scanning, the live **Block threshold** / **Salience weighting** sliders, and the
+allow/block lists) and via
 **`IMGEDGE_*` environment variables** on the server (target taxon, thresholds,
 the optional voters, ONNX provider, fetch/SSRF limits, sandbox, and the
 token/cache/log paths).

@@ -7,10 +7,11 @@ Protocol
 --------
 POST /classify  (JSON, header X-ImgEdge-Token: <token>):
     { "url": "<image url>", "data": "data:image/...;base64,..."?,
-      "meta": { "kind": "img|input|svg|poster|bg", "w": <px>, "h": <px> }? }
+      "meta": { "kind": "img|input|svg|poster|bg", "w": <px>, "h": <px> }?,
+      "profile": "fast|balanced|accurate"?, "threshold": <0..1>?, "salience": <0..1>? }
   -> { "block": <bool>, "reason": "<text>", "score": <0..1> }
 GET  /health    (no auth):
-    -> { "status", "target", "taxa", "voters", "policy", "provider", "auth_required" }
+    -> { "status", "target", "taxa", "voters", "profiles", "policy", "provider", "auth_required" }
 
 Setup:
   pip install -e .                  # numpy, pillow, ai-edge-litert
@@ -42,11 +43,11 @@ Environment overrides:
   IMGEDGE_TIMM_CONTRAST_WEIGHT  weight of contrast (look-alike) evidence (default: 0.0)
   IMGEDGE_TIMM_THRESHOLD timm voter block threshold (default: 0.5)
   IMGEDGE_TIMM_WEIGHT    timm evidence weight in the ensemble (default: 0.5)
-  IMGEDGE_SIGLIP     enable the open-vocab SigLIP 2 voter (default: 0; 1=on)
+  IMGEDGE_SIGLIP     load the open-vocab SigLIP 2 voter if installed (default: 1; 0=skip)
   IMGEDGE_SIGLIP_MODEL   HF SigLIP model id (default: google/siglip2-base-patch16-224)
   IMGEDGE_SIGLIP_WEIGHT  siglip evidence weight in the ensemble (default: 2.0)
   IMGEDGE_SIGLIP_GATE    cascade floor; skip SigLIP below this iNat+timm score (default: 0.0)
-  IMGEDGE_MOBILECLIP     enable the MobileCLIP voter (smaller/faster open-vocab; default: 0)
+  IMGEDGE_MOBILECLIP     load the MobileCLIP voter if installed (smaller/faster open-vocab; default: 1; 0=skip)
   IMGEDGE_MOBILECLIP_MODEL  open_clip model (default: MobileCLIP2-S0)
   IMGEDGE_MOBILECLIP_WEIGHT mobileclip evidence weight in the ensemble (default: 1.0)
 """
@@ -97,10 +98,11 @@ TIMM_WEIGHT = float(os.environ.get("IMGEDGE_TIMM_WEIGHT", "0.5"))
 # iNat (real-organism) confidence at/above which it blocks outright, ignoring
 # the look-alike contrast voter. Set >1.0 (e.g. 1.1) to disable.
 INAT_OVERRIDE = float(os.environ.get("IMGEDGE_INAT_OVERRIDE", "0.9"))
-# Optional third voter: open-vocabulary SigLIP 2 (off by default; needs the
-# transformers extra). Recognises arachnids the closed-vocab voters have no
-# class for, adding independent positive evidence on borderline images.
-SIGLIP_ENABLE = os.environ.get("IMGEDGE_SIGLIP", "0") != "0"
+# Third voter: open-vocabulary SigLIP 2. Loaded whenever its extra is installed
+# (like the timm voter); set IMGEDGE_SIGLIP=0 to skip loading it (e.g. to save
+# RAM on a constrained box). Recognises arachnids the closed-vocab voters have
+# no class for, adding independent positive evidence on borderline images.
+SIGLIP_ENABLE = os.environ.get("IMGEDGE_SIGLIP", "1") != "0"
 SIGLIP_THRESHOLD = float(os.environ.get("IMGEDGE_SIGLIP_THRESHOLD", "0.5"))
 SIGLIP_WEIGHT = float(os.environ.get("IMGEDGE_SIGLIP_WEIGHT", "2.0"))
 # Cascade gate: skip the SigLIP voter when the cheap iNat+timm combined score is
@@ -109,9 +111,10 @@ SIGLIP_WEIGHT = float(os.environ.get("IMGEDGE_SIGLIP_WEIGHT", "2.0"))
 # On real web data most images sit just under the threshold (iNat gives a small
 # baseline signal), so raising this trades a little recall for fewer SigLIP runs.
 SIGLIP_GATE = float(os.environ.get("IMGEDGE_SIGLIP_GATE", "0.0"))
-# Optional MobileCLIP voter: a smaller/faster open-vocabulary alternative to
-# SigLIP (open_clip). Off by default; also deferred (runs under the cascade).
-MOBILECLIP_ENABLE = os.environ.get("IMGEDGE_MOBILECLIP", "0") != "0"
+# MobileCLIP voter: a smaller/faster open-vocabulary alternative to SigLIP
+# (open_clip). Loaded when its extra is installed; set IMGEDGE_MOBILECLIP=0 to
+# skip. Also deferred (runs under the cascade).
+MOBILECLIP_ENABLE = os.environ.get("IMGEDGE_MOBILECLIP", "1") != "0"
 MOBILECLIP_THRESHOLD = float(os.environ.get("IMGEDGE_MOBILECLIP_THRESHOLD", "0.5"))
 MOBILECLIP_WEIGHT = float(os.environ.get("IMGEDGE_MOBILECLIP_WEIGHT", "1.0"))
 
@@ -788,19 +791,47 @@ def _clamp01(v):
         return None
 
 
-def classify(url, data, meta=None, threshold=None, salience=None):
+# Popup "easy mode" presets -> the voter subset to run for a request. Keyed by
+# the prefix of each voter's name (before the ":"). The subset is intersected
+# with the loaded voters, so a preset whose open-vocab voter isn't installed
+# degrades to the cheaper voters it can still run.
+PROFILE_VOTERS = {
+    "fast": ("inat", "timm"),
+    "balanced": ("inat", "timm", "mobileclip"),
+    "accurate": ("inat", "timm", "siglip"),
+}
+# Voters that set a preset apart from plain "fast"; a preset is only offered in
+# /health when the extra voter(s) it needs are loaded ("fast" always is).
+_PRESET_EXTRA = {"siglip", "mobileclip"}
+
+
+def _profile_only(ens, profile):
+    """Voter-name set to run for `profile`, intersected with the loaded voters,
+    or None (run every loaded voter) when the profile is absent/unrecognised."""
+    req = PROFILE_VOTERS.get(profile) if isinstance(profile, str) else None
+    if not req:
+        return None
+    only = {v.name for v in ens.voters if v.name.split(":", 1)[0] in req}
+    return only or None
+
+
+def classify(url, data, meta=None, threshold=None, salience=None, profile=None):
     """Return a verdict dict. `data` is a base64 data URL or None; `meta` carries
     page hints (rendered size, element kind) used for salience weighting.
-    `threshold`/`salience` are optional per-request overrides (popup sliders)."""
+    `threshold`/`salience`/`profile` are optional per-request overrides: the
+    popup sliders and the easy-mode preset (which voter subset to run)."""
     ens = ensure_ensemble()
     if ens is None:
         return {"block": False, "reason": "model-unavailable", "score": 0.0}
 
-    # Cache per (url, overrides) so moving a slider re-classifies instead of
-    # returning a stale verdict -- which keeps blocking monotonic in threshold.
+    only = _profile_only(ens, profile)
+    # Cache per (url, overrides) so moving a slider or switching preset
+    # re-classifies instead of returning a stale verdict -- which also keeps
+    # blocking monotonic in threshold.
     cache_key = url
-    if threshold is not None or salience is not None:
-        cache_key = f"{url}\x00t={threshold}\x00s={salience}"
+    if threshold is not None or salience is not None or only is not None:
+        prof = ",".join(sorted(only)) if only else ""
+        cache_key = f"{url}\x00t={threshold}\x00s={salience}\x00p={prof}"
     cached = _vcache.get(cache_key)
     if cached is not None:
         if PROFILE:
@@ -815,7 +846,7 @@ def classify(url, data, meta=None, threshold=None, salience=None):
 
     t1 = time.perf_counter()
     try:
-        verdict = ens.classify_bytes(raw, meta, _get_decoder(), threshold, salience)
+        verdict = ens.classify_bytes(raw, meta, _get_decoder(), threshold, salience, only=only)
     except Exception:
         # Can't decode/classify (e.g. SVG, bomb, crafted bytes) -> don't block, don't
         # cache. Log detail locally; return a generic reason (no internals to client).
@@ -847,6 +878,7 @@ def health_payload(full=True):
     if not full:
         return payload
     inat = getattr(ens, "inat", None) if ok else None
+    loaded = {v.name.split(":", 1)[0] for v in ens.voters} if ok else set()
     payload.update(
         {
             "version": __version__,
@@ -856,6 +888,11 @@ def health_payload(full=True):
             "backend": getattr(inat, "backend", None) if inat else None,
             "provider": getattr(inat, "provider", None) if inat else None,
             "voters": ens.names if ok else [],
+            "profiles": (
+                {name: all(p in loaded for p in req if p in _PRESET_EXTRA) for name, req in PROFILE_VOTERS.items()}
+                if ok
+                else {}
+            ),
             "policy": getattr(ens, "policy", None) if ok else None,
             "inat_override": INAT_OVERRIDE,
             "stats": _stats.snapshot() if PROFILE else None,
@@ -927,6 +964,7 @@ class Handler(BaseHTTPRequestHandler):
                 payload.get("meta"),
                 _clamp01(payload.get("threshold")),
                 _clamp01(payload.get("salience")),
+                payload.get("profile"),
             ),
         )
 

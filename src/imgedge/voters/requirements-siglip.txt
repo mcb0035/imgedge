@@ -1,7 +1,8 @@
 # Optional third voter: open-vocabulary SigLIP 2 (google/siglip2-base-patch16-224).
 # Recognises arachnids the closed-vocab iNat/timm voters have no class for.
 # Needs torch as well -- install the timm voter deps too (requirements.txt or
-# the .[voters] extra), then enable with IMGEDGE_SIGLIP=1.
+# the .[voters] extra). The server then loads it automatically; set
+# IMGEDGE_SIGLIP=0 to skip loading it.
 #
 #   pip install -r voters/requirements.txt -r voters/requirements-siglip.txt
 #

@@ -46,3 +46,16 @@ test("onMessage accepts messages from the extension's own id (F7)", () => {
   const ret = captured.onMessage({ type: "getConfig" }, { id: "imgedge-test-id" }, () => {});
   assert.equal(ret, true); // keeps the channel open for the async response
 });
+
+test("classify sends the selected preset profile in the request body", async () => {
+  const { context } = loadExtensionScript("background.js");
+  let sent = null;
+  context.fetch = async (url, opts) => {
+    sent = JSON.parse(opts.body);
+    return { ok: true, json: async () => ({ block: false, reason: "ok", score: 0 }) };
+  };
+  const res = await context.classify("http://example.com/a.jpg", null, null);
+  assert.equal(res.allow, true);
+  assert.equal(sent.url, "http://example.com/a.jpg");
+  assert.equal(sent.profile, "balanced"); // the DEFAULTS preset
+});
