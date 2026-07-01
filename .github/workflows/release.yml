@@ -1,25 +1,28 @@
 name: Release
 
-# Tag a release with e.g. `git tag v0.2.0 && git push origin v0.2.0`.
-# This verifies the tag matches the manifest version, builds the store ZIP, and
-# publishes a GitHub Release with auto notes + a signed build-provenance
-# attestation for the ZIP.
+# Tag a release with e.g. `git tag v0.3.0 && git push origin v0.3.0`.
+# This verifies the tag matches the manifest version, builds the store ZIP (and a
+# self-hosted .crx when a signing key is configured), signs the artifacts (a SLSA
+# build-provenance attestation plus a keyless Sigstore signature over SHA256SUMS),
+# and publishes a GitHub Release. The optional store-publish jobs upload to the
+# Chrome Web Store / Edge Add-ons when their repo variable + secrets are set (see
+# docs/development.md#versioning--releases); until then they are skipped.
 on:
   push:
     tags: ["v*"]
 
-# Least privilege at the top level; the release job elevates only what it needs.
+# Least privilege at the top level; each job elevates only what it needs.
 permissions:
   contents: read
 
 jobs:
   release:
-    name: Package + GitHub Release
+    name: Package, sign + GitHub Release
     runs-on: windows-latest
     timeout-minutes: 20
     permissions:
-      contents: write # create the GitHub Release and upload the ZIP
-      id-token: write # provenance attestation signing (OIDC)
+      contents: write # create the GitHub Release and upload the assets
+      id-token: write # keyless signing: provenance attestation + cosign (OIDC)
       attestations: write # record the provenance attestation
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -34,17 +37,118 @@ jobs:
           }
           Write-Host "Releasing v$ver"
 
-      - name: Build extension package
+      - name: Build extension package (+ signed .crx when a key is configured)
         shell: pwsh
-        run: ./package.ps1
+        env:
+          CRX_PRIVATE_KEY: ${{ secrets.CRX_PRIVATE_KEY }}
+        run: |
+          if ($env:CRX_PRIVATE_KEY) {
+            New-Item -ItemType Directory dist -Force | Out-Null
+            [IO.File]::WriteAllBytes("$PWD/dist/imgedge.pem", [Convert]::FromBase64String($env:CRX_PRIVATE_KEY))
+            ./package.ps1 -Crx
+            Remove-Item dist/imgedge.pem -Force   # never ship or cache the private key
+          } else {
+            ./package.ps1
+            Write-Host "CRX_PRIVATE_KEY not set -> building the store ZIP only (no .crx)."
+          }
 
-      - name: Attest build provenance
+      - name: Generate SHA-256 checksums
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem dist -File | Where-Object { $_.Extension -in '.zip', '.crx' } | Sort-Object Name
+          if (-not $files) { throw "No artifacts found in dist/ to checksum." }
+          $files | ForEach-Object { "{0}  {1}" -f (Get-FileHash $_ -Algorithm SHA256).Hash.ToLower(), $_.Name } |
+            Set-Content dist/SHA256SUMS -Encoding ascii
+          Get-Content dist/SHA256SUMS
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
+
+      - name: Sign checksums (keyless Sigstore)
+        shell: pwsh
+        run: cosign sign-blob --yes --bundle dist/SHA256SUMS.cosign.bundle dist/SHA256SUMS
+
+      - name: Attest build provenance (ZIP)
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
           subject-path: dist/imgedge-*.zip
 
+      - name: Attest build provenance (CRX)
+        if: ${{ hashFiles('dist/*.crx') != '' }}
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: dist/*.crx
+
+      - name: Upload the ZIP for the store-publish jobs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: extension-zip
+          path: dist/imgedge-*.zip
+          if-no-files-found: error
+          retention-days: 5
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
-          files: dist/imgedge-*.zip
+          files: |
+            dist/imgedge-*.zip
+            dist/*.crx
+            dist/SHA256SUMS
+            dist/SHA256SUMS.cosign.bundle
           generate_release_notes: true
+
+  # ---- Optional store publishing --------------------------------------------
+  # Dormant until you opt in: set repo variable PUBLISH_CHROME / PUBLISH_EDGE to
+  # "true" AND add the matching secrets. See docs/development.md#versioning--releases.
+  chrome-web-store:
+    name: Publish to Chrome Web Store
+    needs: release
+    if: ${{ vars.PUBLISH_CHROME == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read # download the workflow artifact from this run
+    steps:
+      - name: Download the built ZIP
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: extension-zip
+          path: dist
+      - name: Resolve ZIP path
+        id: zip
+        run: echo "path=$(ls dist/*.zip)" >> "$GITHUB_OUTPUT"
+      - name: Upload + publish
+        uses: mnao305/chrome-extension-upload@4008e29e13c144d0f6725462cbd49b7c291b4928 # v5.0.0
+        with:
+          file-path: ${{ steps.zip.outputs.path }}
+          extension-id: ${{ secrets.CWS_EXTENSION_ID }}
+          client-id: ${{ secrets.CWS_CLIENT_ID }}
+          client-secret: ${{ secrets.CWS_CLIENT_SECRET }}
+          refresh-token: ${{ secrets.CWS_REFRESH_TOKEN }}
+
+  edge-addons:
+    name: Publish to Edge Add-ons
+    needs: release
+    if: ${{ vars.PUBLISH_EDGE == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read # download the workflow artifact from this run
+    steps:
+      - name: Download the built ZIP
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: extension-zip
+          path: dist
+      - name: Resolve ZIP path
+        id: zip
+        run: echo "path=$(ls dist/*.zip)" >> "$GITHUB_OUTPUT"
+      - name: Publish
+        uses: wdzeng/edge-addon@9881f57720358040d079eaa06a4596dc9c273eb6 # v2.1.1
+        with:
+          product-id: ${{ secrets.EDGE_PRODUCT_ID }}
+          zip-path: ${{ steps.zip.outputs.path }}
+          client-id: ${{ secrets.EDGE_CLIENT_ID }}
+          api-key: ${{ secrets.EDGE_API_KEY }}
