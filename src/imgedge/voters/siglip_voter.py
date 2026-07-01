@@ -25,7 +25,7 @@ Off by default. Enable with IMGEDGE_SIGLIP=1 and install the deps:
 Env overrides:
     IMGEDGE_SIGLIP            1 to enable the voter (read by the server; default 0)
     IMGEDGE_SIGLIP_MODEL      HF model id (default: google/siglip2-base-patch16-224)
-    IMGEDGE_SIGLIP_PROMPTS    comma-separated block prompts (default: the set below)
+    IMGEDGE_SIGLIP_PROMPTS    comma-separated block prompts (default: CORE_PROMPTS below)
     IMGEDGE_SIGLIP_WEIGHT     evidence weight in the ensemble (default: 2.0)
     IMGEDGE_SIGLIP_THRESHOLD  the voter's own discrete-vote threshold (default: 0.5)
     IMGEDGE_SIGLIP_GAIN       scale raw sigmoid prob -> evidence (default: 1.0)
@@ -51,10 +51,13 @@ DEFAULT_MODEL = os.environ.get("IMGEDGE_SIGLIP_MODEL", "google/siglip2-base-patc
 # CONTRAST_WEIGHT.
 GAIN = float(os.environ.get("IMGEDGE_SIGLIP_GAIN", "1.0"))
 
-# Open-vocabulary block prompts. SigLIP was trained on lowercase descriptive
-# captions, so short noun phrases work well. The sigmoid head scores each prompt
-# independently, so extra prompts only widen coverage -- they never compete.
-BLOCK_PROMPTS = [
+# Open-vocabulary block prompts, split by false-positive risk. SigLIP was trained
+# on lowercase descriptive captions, so short noun phrases work well; the sigmoid
+# head scores each prompt independently, so extra prompts only widen coverage.
+#
+# CORE: unambiguous arachnid phrases, low false-positive on web imagery -- the
+# default set for the SigLIP voter (weight 2.0, the dominant contributor).
+CORE_PROMPTS = [
     "a photo of a spider",
     "a close-up photo of a spider",
     "a tarantula",
@@ -65,15 +68,24 @@ BLOCK_PROMPTS = [
     "a tick",
     "a harvestman, also called a daddy longlegs",
     "a spider in its web",
-    # atypical presentations the closed-vocab voters miss -- experiment: re-eval
-    # the false-positive rate before relying on these. They widen coverage of the
-    # hard final ~10% (egg sacs, molts, spiderlings, mites, specimen shots).
+]
+
+# ATYPICAL: presentations the closed-vocab voters miss (egg sacs, molts,
+# spiderlings, mites, specimen shots). They widen coverage of the hard final
+# ~10% but are looser -- on real web imagery they lifted SigLIP's false-positive
+# rate above target (~0.94% -> ~1.05%). They are therefore carried by the
+# MobileCLIP voter (near-silent on web negatives), not SigLIP.
+ATYPICAL_PROMPTS = [
     "a spider egg sac",
     "a cluster of baby spiders",
     "a shed spider exoskeleton",
     "a mite",
     "a microscope photo of an arachnid",
 ]
+
+# Full shared set. MobileCLIP defaults to this; SigLIP defaults to CORE_PROMPTS.
+# Kept as BLOCK_PROMPTS for backward compatibility and MobileCLIP's import.
+BLOCK_PROMPTS = CORE_PROMPTS + ATYPICAL_PROMPTS
 
 
 def _block_prob(logits, gain):
@@ -114,7 +126,7 @@ class SiglipVoter(Voter):
         self._torch = torch
         self.name = f"siglip:{model_name.split('/')[-1]}"
         self.gain = float(gain)
-        self.prompts = list(prompts or _split_env("IMGEDGE_SIGLIP_PROMPTS") or BLOCK_PROMPTS)
+        self.prompts = list(prompts or _split_env("IMGEDGE_SIGLIP_PROMPTS") or CORE_PROMPTS)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = AutoModel.from_pretrained(model_name).eval().to(self.device)
         self.processor = AutoProcessor.from_pretrained(model_name)

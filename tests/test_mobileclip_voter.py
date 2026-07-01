@@ -24,11 +24,16 @@ def test_cos_evidence_empty():
     assert sims.size == 0
 
 
-def test_shares_block_prompts_with_siglip():
+def test_mobileclip_carries_full_set_siglip_defaults_to_core():
     from imgedge.voters.mobileclip_voter import BLOCK_PROMPTS
-    from imgedge.voters.siglip_voter import BLOCK_PROMPTS as SIG_PROMPTS
+    from imgedge.voters.siglip_voter import ATYPICAL_PROMPTS, CORE_PROMPTS
+    from imgedge.voters.siglip_voter import BLOCK_PROMPTS as SIG_FULL
 
-    assert BLOCK_PROMPTS is SIG_PROMPTS  # single shared prompt list
+    # MobileCLIP defaults to the full shared set; SigLIP defaults to the tighter
+    # core (the atypical prompts moved to MobileCLIP-only to cut SigLIP web FPs).
+    assert BLOCK_PROMPTS is SIG_FULL  # still the one shared full list
+    assert BLOCK_PROMPTS == CORE_PROMPTS + ATYPICAL_PROMPTS
+    assert set(ATYPICAL_PROMPTS).isdisjoint(CORE_PROMPTS)
 
 
 @pytest.mark.skipif(
