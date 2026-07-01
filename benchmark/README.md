@@ -70,11 +70,15 @@ self-documenting. Cap threads in-process (all platforms):
 python benchmark/bench_infer.py --threads 2
 ```
 
-**Docker** is the most reproducible cross-platform cap (CPU **and** RAM):
+*Optional* — a **container runtime** gives the most reproducible cap (CPU **and**
+RAM). [Podman](https://podman.io/) is fully FLOSS (Apache-2.0) and daemonless, so
+the flags below work unchanged with `podman` or `docker` (Docker **Engine** is
+Apache-2.0 too; only **Docker Desktop** on Windows/macOS is proprietary). The
+benchmark needs neither — this is only for a reproducible resource cap:
 
 ```pwsh
-# PowerShell uses ${PWD}; on bash/zsh use $PWD
-docker run --rm --cpus=2 --memory=2g -v ${PWD}:/app -w /app python:3.13 bash -lc `
+# PowerShell uses ${PWD}; on bash/zsh use $PWD. Swap `podman` for `docker` if you prefer.
+podman run --rm --cpus=2 --memory=2g -v ${PWD}:/app -w /app python:3.13 bash -lc `
   "pip install -e '.[voters,siglip,mobileclip]' && imgedge-download-models && python benchmark/bench_infer.py"
 ```
 
@@ -85,7 +89,7 @@ Per-OS CPU pinning / throttling (each is OS-specific by design):
 - **Windows** — pin cores in PowerShell:
   `$p = Start-Process python -ArgumentList 'benchmark/bench_infer.py' -PassThru; $p.ProcessorAffinity = 0x3` (cores 0–1).
   Underclock: `powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMAX 50; powercfg /setactive SCHEME_CURRENT`.
-- **macOS** — no built-in CPU pinning; use `--threads` or the Docker recipe above.
+- **macOS** — no built-in CPU pinning; use `--threads` or the container recipe above.
 
 ## footprint.py
 

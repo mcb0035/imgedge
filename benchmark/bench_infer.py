@@ -9,7 +9,7 @@ profile and how it degrades under constrained resources:
 
 Simulate weak hardware by constraining CPU/RAM externally (see benchmark/README.md):
     Linux  : taskset -c 0-1 python benchmark/bench_infer.py           # 2 cores
-             docker run --cpus=2 --memory=2g <img> python benchmark/bench_infer.py
+             podman run --cpus=2 --memory=2g <img> python benchmark/bench_infer.py  # or docker
     Windows: $p = Start-Process python 'benchmark/bench_infer.py' -PassThru; $p.ProcessorAffinity = 0x3
              powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMAX 50  # underclock
 
