@@ -64,6 +64,8 @@ flowchart LR
 
 ## Documentation
 
+- **[Developer guide](docs/development.md)** — set up, build, test, and benchmark
+  ImgEdge from source.
 - **[Interface reference](docs/api.md)** — the local HTTP API (`/classify`,
   `/health`) and the CLI, with request/response schemas.
 - **[Configuration reference](docs/configuration.md)** — every popup setting and
