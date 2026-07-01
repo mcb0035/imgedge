@@ -17,10 +17,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   benefit. Together: ~0% -> ~77% recall at ~1% false positives. The bare
   `spider` block term (which also matched *spider monkey*) is replaced with the
   explicit arachnid classes plus `spider web`.
+- **README slimmed for docs:** the full `IMGEDGE_*` configuration table moved
+  into `docs/configuration.md` (linked from a shorter Configuration section),
+  with a new Documentation index and Contributing section.
 
 ### Added
 
-r **MobileCLIP voter** (`src/imgedge/voters/mobileclip_voter.py`, off by
+- **Contributor + interface docs:** a `CONTRIBUTING.md` (how to obtain, give
+  feedback, and the coding standards CI enforces), an interface reference
+  (`docs/api.md` — the `/classify` + `/health` HTTP API and the CLI), and a
+  configuration reference (`docs/configuration.md`), for the OpenSSF Best
+  Practices badge.
+- **MobileCLIP voter** (`src/imgedge/voters/mobileclip_voter.py`, off by
   default): a smaller/faster open-vocabulary alternative to the SigLIP voter
   (open_clip, default `MobileCLIP2-S0`) for when CPU latency matters more than
   the last point of recall. Enable with `IMGEDGE_MOBILECLIP=1` after
