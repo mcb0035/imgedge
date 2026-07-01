@@ -112,6 +112,38 @@ pytest benchmark/ --codspeed
 In CI these run as the **Performance guards** job (`pytest -m perf`) and the
 **CodSpeed** workflow, which comments per-benchmark deltas on each PR.
 
+## Continuous integration
+
+Every push and pull request runs the checks below, and a pull request must be
+green to merge. All third-party actions are pinned to a full commit SHA.
+
+[`ci.yml`](../.github/workflows/ci.yml) is the core gate:
+
+| Job | What it runs |
+| --- | --- |
+| **Python (lint + compile + tests)** | `ruff check`, `ruff format --check`, `py_compile`, and `pytest` with the ≥ 55 % coverage gate |
+| **Extension JS (eslint)** | `npx eslint .` over the extension front-end |
+| **Dependency audit (pip-audit)** | audits the pinned runtime (gating) and the optional voters (report-only) |
+| **Dependency review (PR)** | fails a PR that introduces a new high-severity advisory |
+| **Windows (tests)** | `pytest -m "not perf"` on `windows-latest` — covers the decode sandbox / AppContainer |
+| **Performance guards** | `pytest -m perf` — relative decode / IPC regression checks |
+
+Alongside it:
+
+- **CodeQL** — static analysis for Python, JavaScript, and the Actions workflows.
+- **[OpenSSF Scorecard](../.github/workflows/scorecard.yml)** — supply-chain
+  posture, surfaced on the README badge.
+- **[CodSpeed](../.github/workflows/codspeed.yml)** — instruction-count
+  benchmarks that comment per-PR deltas.
+- **ClusterFuzzLite** — a short fuzzing campaign over the image-decode path on
+  each PR.
+- **[`release.yml`](../.github/workflows/release.yml)** — builds and publishes
+  the extension package for a tagged release.
+
+Run the same checks locally before pushing (see [Test](#test) and
+[Benchmark](#benchmark)); `pre-commit` wires the lint / format / compile subset
+into every commit.
+
 ## See also
 
 - [Interface reference](api.md) — the local HTTP API and CLI.
