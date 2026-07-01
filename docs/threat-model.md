@@ -162,3 +162,38 @@ dedupe · optional decode sandbox / AppContainer.
 
 (Re-run this model whenever a new endpoint, stored file, external fetch, or
 permission is added — those are the events that move trust boundaries.)
+
+---
+
+## 6. Secure design principles
+
+The design is a deliberate application of the Saltzer & Schroeder principles
+(plus limited attack surface and allowlist input validation):
+
+| Principle | How ImgEdge applies it |
+|---|---|
+| **Economy of mechanism** | One small loopback HTTP server, standard-library only for the core, a single decode path — little to get wrong. |
+| **Fail-safe defaults** | Ships local-only, token-authenticated, SSRF-guarded, with decode caps on and egress limited to `80,443`. *Availability* fails **open** by design (a comfort filter must not brick pages), with strict / fail-closed one toggle away. |
+| **Complete mediation** | Every `/classify` call is token-checked (constant-time) and non-bypassable; every fetched URL is re-validated (host + pinned IP) per request; every model load re-verifies its pinned hash. |
+| **Open design** | Security rests on the per-install token and pinned hashes, not on secrecy — the whole design is public (this doc, [SECURITY.md](../SECURITY.md), the source). |
+| **Separation of privilege** | The extension discloses the token only after the server proves identity via `HMAC(token, challenge)`; the optional AppContainer adds an OS capability gate on top of the process boundary. |
+| **Least privilege** | Minimal extension permissions; the classifier needs no inbound network and no elevation; the optional decode worker runs in a capability-less, no-network AppContainer. |
+| **Least common mechanism** | Per-install token; cache keyed by `HMAC(token, ·)`; token file per-user `0o600`; no shared world-writable state. |
+| **Psychological acceptability** | One-paste token setup, sensible defaults, and a grey `!` badge when filtering is actually down — so "off" never looks like "on". |
+| **Limited attack surface** | One authenticated endpoint plus one lean unauthenticated `/health`; no CORS / `externally_connectable`; no redirects; format allowlist (no SVG); loopback bind. |
+| **Input validation with allowlists** | Image formats (JPEG/PNG/WEBP/GIF/BMP), fetch schemes (`http(s)`) and ports (`80,443`, optional host allowlist), loopback-only endpoint, and size/pixel caps are all allowlists, not denylists. |
+
+## 7. Common implementation errors countered
+
+Mapping to the usual suspects (OWASP Top 10 / CWE) for a fetch-and-decode network tool:
+
+| Weakness (CWE / OWASP) | Mitigation |
+|---|---|
+| **SSRF** (CWE-918 / A10) | Host validation + IP pinning + NAT64/CGNAT/IPv4-mapped unwrap + port allowlist + no redirects + content-type gate + per-host cap |
+| **Injection / OS command** (CWE-77/78) | No shell, `eval`, or `exec`; no user string reaches a shell; fixed-argv subprocesses |
+| **XSS / DOM injection** (CWE-79) | Content script uses `textContent` only — no `innerHTML`/`eval`; MV3 strict CSP |
+| **Missing authn / authz** (CWE-306/862) | `/classify` requires a constant-time token; `/health` exposes only liveness |
+| **Uncontrolled resource use / decompression bomb** (CWE-400/409) | Pixel cap, 8 MB image cap, 16 MB body cap, read timeout, bounded pool |
+| **Native-decoder memory safety** (CWE-119…) | Format allowlist + caps; opt-in recycled-subprocess / no-network AppContainer isolation |
+| **TOCTOU / path handling** (CWE-367/22) | Token file created atomically (`O_CREAT\|O_EXCL`, `0o600`); fixed model paths + pinned hashes |
+| **Sensitive-data exposure** (CWE-200/532) | Local-only; token never logged; cache stores `HMAC(url)`, not URLs; generic client errors |
