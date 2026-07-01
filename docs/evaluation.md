@@ -14,6 +14,10 @@ against arachnid images without being shown one.
   `block/…` = images that *should* be blocked (positives), `allow/…` = images
   that should *not* (negatives).
 
+> Commands below are shown for PowerShell. On bash/zsh set an environment
+> variable with `export VAR=value` and clear it with `unset VAR`; everything
+> else is identical.
+
 ## 1. Get a dataset
 
 Build one without ever opening an image (pick one):
@@ -33,25 +37,33 @@ with `$env:IMGEDGE_EVAL_PASSWORD="…"` (or answer the no‑echo prompt).
 The base ensemble is **iNaturalist + timm** (2 models). The two open‑vocabulary
 voters are opt‑in, so you select the configuration you want to measure:
 
-| Config | Models | Enable |
+| Config | Models | Command |
 | --- | --- | --- |
-| base | iNat + timm | `pip install -e ".[voters]"` |
-| 3‑model | base + SigLIP | `+ ".[siglip]"`, `$env:IMGEDGE_SIGLIP="1"` |
-| 3‑model | base + MobileCLIP | `+ ".[mobileclip]"`, `$env:IMGEDGE_MOBILECLIP="1"` |
-| 4‑model | base + SigLIP + MobileCLIP | both extras + both env vars |
+| base | iNat + timm | *(no flag)* — needs `.[voters]` |
+| 3-model | base + SigLIP | `--siglip` — needs `.[siglip]` |
+| 3-model | base + MobileCLIP | `--mobileclip` — needs `.[mobileclip]` |
+| 4-model | base + SigLIP + MobileCLIP | `--siglip --mobileclip` |
 
-Turn a voter back off by clearing its variable (`Remove-Item Env:\IMGEDGE_SIGLIP`).
+The flags are authoritative: an omitted voter is off even if `IMGEDGE_SIGLIP` /
+`IMGEDGE_MOBILECLIP` is set in your shell. Their fine-tuning knobs
+(`IMGEDGE_SIGLIP_WEIGHT`, `IMGEDGE_SIGLIP_GATE`, `IMGEDGE_THRESHOLD`, …) stay as
+environment variables — see the [configuration reference](configuration.md).
 
 ## 3. Run an eval
 
 ```powershell
-python -m tools.eval_filter eval dataset.eval.zip --report out.json
+python -m tools.eval_filter eval dataset.eval.zip --siglip --report out.json   # 3-model
 ```
 
-Useful flags: `--report <json>` (full machine‑readable results), `--sample-per-class N`
-(+ `--seed`, score a random N per class for a faster pass), `--threshold` /
-`--salience` (override the operating point), `--no-sweep` (skip the threshold /
-salience sweeps).
+Useful flags: `--siglip` / `--mobileclip` (pick the voters, above), `--report
+<json>` (full machine-readable results), `--sample-per-class N` (+ `--seed`,
+score a random N per class for a faster pass), `--threshold` / `--salience`
+(override the operating point), `--no-sweep` (skip the threshold / salience
+sweeps).
+
+A progress meter (count, rate, ETA) prints to `stderr` during the run — useful
+for the full sets, which take a while — and never touches the `--report` JSON;
+add `--no-progress` to silence it.
 
 ## 4. Read the quality results
 

@@ -242,11 +242,80 @@ def classify_sample(ens, raw, threshold=None, salience=None):
     }
 
 
-def evaluate(path, threshold=None, salience=None, password=None, sample_per_class=None, seed=1234):
+def _fmt_dur(seconds):
+    s = int(seconds)
+    if s >= 3600:
+        return f"{s // 3600}h{(s % 3600) // 60:02d}m"
+    if s >= 60:
+        return f"{s // 60}m{s % 60:02d}s"
+    return f"{s}s"
+
+
+class _Progress:
+    """Dependency-free progress meter on stderr, so it never mixes into the
+    report on stdout. A single line redrawn in place on a TTY; a sparse line
+    every ~5% when stderr is redirected (log-friendly)."""
+
+    def __init__(self, total, enabled=True, stream=None):
+        self.total = int(total)
+        self.stream = stream or sys.stderr
+        self.enabled = bool(enabled) and self.total > 0
+        self.tty = self.enabled and hasattr(self.stream, "isatty") and self.stream.isatty()
+        self.n = 0
+        self.start = time.perf_counter()
+        self._last_draw = 0.0
+        self._last_step = -1
+
+    def tick(self, k=1):
+        if not self.enabled:
+            return
+        self.n += k
+        done = self.n >= self.total
+        now = time.perf_counter()
+        if self.tty:
+            if not done and now - self._last_draw < 0.2:
+                return
+            self._last_draw = now
+            self._draw("\r")
+            if done:
+                self.stream.write("\n")
+                self.stream.flush()
+        else:
+            step = int(20 * self.n / self.total)
+            if step != self._last_step or done:
+                self._last_step = step
+                self._draw("\n")
+
+    def _draw(self, end):
+        elapsed = time.perf_counter() - self.start
+        rate = self.n / elapsed if elapsed > 0 else 0.0
+        pct = 100 * self.n / self.total
+        eta = (self.total - self.n) / rate if rate > 0 else 0.0
+        bar = ""
+        if self.tty:
+            width = 24
+            filled = int(width * self.n / self.total)
+            bar = "[" + "#" * filled + "." * (width - filled) + "] "
+        self.stream.write(
+            f"{bar}{self.n}/{self.total} ({pct:4.1f}%)  {rate:5.1f} img/s  "
+            f"elapsed {_fmt_dur(elapsed)}  ETA {_fmt_dur(eta)}      {end}"
+        )
+        self.stream.flush()
+
+    def close(self):
+        if self.enabled and self.tty and self.n < self.total:
+            self.stream.write("\n")
+            self.stream.flush()
+
+
+def evaluate(path, threshold=None, salience=None, password=None, sample_per_class=None, seed=1234, progress=True):
     """Classify labelled images; return records with label + scores only.
-    `sample_per_class` scores a random N per class instead of the whole set."""
+    `sample_per_class` scores a random N per class instead of the whole set.
+    A progress meter prints to stderr unless `progress=False`."""
     ens = load_pipeline()
     only = _sample_names(path, password, sample_per_class, seed) if sample_per_class else None
+    total = len(only) if only is not None else sum(1 for _ in _labeled_names(path, password))
+    prog = _Progress(total, enabled=progress)
     records = []
     for label, name, raw in iter_samples(path, password, only):
         rec = classify_sample(ens, raw, threshold, salience)
@@ -254,6 +323,8 @@ def evaluate(path, threshold=None, salience=None, password=None, sample_per_clas
         rec["name"] = name
         records.append(rec)
         del raw  # drop the bytes promptly
+        prog.tick()
+    prog.close()
     return records
 
 
@@ -863,6 +934,11 @@ def main(argv=None):
     pe.add_argument("--no-sweep", action="store_true", help="skip the threshold/salience sweeps")
     pe.add_argument("--sample-per-class", type=int, default=None, help="score a random N per class (sample the set)")
     pe.add_argument("--seed", type=int, default=1234, help="sampling seed")
+    pe.add_argument("--no-progress", action="store_true", help="disable the stderr progress meter")
+    pe.add_argument("--siglip", action="store_true", help="enable the SigLIP voter (needs the siglip extra)")
+    pe.add_argument(
+        "--mobileclip", action="store_true", help="enable the MobileCLIP voter (needs the mobileclip extra)"
+    )
 
     pd = sub.add_parser("build-dir", help="encrypt a block/+allow/ folder into an AES zip")
     pd.add_argument("src_dir")
@@ -896,8 +972,22 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     if args.cmd == "eval":
+        # Pick voters by flag, not the ambient environment: set the enable vars
+        # explicitly (on OR off) BEFORE the server module is imported (it
+        # snapshots them into module constants), so the run is deterministic
+        # regardless of leftover shell state.
+        os.environ["IMGEDGE_SIGLIP"] = "1" if args.siglip else "0"
+        os.environ["IMGEDGE_MOBILECLIP"] = "1" if args.mobileclip else "0"
         password = _get_password(required=str(args.dataset).lower().endswith(".zip"))
-        records = evaluate(args.dataset, args.threshold, args.salience, password, args.sample_per_class, args.seed)
+        records = evaluate(
+            args.dataset,
+            args.threshold,
+            args.salience,
+            password,
+            args.sample_per_class,
+            args.seed,
+            progress=not args.no_progress,
+        )
         if not records:
             raise SystemExit("No labelled images found (expected block/ and allow/ entries).")
         report = build_report(records, args.threshold, args.salience, sweep_on=not args.no_sweep)

@@ -120,6 +120,29 @@ def test_build_synthetic_roundtrip(tmp_path):
     assert labels.count("allow") == 3
 
 
+def test_fmt_dur():
+    assert eval_filter._fmt_dur(45) == "45s"
+    assert eval_filter._fmt_dur(80) == "1m20s"
+    assert eval_filter._fmt_dur(3720) == "1h02m"
+
+
+def test_percentiles_empty_and_basic():
+    assert eval_filter._percentiles([]) == {}
+    p = eval_filter._percentiles([10, 20, 30, 40])
+    assert p["n"] == 4 and p["mean"] == 25.0 and p["max"] == 40
+
+
+def test_latency_summary_excludes_skipped_voters():
+    records = [
+        {"decision_ms": 10.0, "voter_ms": {"a": 4.0, "b": 0}},
+        {"decision_ms": 20.0, "voter_ms": {"a": 6.0, "b": 0}},
+    ]
+    lat = eval_filter._latency_summary(records)
+    assert lat["decision_ms"]["n"] == 2
+    assert "a" in lat["per_voter_ms"]  # ran
+    assert "b" not in lat["per_voter_ms"]  # skipped (0 ms) -> excluded
+
+
 def test_build_inat_routes_by_class(tmp_path):
     pytest.importorskip("pyzipper")
     imgs = tmp_path / "imgs"
