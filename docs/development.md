@@ -163,6 +163,59 @@ Run the same checks locally before pushing (see [Test](#test) and
 [Benchmark](#benchmark)); `pre-commit` wires the lint / format / compile subset
 into every commit.
 
+## Versioning & releases
+
+### How the version is defined
+
+The version lives in **one** place — `[project].version` in
+[`pyproject.toml`](../pyproject.toml). [`tools/sync_version.py`](../tools/sync_version.py)
+propagates that canonical value into the three files that each need a *literal*
+copy:
+
+| File | Field |
+| --- | --- |
+| [`manifest.json`](../manifest.json) | `"version"` — the published extension version |
+| [`package.json`](../package.json) | `"version"` |
+| [`src/imgedge/__init__.py`](../src/imgedge/__init__.py) | `__version__` — runtime / `/health` |
+
+A [pre-commit](../.pre-commit-config.yaml) hook re-syncs whenever one of those
+files changes, and [`tests/test_version.py`](../tests/test_version.py) fails CI if
+they ever drift — so they can't fall out of step. Bump the version following
+[SemVer](https://semver.org/) (patch / minor / major by the kind of change):
+
+```powershell
+# edit [project].version in pyproject.toml, then propagate it:
+python tools/sync_version.py           # writes manifest.json / package.json / __init__.py
+python tools/sync_version.py --check    # verify only (what CI + pre-commit run)
+```
+
+### Cutting a release from a PR
+
+Releases are **tag-driven**: pushing a `vX.Y.Z` tag runs
+[`release.yml`](../.github/workflows/release.yml), which builds the store ZIP and
+publishes a GitHub Release. The tag must match the version already on `main`, so
+bump first, merge, then tag.
+
+1. **In the release PR** — bump `pyproject.toml`, run
+   `python tools/sync_version.py`, and move the `## [Unreleased]` entries in
+   [`CHANGELOG.md`](../CHANGELOG.md) under a new `## [X.Y.Z] - YYYY-MM-DD`
+   heading (updating the link refs at the bottom). Merge the PR.
+2. **Tag `main`** once the bump is merged:
+
+   ```powershell
+   git checkout main; git pull
+   git tag -s vX.Y.Z -m "ImgEdge X.Y.Z"   # signed; must equal the pyproject/manifest version
+   git push origin vX.Y.Z
+   ```
+
+3. **`release.yml` takes over** (on `windows-latest`): it verifies the tag matches
+   `manifest.json`, builds the extension with [`package.ps1`](../package.ps1),
+   attaches a signed build-provenance attestation, and creates the GitHub Release
+   with auto-generated notes and the `dist/imgedge-<version>.zip` asset.
+
+If the tag and `manifest.json` disagree the release job fails fast — a guard
+against tagging before the version bump has merged.
+
 ## See also
 
 - [Interface reference](api.md) — the local HTTP API and CLI.
