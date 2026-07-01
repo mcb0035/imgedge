@@ -17,6 +17,7 @@ voters = ["timm==1.0.27", "torch==2.12.1"]
 onnx = ["onnxruntime==1.27.0"]
 eval = ["pyzipper==0.4.0"]
 siglip = ["transformers==5.12.1", "sentencepiece==0.2.1"]
+mobileclip = ["open_clip_torch==3.3.0"]
 dev = ["pytest==9.1.1", "ruff==0.15.20", "pip-audit==2.10.1", "pre-commit==4.6.0", "pytest-codspeed==5.0.3", "pytest-cov==7.1.0"]
 
 [project.scripts]
@@ -64,6 +65,7 @@ omit = [
     # Optional backends / offline tools (extra deps not installed in the gate)
     "*/imgedge/voters/timm_voter.py",
     "*/imgedge/voters/siglip_voter.py",
+    "*/imgedge/voters/mobileclip_voter.py",
     "*/imgedge/inat/onnx_filter.py",
     "*/imgedge/inat/convert_to_onnx.py",
     # Require downloaded model artifacts (not present in CI)

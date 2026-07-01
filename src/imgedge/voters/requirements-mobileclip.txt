@@ -1,0 +1,9 @@
+# Optional voter: MobileCLIP via open_clip (small, fast open-vocabulary model).
+# A cheaper alternative to the SigLIP voter when CPU latency matters. Needs torch
+# too (see requirements.txt / the .[voters] extra); then enable IMGEDGE_MOBILECLIP=1.
+#
+#   pip install -r voters/requirements.txt -r voters/requirements-mobileclip.txt
+#
+# Supply chain: pin exact versions and install with --require-hashes for a
+# verified, reproducible env (see src/imgedge/inat/requirements.txt for the recipe).
+open_clip_torch>=3.3.0
