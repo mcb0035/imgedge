@@ -8,6 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Inference-latency benchmark (`benchmark/bench_infer.py`).** Times each
+  voter's forward pass and the 2-/3-/4-model profile totals (Fast / Balanced /
+  Accurate / Maximum) on a seeded synthetic image — no real image or dataset
+  needed. Thread-aware (`--threads`, prints the effective OMP/OpenBLAS/torch
+  config) with a cross-platform "simulating weak hardware" recipe (Docker CPU/RAM
+  caps, Linux `taskset`/cgroups, Windows affinity/`powercfg`). See
+  `benchmark/README.md`.
 - **Eval harness: ensemble decision-latency profiling.** Each voter is timed and
   the report gains a `latency` block (per-image decision percentiles + per-voter
   cost), a progress meter (count / rate / ETA on stderr, `--no-progress` to
