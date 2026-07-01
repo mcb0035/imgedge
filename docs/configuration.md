@@ -8,12 +8,15 @@ request/response shape these values affect, see the
 
 ## Popup (per-browser)
 
-Enable/disable, classifier endpoint + token, *Send image bytes* (for
-cookie/LAN-gated images), *Block when classifier unreachable* (fail-closed),
-*Strict mode* (block until explicitly allowed), *Scan CSS backgrounds*, the
-**Block threshold** and **Salience weighting** tuning sliders (sent per request,
-so they tune live and override the server defaults below), and the whitelist /
-allowed-sites / blocklist.
+The **Detection mode** presets pick how many voters run per image -- **Fast**
+(iNat + timm), **Balanced** (+ MobileCLIP), or **Accurate** (+ SigLIP) -- trading
+speed for thoroughness; a preset whose voter isn't loaded on the server is greyed
+out. Everything else lives under **Advanced**: enable/disable, classifier
+endpoint + token, *Send image bytes* (for cookie/LAN-gated images), *Block when
+classifier unreachable* (fail-closed), *Strict mode* (block until explicitly
+allowed), *Scan CSS backgrounds*, and the **Block threshold** and **Salience
+weighting** tuning sliders (sent per request, so they tune live and override the
+server defaults below). The whitelist / allowed-sites / blocklist stay visible.
 
 ## Server (environment variables)
 
@@ -29,11 +32,11 @@ allowed-sites / blocklist.
 | `IMGEDGE_TIMM_THRESHOLD` | `0.5` | timm voter's own block threshold |
 | `IMGEDGE_TIMM_WEIGHT` | `0.5` | timm evidence weight in the ensemble |
 | `IMGEDGE_INAT_OVERRIDE` | `0.9` | iNat P(block) at/above which it blocks outright, ignoring the contrast voter (`>1` disables) |
-| `IMGEDGE_SIGLIP` | `0` | Enable the open-vocab SigLIP 2 third voter (`1`=on; needs the `siglip` extra) |
+| `IMGEDGE_SIGLIP` | `1` | Load the open-vocab SigLIP 2 third voter when its `siglip` extra is installed (`0`=skip) |
 | `IMGEDGE_SIGLIP_MODEL` | `google/siglip2-base-patch16-224` | HF SigLIP model id for the third voter |
 | `IMGEDGE_SIGLIP_WEIGHT` | `2.0` | SigLIP evidence weight in the ensemble |
 | `IMGEDGE_SIGLIP_GATE` | `0.0` | Cascade floor: skip SigLIP below this iNat+timm score (`0`=only when already blocking; raise to trade recall for speed) |
-| `IMGEDGE_MOBILECLIP` | `0` | Enable the MobileCLIP voter — smaller/faster open-vocab alternative to SigLIP (`1`=on) |
+| `IMGEDGE_MOBILECLIP` | `1` | Load the MobileCLIP voter (smaller/faster open-vocab alternative to SigLIP) when its `mobileclip` extra is installed (`0`=skip) |
 | `IMGEDGE_MOBILECLIP_WEIGHT` | `1.0` | MobileCLIP evidence weight in the ensemble |
 | `IMGEDGE_EP` | `auto` | ONNX provider: `auto\|npu\|ovgpu\|cuda\|dml\|cpu` |
 | `IMGEDGE_POOL` | `min(4, cpus)` | TFLite interpreter pool size |

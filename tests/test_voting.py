@@ -107,3 +107,27 @@ def test_cascade_skips_deferred_when_cheap_already_blocks(monkeypatch):
     v = ens.classify(None)
     assert v["block"] is True  # cheap voter alone blocks
     assert v["votes"]["siglip"] == 0.0  # deferred not needed -> skipped
+
+
+def test_only_restricts_to_a_voter_subset(monkeypatch):
+    _pin_salience(monkeypatch)
+    inat = _Stub(0.10, "inat", weight=1.0)
+    timm = _Stub(0.05, "timm", weight=0.5)
+    siglip = _deferred(_Stub(0.90, "siglip", weight=2.0))
+    ens = VoteEnsemble([inat, timm, siglip], policy="evidence", threshold=0.18, gate=0.0)
+
+    # Full run: the deferred voter is in-band (cheap 0.125 < 0.18) and blocks.
+    full = ens.classify(None)
+    assert full["block"] is True
+    assert set(full["votes"]) == {"inat", "timm", "siglip"}
+
+    # only={inat,timm}: siglip is excluded entirely (not merely skipped at 0.0).
+    sub = ens.classify(None, only={"inat", "timm"})
+    assert sub["block"] is False  # 0.10 + 0.5*0.05 = 0.125 < 0.18
+    assert set(sub["votes"]) == {"inat", "timm"}
+
+
+def test_only_none_runs_every_voter(monkeypatch):
+    _pin_salience(monkeypatch)
+    ens = VoteEnsemble([_Stub(0.9, "inat", weight=1.0)], policy="evidence", threshold=0.5)
+    assert set(ens.classify(None, only=None)["votes"]) == {"inat"}

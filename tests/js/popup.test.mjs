@@ -47,3 +47,30 @@ test("hmacHex matches a known HMAC-SHA256 vector (F2 proof)", async () => {
   const want = crypto.createHmac("sha256", "shared-secret").update("nonce-abc123").digest("hex");
   assert.equal(got, want);
 });
+
+test("applyProfiles greys out unavailable presets and falls back to the best available", () => {
+  const radios = [
+    { value: "fast", checked: false, disabled: false },
+    { value: "balanced", checked: true, disabled: false },
+    { value: "accurate", checked: false, disabled: false },
+  ];
+  const hint = { textContent: "" };
+  const doc = context.document;
+  doc.querySelectorAll = () => radios;
+  doc.querySelector = (sel) => {
+    if (sel.includes(":checked")) return radios.find((r) => r.checked) || null;
+    const m = sel.match(/value="([a-z]+)"/);
+    return m ? radios.find((r) => r.value === m[1]) || null : null;
+  };
+  const origGet = doc.getElementById;
+  doc.getElementById = (id) => (id === "presethint" ? hint : origGet(id));
+
+  // MobileCLIP not loaded -> "balanced" unavailable; the current (balanced)
+  // choice falls back to the best available preset (accurate).
+  context.applyProfiles({ fast: true, balanced: false, accurate: true });
+
+  assert.equal(radios.find((r) => r.value === "balanced").disabled, true);
+  assert.equal(radios.find((r) => r.value === "fast").disabled, false);
+  assert.equal(radios.find((r) => r.value === "accurate").checked, true); // fell back
+  assert.match(hint.textContent, /Balanced/);
+});

@@ -109,3 +109,68 @@ def test_unknown_get_path_is_404(live_server):
 def test_unknown_post_path_is_404(live_server):
     status, _ = _request(f"{live_server}/nope", method="POST", token=TOKEN, body={})
     assert status == 404
+
+
+# ---- Easy-mode presets -----------------------------------------------------
+class _FakeVoter:
+    def __init__(self, name):
+        self.name = name
+
+
+class _FakeEns:
+    policy = "evidence"
+    inat = None
+
+    def __init__(self, names):
+        self.voters = [_FakeVoter(n) for n in names]
+
+    @property
+    def names(self):
+        return [v.name for v in self.voters]
+
+
+def test_profile_only_maps_preset_to_loaded_subset():
+    ens = _FakeEns(["inat:a", "timm:b", "siglip:c", "mobileclip:d"])
+    assert server._profile_only(ens, "fast") == {"inat:a", "timm:b"}
+    assert server._profile_only(ens, "balanced") == {"inat:a", "timm:b", "mobileclip:d"}
+    assert server._profile_only(ens, "accurate") == {"inat:a", "timm:b", "siglip:c"}
+    # Absent / unknown / non-string profile -> None (run every loaded voter).
+    assert server._profile_only(ens, None) is None
+    assert server._profile_only(ens, "bogus") is None
+    assert server._profile_only(ens, {"not": "a str"}) is None
+
+
+def test_profile_only_degrades_when_voter_absent():
+    ens = _FakeEns(["inat:a", "timm:b"])  # no siglip / mobileclip loaded
+    # "accurate" needs siglip; with none loaded it degrades to the cheap voters.
+    assert server._profile_only(ens, "accurate") == {"inat:a", "timm:b"}
+
+
+def test_health_profiles_reflect_loaded_voters(monkeypatch):
+    # SigLIP loaded, MobileCLIP not -> accurate available, balanced not.
+    monkeypatch.setattr(server, "ensure_ensemble", lambda: _FakeEns(["inat:a", "timm:b", "siglip:c"]))
+    payload = server.health_payload(full=True)
+    assert payload["profiles"] == {"fast": True, "balanced": False, "accurate": True}
+
+
+def test_classify_passes_profile_subset_to_ensemble(monkeypatch):
+    seen = {}
+
+    class _Ens(_FakeEns):
+        def classify_bytes(self, raw, meta, decoder, threshold, salience, only=None):
+            seen["only"] = only
+            return {"block": False, "reason": "ok", "score": 0.0}
+
+    class _NoCache:
+        def get(self, key):
+            return None
+
+        def put(self, key, value):
+            pass
+
+    monkeypatch.setattr(server, "ensure_ensemble", lambda: _Ens(["inat:a", "timm:b", "siglip:c"]))
+    monkeypatch.setattr(server, "fetch_image_bytes", lambda url, data: b"x")
+    monkeypatch.setattr(server, "_get_decoder", lambda: None)
+    monkeypatch.setattr(server, "_vcache", _NoCache())
+    server.classify("http://e/x.jpg", None, None, None, None, "fast")
+    assert seen["only"] == {"inat:a", "timm:b"}  # siglip excluded even though loaded

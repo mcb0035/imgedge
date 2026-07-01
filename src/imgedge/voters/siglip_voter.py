@@ -19,11 +19,11 @@ This voter takes the strongest block-prompt probability as positive evidence:
 It contributes positive evidence only (it never argues against a block), like
 the iNat voter.
 
-Off by default. Enable with IMGEDGE_SIGLIP=1 and install the deps:
+Loaded whenever its extra is installed (set IMGEDGE_SIGLIP=0 to skip). Install:
     pip install -e ".[voters,siglip]"        # needs torch (voters) + transformers
 
 Env overrides:
-    IMGEDGE_SIGLIP            1 to enable the voter (read by the server; default 0)
+    IMGEDGE_SIGLIP            0 to skip loading the voter (read by the server; default 1)
     IMGEDGE_SIGLIP_MODEL      HF model id (default: google/siglip2-base-patch16-224)
     IMGEDGE_SIGLIP_PROMPTS    comma-separated block prompts (default: CORE_PROMPTS below)
     IMGEDGE_SIGLIP_WEIGHT     evidence weight in the ensemble (default: 2.0)

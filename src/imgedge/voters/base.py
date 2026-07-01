@@ -75,7 +75,7 @@ class VoteEnsemble:
     def names(self):
         return [v.name for v in self.voters]
 
-    def classify_bytes(self, raw, meta=None, decoder=None, threshold=None, salience=None):
+    def classify_bytes(self, raw, meta=None, decoder=None, threshold=None, salience=None, only=None):
         if decoder is not None:
             # Decode out-of-process; reconstruct from a trusted RGB array.
             from PIL import Image
@@ -84,9 +84,9 @@ class VoteEnsemble:
             meta = dict(meta or {})
             meta.setdefault("w", ow)  # keep the true size for salience
             meta.setdefault("h", oh)
-            return self.classify(Image.fromarray(arr), meta, threshold, salience)
+            return self.classify(Image.fromarray(arr), meta, threshold, salience, only)
         with open_guarded(raw) as img:
-            return self.classify(img, meta, threshold, salience)
+            return self.classify(img, meta, threshold, salience, only)
 
     def _assess(self, v, img):
         """Run one voter, isolating failures: a broken voter abstains (0, 0).
@@ -101,15 +101,19 @@ class VoteEnsemble:
             ms = round((time.perf_counter() - t0) * 1000, 3)
             return (v, 0.0, 0.0, {"ms": ms, "error": True})  # never crash the verdict
 
-    def classify(self, img, meta=None, threshold=None, salience=None):
-        deferred = [v for v in self.voters if getattr(v, "deferred", False)]
+    def classify(self, img, meta=None, threshold=None, salience=None, only=None):
+        # `only` (a set of voter names) restricts this request to a preset subset
+        # of the loaded voters; None runs them all. Filtering a copy keeps the
+        # call thread-safe -- self.voters is never mutated.
+        active = self.voters if only is None else [v for v in self.voters if v.name in only]
+        deferred = [v for v in active if getattr(v, "deferred", False)]
         if deferred and self.policy == "evidence":
             # Cascade: assess the cheap voters first; run the expensive
             # (deferred) voters only when the cheap score lands in the band where
             # they could still change the verdict -- at/above threshold it
             # already blocks; below `gate` they realistically can't rescue it.
             # Skips the heavy voter on the bulk of clearly-allow images.
-            rows = [self._assess(v, img) for v in self.voters if not getattr(v, "deferred", False)]
+            rows = [self._assess(v, img) for v in active if not getattr(v, "deferred", False)]
             cheap = self._combine(rows, img, meta, threshold, salience)[0]
             thr = self.threshold if threshold is None else threshold
             if self.gate <= cheap < thr:
@@ -117,7 +121,7 @@ class VoteEnsemble:
             else:
                 rows += [(v, 0.0, 0.0, {"skipped": True, "ms": 0.0}) for v in deferred]
         else:
-            rows = [self._assess(v, img) for v in self.voters]
+            rows = [self._assess(v, img) for v in active]
 
         if self.policy == "evidence":
             return self._evidence_verdict(rows, img, meta, threshold, salience)

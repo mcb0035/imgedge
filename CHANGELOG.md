@@ -8,6 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Easy-mode detection presets.** The popup gains a **Fast / Balanced /
+  Accurate** selector (iNat+timm / +MobileCLIP / +SigLIP) that picks the voter
+  subset per request; the existing endpoint/token/threshold/salience controls
+  move under an **Advanced** disclosure. Backed by a new per-request `profile`
+  field on `POST /classify` and a `profiles` availability map on `/health` (so a
+  preset whose voter isn't loaded is greyed out). `VoteEnsemble.classify` gains
+  an `only=` voter-subset filter. See `docs/configuration.md`.
 - **Inference-latency benchmark (`benchmark/bench_infer.py`).** Times each
   voter's forward pass and the 2-/3-/4-model profile totals (Fast / Balanced /
   Accurate / Maximum) on a seeded synthetic image — no real image or dataset
@@ -23,6 +30,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **SigLIP and MobileCLIP voters now load when their extra is installed**
+  (`IMGEDGE_SIGLIP` / `IMGEDGE_MOBILECLIP` default `0` -> `1`), matching how the
+  timm voter already loads; set either to `0` to skip loading it (e.g. to save
+  RAM). This makes the Balanced/Accurate presets selectable out of the box once
+  the extras are installed. The eval harness is unaffected -- it pins both env
+  vars per run.
 - **Split the open-vocabulary block prompts by false-positive risk.** The SigLIP
   voter now defaults to the tight core arachnid prompts; the looser atypical
   prompts (egg sacs, molts, spiderlings, mites, specimen shots) are carried by
