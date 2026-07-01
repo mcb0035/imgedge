@@ -1,9 +1,16 @@
 # Fine-tuning deps. Install CPU build with:  pip install -r requirements.txt
 # For NVIDIA CUDA, install torch/torchvision from the official index first, e.g.:
 #   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
-torch>=2.2
-torchvision>=0.27.1
-onnx>=1.22.0
-onnxruntime>=1.18
-pillow>=10.0
-numpy>=1.24
+# Fine-tuning deps. Install CPU build with:  pip install -r requirements.txt
+# For NVIDIA CUDA, install torch/torchvision from the official index first, e.g.:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+#
+# Versions are pinned (==) for reproducibility and so OSV/Scorecard doesn't flag
+# the old floor versions a `>=` range would otherwise resolve to. Bump together
+# when refreshing (these match the shipped voter/core pins).
+torch==2.12.1
+torchvision==0.27.1
+onnx==1.22.0
+onnxruntime==1.27.0
+pillow==12.2.0
+numpy==2.5.0
