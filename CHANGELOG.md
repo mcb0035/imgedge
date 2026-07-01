@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-30
+
 ### Changed
 
 - **Recall-first filtering defaults**, calibrated against 1,530 arachnid images
@@ -62,6 +64,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   egress auditing on every Linux job, a Windows test job, and test-coverage
   reporting over the deterministic core modules (optional / Windows-only /
   model-dependent code is excluded) with a `--cov-fail-under` floor.
+- **Developer guide** (`docs/development.md`): prerequisites, setup, build,
+  test, benchmark, and a CI-pipeline overview, linked from the README and
+  CONTRIBUTING.
+- **Decode-path fuzzing:** a ClusterFuzzLite job runs a short Atheris campaign
+  over the image decoder on each PR; the decode hardening was decoupled from the
+  TFLite runtime so the fuzz target imports only numpy + Pillow.
+- **Front-end and API tests:** `node:test` unit tests for the extension scripts
+  (endpoint allow-list, sender-id guard, HMAC proof) in a `vm` sandbox, plus
+  HTTP-layer tests for the classifier's `/classify` + `/health`.
+- **OpenSSF Best Practices** groundwork: a Saltzer-Schroeder secure-design and
+  OWASP/CWE common-errors mapping in the threat model, and a cryptography
+  section in `SECURITY.md`.
 
 ### Fixed
 
@@ -70,6 +84,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   downscaled during decode (libjpeg DCT scaling, which never expands the full
   pixels into memory) and classified, with an absolute reject ceiling kept for
   true decompression bombs.
+- **Documented install commands corrected:** the invalid `pip install ...
+  onnxruntime*` wildcard in `SECURITY.md`, and the GPU/NPU conversion path now
+  installs TensorFlow (required by `tf2onnx`) and a single ONNX Runtime build.
+- **Version drift:** `imgedge.__version__` and `package.json` were stuck at
+  `0.1.0` while the package was `0.2.0`.
 
 ### Changed
 
@@ -78,6 +97,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   mutable tags), and raise the Python floor to 3.13. Bumped to the latest
   stable releases (numpy 2.5, pillow 12.2, onnxruntime 1.27, ruff 0.15,
   pytest 9, pip-audit 2.10, pre-commit 4.6; CI Node 24).
+- **Warnings are errors:** pytest `filterwarnings=error` and ESLint
+  `--max-warnings 0`, so deprecations, resource leaks, and lint warnings fail CI.
+- **Single source of version truth:** `pyproject.toml` is canonical;
+  `tools/sync_version.py` propagates it to `manifest.json`, `package.json`, and
+  `imgedge.__version__`, with a pre-commit + CI check keeping them in lockstep.
 
 ## [0.2.0] - 2026-06-29
 
@@ -119,6 +143,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   classifier that hides a chosen image category (default: arachnids), entirely
   on-device. (Pre-versioned development; no dated release.)
 
-[Unreleased]: https://github.com/mcb0035/imgedge/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/mcb0035/imgedge/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/mcb0035/imgedge/releases/tag/v0.3.0
 [0.2.0]: https://github.com/mcb0035/imgedge/releases/tag/v0.2.0
 [0.1.0]: https://github.com/mcb0035/imgedge/releases/tag/v0.1.0
