@@ -1,5 +1,7 @@
 # Contributing to ImgEdge
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13448/badge)](https://www.bestpractices.dev/projects/13448)
+
 Thanks for your interest! ImgEdge is a small, local-first privacy tool — a
 Manifest V3 browser extension plus an on-device Python image classifier. This
 page covers how to **get the code**, how to **give feedback**, and the
