@@ -37,6 +37,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Pinned `training/requirements.txt` to exact versions** (`torch==2.12.1`,
+  `torchvision==0.27.1`, `onnx==1.22.0`, `onnxruntime==1.27.0`, `pillow==12.2.0`,
+  `numpy==2.5.0`) in place of `>=` floors. This clears the OSV/Scorecard warnings
+  that flagged the old floor versions (`pillow` 10.0, `torch` 2.2) which a `>=`
+  range resolves to during scanning — **no real exposure**: the shipped core and
+  the pinned optional voters were already current and clean (confirmed by
+  `pip-audit -s osv`), and `training/` is a dev-only fine-tune pipeline that is
+  never installed by end users. Every `requirements.txt` in the repo is now pinned.
 - **Moved the browser-extension front-end into `extension/`** (`manifest.json`,
   `background.js`, `content.js`, `content.css`, `popup.*`, `icons/`), decluttering
   the repo root. Load-unpacked now targets `extension/`; packaging, the release
