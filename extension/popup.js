@@ -17,6 +17,13 @@ const DEFAULTS = {
   profile: "balanced", // easy-mode preset: fast | balanced | accurate
 };
 
+// Keys included when exporting/importing a config. Deliberately excludes `token`
+// (a secret) and the allow/block lists (they contain URLs) -- see PRIVACY.md.
+const EXPORT_KEYS = [
+  "enabled", "endpoint", "sendData", "failClosed",
+  "strict", "scanBackgrounds", "threshold", "salience", "profile",
+];
+
 const $ = (id) => document.getElementById(id);
 
 // id -> { key, removeType, isHost }
@@ -237,6 +244,73 @@ async function save() {
   setTimeout(() => (btn.textContent = "Save settings"), 1000);
 }
 
+// ---- Backup: export / import (no token, no lists -- see PRIVACY.md) --------
+function clamp(n, lo, hi) {
+  return Math.min(hi, Math.max(lo, n));
+}
+
+// The exact object written to an export file: only the non-secret settings.
+function buildExport(s) {
+  const settings = {};
+  for (const k of EXPORT_KEYS) settings[k] = s[k];
+  return { app: "imgedge", kind: "settings", version: 1, settings };
+}
+
+// Merge an imported object into the current settings, applying ONLY the
+// whitelisted keys with validation. The token is never read from the file (the
+// current one is kept), the lists are untouched, and a non-local endpoint is
+// ignored -- so importing a file can't leak a token, add URLs, or redirect the
+// classifier off localhost.
+function sanitizeImport(incoming, current) {
+  const s = Object.assign({}, DEFAULTS, current || {});
+  s.token = (current || {}).token || "";
+  const src = incoming && typeof incoming.settings === "object" ? incoming.settings : incoming;
+  if (!src || typeof src !== "object") return s;
+  if (typeof src.endpoint === "string" && isLocalEndpoint(src.endpoint)) s.endpoint = src.endpoint;
+  for (const k of ["enabled", "sendData", "failClosed", "strict", "scanBackgrounds"]) {
+    if (typeof src[k] === "boolean") s[k] = src[k];
+  }
+  if (Number.isFinite(Number(src.threshold))) s.threshold = clamp(Number(src.threshold), 0.05, 0.95);
+  if (Number.isFinite(Number(src.salience))) s.salience = clamp(Number(src.salience), 0, 1);
+  if (PROFILE_ORDER.includes(src.profile)) s.profile = src.profile;
+  return s;
+}
+
+function flash(btn, text) {
+  const orig = btn._label || btn.textContent;
+  btn._label = orig;
+  btn.textContent = text;
+  setTimeout(() => (btn.textContent = btn._label), 1400);
+}
+
+async function exportSettings() {
+  const data = await chrome.storage.local.get([KEYS.settings]);
+  const s = Object.assign({}, DEFAULTS, data[KEYS.settings] || {});
+  const blob = new Blob([JSON.stringify(buildExport(s), null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "imgedge-settings.json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  flash($("exportSettings"), "Exported");
+}
+
+async function importSettings(file) {
+  const btn = $("importSettings");
+  let incoming;
+  try {
+    incoming = JSON.parse(await file.text());
+  } catch {
+    flash(btn, "Invalid file");
+    return;
+  }
+  const data = await chrome.storage.local.get([KEYS.settings]);
+  await chrome.storage.local.set({ [KEYS.settings]: sanitizeImport(incoming, data[KEYS.settings]) });
+  await load();
+  flash(btn, "Imported");
+}
+
 $("save").addEventListener("click", save);
 $("showToken").addEventListener("change", (e) => {
   $("token").type = e.target.checked ? "text" : "password";
@@ -277,5 +351,14 @@ for (const id of SLIDERS) {
 for (const r of document.querySelectorAll('input[name="profile"]')) {
   r.addEventListener("change", persistProfile);
 }
+
+// Backup buttons: export downloads a JSON file; import reads one back.
+$("exportSettings").addEventListener("click", exportSettings);
+$("importSettings").addEventListener("click", () => $("importFile").click());
+$("importFile").addEventListener("change", (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (file) importSettings(file);
+  e.target.value = ""; // allow re-importing the same file
+});
 
 load();
