@@ -52,7 +52,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Lint (eslint)
-        run: npx eslint .
+        run: npx eslint . --max-warnings 0
 
   security:
     name: Dependency audit (pip-audit)

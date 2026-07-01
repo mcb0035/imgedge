@@ -90,6 +90,10 @@ imgedge-server
 # 5. Open the ImgEdge popup, paste the token into "Server token", Save.
 ```
 
+> Commands are shown for PowerShell; on bash/zsh use `source .venv/bin/activate`
+> and `export VAR=…`. The whole toolchain is FLOSS — see the
+> [developer guide](docs/development.md).
+
 Browse — arachnid images are hidden. The toolbar badge shows the blocked count;
 its tooltip and the popup show classifier health.
 

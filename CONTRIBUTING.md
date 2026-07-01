@@ -86,11 +86,11 @@ checks — see the [developer guide](docs/development.md#continuous-integration)
 ### Extension JavaScript
 
 - **Lint with [ESLint](https://eslint.org/)** (flat config,
-  [`eslint.config.mjs`](eslint.config.mjs)):
+  [`eslint.config.mjs`](eslint.config.mjs)) — warnings fail the build:
 
   ```powershell
   npm ci
-  npx eslint .
+  npx eslint . --max-warnings 0
   ```
 
 - No `innerHTML` / `eval` / dynamic-code sinks — the content script runs in
