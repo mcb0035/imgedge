@@ -1,0 +1,4 @@
+# Shell scripts and Dockerfiles must stay LF so they run in Linux containers
+# (a CRLF shebang or line ending breaks them, e.g. the ClusterFuzzLite build).
+*.sh text eol=lf
+Dockerfile text eol=lf

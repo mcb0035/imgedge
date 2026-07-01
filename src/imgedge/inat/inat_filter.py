@@ -18,8 +18,9 @@ import queue
 import numpy as np
 from PIL import Image
 
-from imgedge.inat.inat_vision import dequantize, get_interpreter_cls
-
+# The TFLite backend deps (inat_vision -> ai-edge-litert) are imported lazily
+# inside TaxonFilter, so the decode-hardening helpers here (open_guarded, etc.)
+# can be imported and used without pulling in the TFLite runtime.
 DEFAULT_TARGET = "Arachnida"
 
 # Decode-hardening: cap pixels (decompression-bomb guard) and restrict the image
@@ -161,6 +162,9 @@ class TaxonFilter:
     backend = "tflite"
 
     def __init__(self, model_path, taxonomy_csv, target=DEFAULT_TARGET, pool_size=1):
+        from imgedge.inat.inat_vision import dequantize, get_interpreter_cls
+
+        self._dequantize = dequantize
         interpreter_cls = get_interpreter_cls()
         pool_size = max(1, int(pool_size))
         self._interps = queue.Queue()
@@ -193,7 +197,7 @@ class TaxonFilter:
             out = interp.get_tensor(self.out_detail["index"])[0]
         finally:
             self._interps.put(interp)
-        return postprocess(dequantize(out, self.out_detail), self.mask)
+        return postprocess(self._dequantize(out, self.out_detail), self.mask)
 
     def score_bytes(self, raw):
         with open_guarded(raw) as img:
