@@ -18,4 +18,13 @@ export default [
       "no-unused-vars": ["warn", { args: "none", varsIgnorePattern: "^_" }],
     },
   },
+  {
+    // Node-based unit tests for the extension scripts (node:test + a vm sandbox).
+    files: ["tests/js/**/*.mjs"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: { ...globals.node, ...globals.browser },
+    },
+  },
 ];

@@ -5,7 +5,8 @@
   "description": "Lint config for the ImgEdge MV3 extension front-end (background.js, content.js, popup.js).",
   "type": "module",
   "scripts": {
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "node --test \"tests/js/**/*.test.mjs\""
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

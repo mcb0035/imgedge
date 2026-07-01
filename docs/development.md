@@ -75,11 +75,13 @@ pytest tests/test_voting.py -k evidence                                         
 The decode-sandbox / AppContainer tests are Windows-only and skip elsewhere (they
 run in the **Windows (tests)** CI job).
 
-**Extension JavaScript** ([ESLint](https://eslint.org/), flat config):
+**Extension JavaScript** ([ESLint](https://eslint.org/), flat config, plus
+[`node:test`](https://nodejs.org/api/test.html) unit tests):
 
 ```powershell
 npm ci
 npx eslint .
+npm test           # node:test unit tests for background.js / popup.js
 ```
 
 **Pre-commit** — run the lint/format/compile checks on every commit:
@@ -122,7 +124,7 @@ green to merge. All third-party actions are pinned to a full commit SHA.
 | Job | What it runs |
 | --- | --- |
 | **Python (lint + compile + tests)** | `ruff check`, `ruff format --check`, `py_compile`, and `pytest` with the ≥ 55 % coverage gate |
-| **Extension JS (eslint)** | `npx eslint .` over the extension front-end |
+| **Extension JS (lint + tests)** | `npx eslint .` and `node --test` over the extension front-end |
 | **Dependency audit (pip-audit)** | audits the pinned runtime (gating) and the optional voters (report-only) |
 | **Dependency review (PR)** | fails a PR that introduces a new high-severity advisory |
 | **Windows (tests)** | `pytest -m "not perf"` on `windows-latest` — covers the decode sandbox / AppContainer |
