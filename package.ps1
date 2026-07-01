@@ -33,8 +33,10 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-# Front-end files that make up the extension. Everything else is excluded so the
-# server code and signing material can never leak into a published package.
+# Front-end files that make up the extension (under extension/). Everything else
+# is excluded so the server code and signing material can never leak into a
+# published package.
+$src = Join-Path $PSScriptRoot "extension"
 $include = @(
     "manifest.json",
     "background.js",
@@ -46,11 +48,11 @@ $include = @(
 )
 
 # ---- validate sources ------------------------------------------------------
-$missing = $include | Where-Object { -not (Test-Path $_) }
+$missing = $include | Where-Object { -not (Test-Path (Join-Path $src $_)) }
 if ($missing) { throw "Missing extension file(s): $($missing -join ', ')" }
 
 try {
-    $manifest = Get-Content manifest.json -Raw | ConvertFrom-Json
+    $manifest = Get-Content (Join-Path $src "manifest.json") -Raw | ConvertFrom-Json
 } catch {
     throw "manifest.json is not valid JSON: $($_.Exception.Message)"
 }
@@ -62,7 +64,7 @@ $dist  = Join-Path $PSScriptRoot "dist"
 $stage = Join-Path $dist "imgedge"
 Remove-Item $stage -Recurse -Force -ErrorAction Ignore
 New-Item -ItemType Directory $stage -Force | Out-Null
-Copy-Item $include -Destination $stage -Recurse -Force
+Copy-Item ($include | ForEach-Object { Join-Path $src $_ }) -Destination $stage -Recurse -Force
 
 # ---- zip (store-ready: manifest.json at the archive root) -------------------
 $zip = Join-Path $dist "imgedge-$ver.zip"

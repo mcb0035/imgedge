@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # Files that carry a literal version, and the pattern whose group 2 is the value.
 _JSON_FIELD = r'("version"\s*:\s*")([^"]+)(")'
 TARGETS = {
-    "manifest.json": _JSON_FIELD,
+    "extension/manifest.json": _JSON_FIELD,
     "package.json": _JSON_FIELD,
     "src/imgedge/__init__.py": r'(__version__\s*=\s*")([^"]+)(")',
 }

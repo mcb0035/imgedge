@@ -32,7 +32,7 @@ Typical use:
 
     # 2) Evaluate (password from $IMGEDGE_EVAL_PASSWORD or a no-echo prompt):
     python tools/eval_filter.py eval dataset.eval.zip
-    python tools/eval_filter.py eval dataset.eval.zip --threshold 0.35 --report out.json
+    python tools/eval_filter.py eval dataset.eval.zip --threshold 0.35 --report out.json  # -> reports/out.json
 
 Requires the model locally (`imgedge-download-models`) and, for encrypted
 datasets, the eval extra (`pip install -e ".[eval]"`). This tool is for local
@@ -930,7 +930,7 @@ def main(argv=None):
     pe.add_argument("dataset")
     pe.add_argument("--threshold", type=float, default=None, help="override the block threshold")
     pe.add_argument("--salience", type=float, default=None, help="salience weight 0..1 (0 = off)")
-    pe.add_argument("--report", default=None, help="write a JSON report (scores only, no images)")
+    pe.add_argument("--report", default=None, help="write a JSON report (scores only); bare name -> reports/")
     pe.add_argument("--no-sweep", action="store_true", help="skip the threshold/salience sweeps")
     pe.add_argument("--sample-per-class", type=int, default=None, help="score a random N per class (sample the set)")
     pe.add_argument("--seed", type=int, default=1234, help="sampling seed")
@@ -993,8 +993,14 @@ def main(argv=None):
         report = build_report(records, args.threshold, args.salience, sweep_on=not args.no_sweep)
         print_report(report)
         if args.report:
-            Path(args.report).write_text(json.dumps(report, indent=2), encoding="utf-8")
-            print(f"\nWrote report to {args.report} (scores only, no image data).")
+            # A bare filename lands in reports/ (kept out of the repo root and
+            # gitignored); an explicit path (with a directory) is used as given.
+            report_path = Path(args.report)
+            if report_path.parent == Path("."):
+                report_path = Path("reports") / report_path
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+            print(f"\nWrote report to {report_path} (scores only, no image data).")
         return 0
 
     if args.cmd == "build-dir":

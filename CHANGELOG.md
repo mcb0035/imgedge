@@ -30,6 +30,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Moved the browser-extension front-end into `extension/`** (`manifest.json`,
+  `background.js`, `content.js`, `content.css`, `popup.*`, `icons/`), decluttering
+  the repo root. Load-unpacked now targets `extension/`; packaging, the release
+  workflow, the version-sync pre-commit hook, and the JS test harness were updated
+  to match. Eval `--report <bare-name>` now writes under `reports/` (gitignored)
+  rather than the repo root.
 - **SigLIP and MobileCLIP voters now load when their extra is installed**
   (`IMGEDGE_SIGLIP` / `IMGEDGE_MOBILECLIP` default `0` -> `1`), matching how the
   timm voter already loads; set either to `0` to skip loading it (e.g. to save

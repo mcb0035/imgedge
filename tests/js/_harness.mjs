@@ -49,7 +49,7 @@ function inertResponse() {
  * @param {string} file repo-relative path, e.g. "background.js"
  */
 export function loadExtensionScript(file) {
-  const code = fs.readFileSync(path.join(ROOT, file), "utf8");
+  const code = fs.readFileSync(path.join(ROOT, "extension", file), "utf8");
   const captured = {};
 
   const context = {

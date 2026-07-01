@@ -41,8 +41,9 @@ dist/
 *.eval.zip
 /eval-raw/
 /eval-data/
-# report files written by `eval_filter.py eval --report ...`: the default
-# eval-report*.json plus dataset-named reports (inat*.json / oi*.json).
+# report files written by `eval_filter.py eval --report ...`. Bare names now go
+# under reports/; the root patterns stay for reports written before that change.
+/reports/
 /eval-report*.json
 /inat*.json
 /oi*.json
