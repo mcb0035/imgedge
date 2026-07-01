@@ -58,7 +58,8 @@ and the [threat model](docs/threat-model.md) are the fastest way in.
 
 These are the standards the CI gate enforces on every pull request
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)); a change has to pass
-them to merge.
+them to merge. For the full CI pipeline — every workflow and job, and what each
+checks — see the [developer guide](docs/development.md#continuous-integration).
 
 ### Python
 
