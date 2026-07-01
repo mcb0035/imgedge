@@ -4,6 +4,8 @@ import json
 import pathlib
 import re
 
+import imgedge
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
@@ -17,3 +19,12 @@ def _pyproject_version():
 def test_manifest_and_pyproject_versions_match():
     manifest = json.loads((ROOT / "manifest.json").read_text(encoding="utf-8"))["version"]
     assert manifest == _pyproject_version(), f"manifest {manifest!r} != pyproject"
+
+
+def test_package_json_and_pyproject_versions_match():
+    pkg = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
+    assert pkg == _pyproject_version(), f"package.json {pkg!r} != pyproject"
+
+
+def test_runtime_version_matches_pyproject():
+    assert imgedge.__version__ == _pyproject_version(), f"imgedge.__version__ {imgedge.__version__!r} != pyproject"

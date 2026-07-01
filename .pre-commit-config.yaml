@@ -28,3 +28,9 @@ repos:
         entry: npx eslint
         language: system
         files: \.js$
+      - id: sync-version
+        name: sync version (pyproject -> manifest.json / package.json)
+        entry: python tools/sync_version.py
+        language: system
+        files: ^(pyproject\.toml|manifest\.json|package\.json|src/imgedge/__init__\.py)$
+        pass_filenames: false
