@@ -37,6 +37,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Documented response & fix SLAs and a release-notes vulnerability policy.**
+  `SECURITY.md` now states initial-response targets (≤ 14 days to acknowledge a
+  vulnerability report or a bug report; ≤ 30 days an enhancement request), a
+  ≤ 60-day fix target for medium-or-higher severity issues (including those found
+  by static/dynamic analysis), and that release notes list every publicly known
+  vulnerability in ImgEdge's own code that had a CVE at release time.
+  `CONTRIBUTING.md` makes these binding on contributors and records that the test
+  and fuzzing configs run with assertions enabled. Targets are scoped for a
+  single maintainer. (Also refreshed the stale supported version `0.2.0` -> `0.3.0`.)
 - **Pinned `training/requirements.txt` to exact versions** (`torch==2.12.1`,
   `torchvision==0.27.1`, `onnx==1.22.0`, `onnxruntime==1.27.0`, `pillow==12.2.0`,
   `numpy==2.5.0`) in place of `>=` floors. This clears the OSV/Scorecard warnings
