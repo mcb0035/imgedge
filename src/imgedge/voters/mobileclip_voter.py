@@ -12,8 +12,10 @@ and scales it into positive-only evidence:
     evidence = clamp(gain * (max_cos - offset), 0, 1)
 
 Like SigLIP it is `deferred` (the ensemble cascade decides when to run it) and
-contributes positive evidence only. The block prompts are shared with the SigLIP
-voter (imgedge.voters.siglip_voter.BLOCK_PROMPTS).
+contributes positive evidence only. It carries the full shared block-prompt set
+(imgedge.voters.siglip_voter.BLOCK_PROMPTS = core + atypical); SigLIP defaults to
+just the core, so MobileCLIP covers the atypical presentations (egg sacs, molts,
+mites, specimen shots) that would otherwise lift SigLIP's web false-positive rate.
 
 Off by default. Enable with IMGEDGE_MOBILECLIP=1 and install the deps:
     pip install -e ".[voters,mobileclip]"
@@ -22,7 +24,7 @@ Env overrides:
     IMGEDGE_MOBILECLIP            1 to enable the voter (read by the server; default 0)
     IMGEDGE_MOBILECLIP_MODEL      open_clip model name (default: MobileCLIP2-S0)
     IMGEDGE_MOBILECLIP_PRETRAINED open_clip pretrained tag (default: dfndr2b)
-    IMGEDGE_MOBILECLIP_PROMPTS    comma-separated block prompts (default: the shared set)
+    IMGEDGE_MOBILECLIP_PROMPTS    comma-separated block prompts (default: full shared set = core + atypical)
     IMGEDGE_MOBILECLIP_WEIGHT     evidence weight in the ensemble (default: 1.0)
     IMGEDGE_MOBILECLIP_THRESHOLD  the voter's own discrete-vote threshold (default: 0.5)
     IMGEDGE_MOBILECLIP_GAIN       scale (max_cos - offset) -> evidence (default: 1.0)

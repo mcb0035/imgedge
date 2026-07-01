@@ -5,7 +5,7 @@ import os
 import numpy as np
 import pytest
 
-from imgedge.voters.siglip_voter import BLOCK_PROMPTS, _block_prob, _pooled, _split_env
+from imgedge.voters.siglip_voter import ATYPICAL_PROMPTS, BLOCK_PROMPTS, CORE_PROMPTS, _block_prob, _pooled, _split_env
 
 
 def _sigmoid(x):
@@ -39,6 +39,16 @@ def test_block_prompts_are_arachnid_specific():
     joined = " ".join(BLOCK_PROMPTS).lower()
     assert "spider" in joined and "scorpion" in joined
     assert "monkey" not in joined  # "spider monkey" is not an arachnid
+
+
+def test_core_is_the_tight_siglip_default():
+    # SigLIP defaults to CORE (tight); the looser atypical prompts moved to
+    # MobileCLIP because they lifted SigLIP's web false-positive rate.
+    assert BLOCK_PROMPTS == CORE_PROMPTS + ATYPICAL_PROMPTS
+    assert set(CORE_PROMPTS).isdisjoint(ATYPICAL_PROMPTS)
+    core = " ".join(CORE_PROMPTS).lower()
+    assert "spider" in core and "scorpion" in core
+    assert "microscope" not in core and "egg sac" not in core  # atypical excluded
 
 
 def test_split_env_parses_and_trims(monkeypatch):

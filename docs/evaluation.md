@@ -65,6 +65,21 @@ A progress meter (count, rate, ETA) prints to `stderr` during the run — useful
 for the full sets, which take a while — and never touches the `--report` JSON;
 add `--no-progress` to silence it.
 
+**Scale & run time.** Every image is decoded and scored through the full
+ensemble — a few hundred ms each on CPU, dominated by the iNaturalist model
+(~215 ms; SigLIP ~70 ms, MobileCLIP ~60 ms, timm ~20 ms per image) — so full
+runs are long. Reference timings (CPU; a ~10,000-image web set = 79 arachnids +
+10,000 web negatives, and a ~3,500-image recall set at `--sample-per-class 2000`):
+
+| Set | Config | Images | Time |
+| --- | --- | --- | --- |
+| web (FPR) | SigLIP (3-model) | 10,079 | ~54 min |
+| web (FPR) | SigLIP + MobileCLIP (4-model) | 10,079 | ~1 h 03 min |
+| recall | 4-model, `--sample-per-class 2000` | 3,530 | ~19 min |
+
+Use `--sample-per-class N` to shorten a pass, and watch the progress meter's ETA;
+the `latency` block reports the exact per-image cost for your hardware.
+
 ## 4. Read the quality results
 
 The terminal output and the `--report` JSON both contain:
