@@ -53,11 +53,12 @@ environment variables — see the [configuration reference](configuration.md).
 ## 3. Run an eval
 
 ```powershell
-python -m tools.eval_filter eval dataset.eval.zip --siglip --report out.json   # 3-model
+python -m tools.eval_filter eval dataset.eval.zip --siglip --report out.json   # -> reports/out.json
 ```
 
 Useful flags: `--siglip` / `--mobileclip` (pick the voters, above), `--report
-<json>` (full machine-readable results), `--sample-per-class N` (+ `--seed`,
+<json>` (full machine-readable results; a bare name is written under `reports/`,
+kept out of the repo root and gitignored), `--sample-per-class N` (+ `--seed`,
 score a random N per class for a faster pass), `--threshold` / `--salience`
 (override the operating point), `--no-sweep` (skip the threshold / salience
 sweeps).

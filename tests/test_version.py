@@ -17,7 +17,7 @@ def _pyproject_version():
 
 
 def test_manifest_and_pyproject_versions_match():
-    manifest = json.loads((ROOT / "manifest.json").read_text(encoding="utf-8"))["version"]
+    manifest = json.loads((ROOT / "extension" / "manifest.json").read_text(encoding="utf-8"))["version"]
     assert manifest == _pyproject_version(), f"manifest {manifest!r} != pyproject"
 
 

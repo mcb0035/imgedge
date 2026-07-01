@@ -53,7 +53,7 @@ flowchart LR
 
 | Path | What it is |
 |------|------------|
-| `manifest.json`, `background.js`, `content.js`, `content.css`, `popup.*`, `icons/` | The extension |
+| `extension/` (`manifest.json`, `background.js`, `content.js`, `content.css`, `popup.*`, `icons/`) | The browser extension (the load-unpacked target) |
 | `src/imgedge/classifier/server.py` | Local HTTP classifier (`/classify`, `/health`) |
 | `src/imgedge/voters/` | Voting ensemble: base classes, iNaturalist + timm voters, image-salience weighting |
 | `src/imgedge/inat/` | iNaturalist model: download, TFLite + ONNX backends, taxonomy filter |
@@ -88,7 +88,7 @@ imgedge-download-models
 # 3. Start the classifier — it prints an access token
 imgedge-server
 
-# 4. Load the extension: edge://extensions → Developer mode → Load unpacked → this folder
+# 4. Load the extension: edge://extensions → Developer mode → Load unpacked → the extension/ folder
 # 5. Open the ImgEdge popup, paste the token into "Server token", Save.
 ```
 

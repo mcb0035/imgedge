@@ -48,7 +48,7 @@ Optional feature extras (add to the install as needed, e.g.
 | `eval` | `pyzipper` — the encrypted-dataset evaluation tooling |
 
 Run the classifier with `imgedge-server` (it prints an access token), then load
-the repository folder as an unpacked extension per the
+the `extension/` folder as an unpacked extension per the
 [Quick start](../README.md#quick-start).
 
 ## Build
@@ -60,7 +60,7 @@ pip install -e .        # editable install for development
 python -m build         # optional: wheel + sdist into dist/  (pip install build first)
 ```
 
-**Extension** — there is no build step; load the repository folder unpacked
+**Extension** — there is no build step; load the `extension/` folder unpacked
 during development. Build a store-ready package with PowerShell:
 
 ```powershell
@@ -174,7 +174,7 @@ copy:
 
 | File | Field |
 | --- | --- |
-| [`manifest.json`](../manifest.json) | `"version"` — the published extension version |
+| [`extension/manifest.json`](../extension/manifest.json) | `"version"` — the published extension version |
 | [`package.json`](../package.json) | `"version"` |
 | [`src/imgedge/__init__.py`](../src/imgedge/__init__.py) | `__version__` — runtime / `/health` |
 

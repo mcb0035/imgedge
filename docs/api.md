@@ -157,8 +157,8 @@ Supporting module entry points:
 ## Extension ↔ server
 
 The extension is the primary client of the HTTP API:
-[`content.js`](../content.js) reports each image's URL and rendered size/kind;
-[`background.js`](../background.js) `POST`s them to the configured endpoint with
+[`content.js`](../extension/content.js) reports each image's URL and rendered size/kind;
+[`background.js`](../extension/background.js) `POST`s them to the configured endpoint with
 the token and applies the verdict. See the
 [README security model](../README.md#security-model) for the trust boundaries and
 [SECURITY.md](../SECURITY.md) for the hardening detail.
