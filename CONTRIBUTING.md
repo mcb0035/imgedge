@@ -17,8 +17,9 @@ imgedge-download-models      # fetch + verify the vision model (~21 MB)
 ```
 
 For the extension itself and end-user setup, see the
-[README](README.md#quick-start). For the HTTP/CLI interface, see the
-[API reference](docs/api.md); for every tunable, the
+[README](README.md#quick-start). For the full setup, build, test, and benchmark
+steps, see the [developer guide](docs/development.md). For the HTTP/CLI
+interface, see the [API reference](docs/api.md); for every tunable, the
 [configuration reference](docs/configuration.md).
 
 ## Give feedback
