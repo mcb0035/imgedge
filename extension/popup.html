@@ -7,6 +7,20 @@
     <style>
       :root {
         color-scheme: light dark;
+        /* Muted + status colours tuned for >= 4.5:1 contrast (WCAG 1.4.3) on the
+           light background; the dark-mode block below re-tunes them for dark. */
+        --fg-muted: #5f6368;
+        --fg-ok: #2e7d32;
+        --fg-warn: #856404;
+        --fg-bad: #b3261e;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fg-muted: #9aa0a6;
+          --fg-ok: #81c784;
+          --fg-warn: #e6b800;
+          --fg-bad: #f2896b;
+        }
       }
       body {
         width: 320px;
@@ -20,7 +34,7 @@
       }
       .counts {
         margin: 0 0 4px;
-        color: #555;
+        color: var(--fg-muted);
         font-size: 12px;
       }
       .health {
@@ -29,22 +43,22 @@
         display: flex;
         align-items: center;
         gap: 6px;
-        color: #777;
+        color: var(--fg-muted);
       }
       .health::before {
         content: "";
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: #bbb;
+        background: var(--fg-muted);
         flex: none;
       }
-      .health.ok { color: #2e7d32; }
-      .health.ok::before { background: #2e7d32; }
-      .health.warn { color: #b8860b; }
-      .health.warn::before { background: #b8860b; }
-      .health.bad { color: #c0392b; }
-      .health.bad::before { background: #c0392b; }
+      .health.ok { color: var(--fg-ok); }
+      .health.ok::before { background: var(--fg-ok); }
+      .health.warn { color: var(--fg-warn); }
+      .health.warn::before { background: var(--fg-warn); }
+      .health.bad { color: var(--fg-bad); }
+      .health.bad::before { background: var(--fg-bad); }
       h2 {
         margin: 14px 0 6px;
         font-size: 13px;
@@ -72,14 +86,14 @@
         margin: 4px 0 2px;
       }
       .sliderval {
-        color: #777;
+        color: var(--fg-muted);
         font-variant-numeric: tabular-nums;
       }
       .sliderhint {
         display: flex;
         justify-content: space-between;
         font-size: 11px;
-        color: #888;
+        color: var(--fg-muted);
       }
       .presets {
         display: flex;
@@ -113,13 +127,13 @@
         line-height: 1.25;
       }
       .preset-body small {
-        color: #888;
+        color: var(--fg-muted);
         font-size: 10.5px;
       }
       .presethint {
         margin: 4px 0 2px;
         font-size: 11px;
-        color: #b8860b;
+        color: var(--fg-warn);
       }
       .presethint:empty {
         display: none;
@@ -136,7 +150,7 @@
       .note {
         margin: 4px 0 6px;
         font-size: 11px;
-        color: #888;
+        color: var(--fg-muted);
       }
       .btnrow {
         display: flex;
@@ -145,7 +159,7 @@
       .privacy {
         margin: 12px 0 2px;
         font-size: 11px;
-        color: #888;
+        color: var(--fg-muted);
       }
       .privacy code {
         font-size: 10.5px;
@@ -177,7 +191,7 @@
         border-bottom: 0;
       }
       li.empty {
-        color: #888;
+        color: var(--fg-muted);
         justify-content: center;
       }
       .url {

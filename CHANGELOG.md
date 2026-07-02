@@ -49,6 +49,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Accessibility: popup contrast fixes + keyboard-dismissable debug overlay +
+  a11y doc.** The popup's muted and status text now uses CSS custom properties
+  tuned for **>= 4.5:1 contrast (WCAG 1.4.3)** in *both* light and dark modes (via
+  a `prefers-color-scheme` override); the previous fixed greys/ambers (`#888`,
+  `#b8860b`) fell to ~3.3-3.5:1 and were hard to read in one mode. The "explain
+  decision" debug overlay is now focusable and dismissable with **Esc** (it was
+  mouse-click only). New [`docs/accessibility.md`](docs/accessibility.md) records
+  the accessibility posture (keyboard operability, labelled controls,
+  colour-plus-text status, the blocked-image placeholder's `role` / focus / text
+  alternative) and its honest scope.
 - **`sync_version.py` now also keeps `package-lock.json` in step** with the
   canonical `pyproject.toml` version (its root and `packages[""]` fields, leaving
   every dependency version untouched); the pre-commit hook and

@@ -432,13 +432,20 @@
   function showOverlay(text) {
     const o = document.createElement("pre");
     o.textContent = text;
+    o.tabIndex = 0;
+    o.setAttribute("role", "status");
+    o.setAttribute("aria-label", "ImgEdge decision breakdown");
     o.style.cssText = "position:fixed;top:12px;right:12px;z-index:2147483647;max-width:90vw;"
       + "background:#111;color:#eee;font:12px/1.4 monospace;padding:10px 12px;border-radius:6px;"
       + "box-shadow:0 2px 12px rgba(0,0,0,.5);white-space:pre-wrap;cursor:pointer";
-    o.title = "click to dismiss";
-    o.addEventListener("click", () => o.remove());
+    o.title = "click or press Esc to dismiss";
+    const close = () => { o.remove(); document.removeEventListener("keydown", onKey, true); };
+    const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
+    o.addEventListener("click", close);
+    document.addEventListener("keydown", onKey, true);
     document.documentElement.appendChild(o);
-    setTimeout(() => o.remove(), 12000);
+    o.focus();
+    setTimeout(close, 12000);
   }
 
   function handleContext(action, srcUrl) {

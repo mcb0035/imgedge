@@ -83,6 +83,8 @@ flowchart LR
 - **[Evaluation & profiling](docs/evaluation.md)** — measure recall / FPR and
   decision latency of the voting ensemble.
 - **[Threat model](docs/threat-model.md)** — STRIDE + LINDDUN analysis.
+- **[Accessibility](docs/accessibility.md)** — keyboard, contrast, and
+  screen-reader posture of the popup and the blocked-image placeholder.
 - **[Security policy](SECURITY.md)** · **[Privacy](PRIVACY.md)** ·
   **[Contributing](CONTRIBUTING.md)**
 
