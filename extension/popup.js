@@ -26,6 +26,25 @@ const EXPORT_KEYS = [
 
 const $ = (id) => document.getElementById(id);
 
+// Fill data-i18n text/attributes from _locales (WebExtension i18n). Elements
+// carry the source-language text inline as a fallback; this replaces it with the
+// message for the user's locale. Runs once at load.
+function applyI18n() {
+  const t = (k) => chrome.i18n.getMessage(k);
+  for (const el of document.querySelectorAll("[data-i18n]")) {
+    const m = t(el.dataset.i18n);
+    if (m) el.textContent = m;
+  }
+  for (const el of document.querySelectorAll("[data-i18n-placeholder]")) {
+    const m = t(el.dataset.i18nPlaceholder);
+    if (m) el.setAttribute("placeholder", m);
+  }
+  for (const el of document.querySelectorAll("[data-i18n-title]")) {
+    const m = t(el.dataset.i18nTitle);
+    if (m) el.setAttribute("title", m);
+  }
+}
+
 // id -> { key, removeType, isHost }
 const LISTS = {
   whitelist: { key: KEYS.whitelist, removeType: "whitelistRemove", isHost: false },
@@ -34,6 +53,7 @@ const LISTS = {
 };
 
 async function load() {
+  applyI18n();
   const data = await chrome.storage.local.get(Object.values(KEYS));
   const s = Object.assign({}, DEFAULTS, data[KEYS.settings] || {});
   $("enabled").checked = s.enabled;
@@ -57,7 +77,7 @@ async function loadCounts() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) return;
     const c = await chrome.runtime.sendMessage({ type: "getCounts", tabId: tab.id });
-    if (c) $("counts").textContent = `Allowed ${c.allow || 0} \u00B7 Blocked ${c.block || 0}`;
+    if (c) $("counts").textContent = chrome.i18n.getMessage("countsLine", [String(c.allow || 0), String(c.block || 0)]);
   } catch {}
 }
 
@@ -84,14 +104,14 @@ async function checkHealth() {
   const settings = Object.assign({}, DEFAULTS, data[KEYS.settings] || {});
   let base;
   try { base = new URL(settings.endpoint || DEFAULTS.endpoint); }
-  catch { setHealthLine(el, "bad", "Classifier: invalid endpoint"); return; }
+  catch { setHealthLine(el, "bad", chrome.i18n.getMessage("healthInvalidEndpoint")); return; }
   try {
     if (!settings.token) {
       const r = await fetch(new URL("/health", base).href, { method: "GET" });
       if (!r.ok) throw new Error(String(r.status));
       const j = await r.json();
-      if (j.status !== "ok") setHealthLine(el, "warn", "Classifier: model not loaded");
-      else setHealthLine(el, "warn", "Classifier: token required \u2014 paste server token");
+      if (j.status !== "ok") setHealthLine(el, "warn", chrome.i18n.getMessage("healthModelNotLoaded"));
+      else setHealthLine(el, "warn", chrome.i18n.getMessage("healthTokenRequired"));
       return;
     }
     // Identity check: challenge the server to prove it knows the token.
@@ -102,7 +122,7 @@ async function checkHealth() {
     if (!vr.ok) throw new Error(String(vr.status));
     const vj = await vr.json();
     if (!eqHex(await hmacHex(settings.token, nonce), vj.proof)) {
-      setHealthLine(el, "bad", "Classifier: identity NOT verified \u2014 possible impersonation");
+      setHealthLine(el, "bad", chrome.i18n.getMessage("healthIdentityUnverified"));
       return;
     }
     // Verified: now safe to send the token for the detailed view.
@@ -119,13 +139,13 @@ async function checkHealth() {
       const prov = j.provider ? ` \u00B7 ${j.provider}` : "";
       const vote = j.voters && j.voters.length > 1 ? ` \u00B7 vote:${j.policy} \u00d7${j.voters.length}` : "";
       const perf = j.stats && j.stats.n ? ` \u00B7 ${j.stats.infer_ms}ms/img (n=${j.stats.n})` : "";
-      setHealthLine(el, "ok", `Classifier: verified${ver} \u00B7 ${j.target} (${j.taxa} taxa)${prov}${vote}${perf}`);
+      setHealthLine(el, "ok", `${chrome.i18n.getMessage("healthVerified")}${ver} \u00B7 ${j.target} (${j.taxa} ${chrome.i18n.getMessage("taxaLabel")})${prov}${vote}${perf}`);
       applyProfiles(j.profiles);
     } else {
-      setHealthLine(el, "warn", "Classifier: model not loaded");
+      setHealthLine(el, "warn", chrome.i18n.getMessage("healthModelNotLoaded"));
     }
   } catch {
-    setHealthLine(el, "bad", "Classifier: unreachable");
+    setHealthLine(el, "bad", chrome.i18n.getMessage("healthUnreachable"));
   }
 }
 
@@ -141,7 +161,7 @@ function renderList(id, items) {
   if (!items.length) {
     const li = document.createElement("li");
     li.className = "empty";
-    li.textContent = "Empty.";
+    li.textContent = chrome.i18n.getMessage("listEmpty");
     ul.appendChild(li);
     return;
   }
@@ -154,7 +174,7 @@ function renderList(id, items) {
     span.title = value;
 
     const btn = document.createElement("button");
-    btn.textContent = "Remove";
+    btn.textContent = chrome.i18n.getMessage("btnRemove");
     btn.addEventListener("click", async () => {
       const msg = { type: removeType };
       if (isHost) msg.host = value;
@@ -213,9 +233,8 @@ function applyProfiles(profiles) {
   const off = PROFILE_ORDER.filter((p) => profiles[p] === false);
   const hint = $("presethint");
   if (hint) {
-    hint.textContent = off.length
-      ? `${off.map((p) => p[0].toUpperCase() + p.slice(1)).join(" & ")} need the server started with that voter installed.`
-      : "";
+    const names = off.map((p) => chrome.i18n.getMessage("preset" + p[0].toUpperCase() + p.slice(1))).join(" & ");
+    hint.textContent = off.length ? chrome.i18n.getMessage("presetHintNeedsVoter", [names]) : "";
   }
 }
 
@@ -223,8 +242,8 @@ async function save() {
   const endpoint = $("endpoint").value.trim() || DEFAULTS.endpoint;
   const btn = $("save");
   if (!isLocalEndpoint(endpoint)) {
-    btn.textContent = "Endpoint must be local (localhost)";
-    setTimeout(() => (btn.textContent = "Save settings"), 1800);
+    btn.textContent = chrome.i18n.getMessage("saveEndpointLocal");
+    setTimeout(() => (btn.textContent = chrome.i18n.getMessage("btnSave")), 1800);
     return;
   }
   const settings = {
@@ -240,8 +259,8 @@ async function save() {
     profile: checkedProfile(),
   };
   await chrome.storage.local.set({ [KEYS.settings]: settings });
-  btn.textContent = "Saved";
-  setTimeout(() => (btn.textContent = "Save settings"), 1000);
+  btn.textContent = chrome.i18n.getMessage("btnSaved");
+  setTimeout(() => (btn.textContent = chrome.i18n.getMessage("btnSave")), 1000);
 }
 
 // ---- Backup: export / import (no token, no lists -- see PRIVACY.md) --------
@@ -293,7 +312,7 @@ async function exportSettings() {
   a.download = "imgedge-settings.json";
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
-  flash($("exportSettings"), "Exported");
+  flash($("exportSettings"), chrome.i18n.getMessage("flashExported"));
 }
 
 async function importSettings(file) {
@@ -302,13 +321,13 @@ async function importSettings(file) {
   try {
     incoming = JSON.parse(await file.text());
   } catch {
-    flash(btn, "Invalid file");
+    flash(btn, chrome.i18n.getMessage("flashInvalidFile"));
     return;
   }
   const data = await chrome.storage.local.get([KEYS.settings]);
   await chrome.storage.local.set({ [KEYS.settings]: sanitizeImport(incoming, data[KEYS.settings]) });
   await load();
-  flash(btn, "Imported");
+  flash(btn, chrome.i18n.getMessage("flashImported"));
 }
 
 $("save").addEventListener("click", save);

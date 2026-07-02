@@ -1,0 +1,258 @@
+{
+  "extName": {
+    "message": "ImgEdge",
+    "description": "Extension name shown in the browser and stores. A brand name; usually left untranslated."
+  },
+  "extDescription": {
+    "message": "Intercepts <img> loads, classifies them with a local server, blocks or shows the result, and supports per-image whitelist overrides.",
+    "description": "Extension description shown in the browser and stores."
+  },
+
+  "countsInitial": {
+    "message": "Allowed 0 · Blocked 0",
+    "description": "Popup tally before the live count arrives."
+  },
+  "countsLine": {
+    "message": "Allowed $1 · Blocked $2",
+    "description": "Popup tally of allowed vs blocked images on the active tab. $1 = allowed count, $2 = blocked count."
+  },
+
+  "healthChecking": {
+    "message": "Classifier: checking…",
+    "description": "Popup status while contacting the local classifier."
+  },
+  "healthInvalidEndpoint": {
+    "message": "Classifier: invalid endpoint",
+    "description": "Popup status when the configured endpoint URL is malformed."
+  },
+  "healthModelNotLoaded": {
+    "message": "Classifier: model not loaded",
+    "description": "Popup status when the server is up but no model is loaded."
+  },
+  "healthTokenRequired": {
+    "message": "Classifier: token required — paste server token",
+    "description": "Popup status when the server needs a token that hasn't been entered."
+  },
+  "healthIdentityUnverified": {
+    "message": "Classifier: identity NOT verified — possible impersonation",
+    "description": "Popup status when the server fails the HMAC identity challenge."
+  },
+  "healthUnreachable": {
+    "message": "Classifier: unreachable",
+    "description": "Popup status when the server can't be contacted."
+  },
+  "healthVerified": {
+    "message": "Classifier: verified",
+    "description": "Popup status prefix when the server's identity is verified; technical details are appended after it."
+  },
+  "taxaLabel": {
+    "message": "taxa",
+    "description": "Unit label after a taxa count, e.g. '5000 taxa'."
+  },
+
+  "optEnabled": {
+    "message": "Filtering enabled",
+    "description": "Checkbox: master on/off switch for filtering."
+  },
+  "headingDetectionMode": {
+    "message": "Detection mode",
+    "description": "Section heading for the speed/accuracy presets."
+  },
+  "presetFast": {
+    "message": "Fast",
+    "description": "Name of the fastest detection preset."
+  },
+  "presetFastDesc": {
+    "message": "Fastest · 2 models",
+    "description": "Sub-label for the Fast preset."
+  },
+  "presetBalanced": {
+    "message": "Balanced",
+    "description": "Name of the balanced detection preset."
+  },
+  "presetBalancedDesc": {
+    "message": "+ MobileCLIP",
+    "description": "Sub-label for the Balanced preset (adds the MobileCLIP model)."
+  },
+  "presetAccurate": {
+    "message": "Accurate",
+    "description": "Name of the most-thorough detection preset."
+  },
+  "presetAccurateDesc": {
+    "message": "Most thorough",
+    "description": "Sub-label for the Accurate preset."
+  },
+  "presetHintNeedsVoter": {
+    "message": "$1 need the server started with that voter installed.",
+    "description": "Hint shown when one or more presets are unavailable. $1 = preset name(s), e.g. 'Balanced & Accurate'."
+  },
+
+  "summaryAdvanced": {
+    "message": "Advanced",
+    "description": "Disclosure toggle that reveals advanced settings."
+  },
+  "fieldEndpoint": {
+    "message": "Classifier endpoint",
+    "description": "Label for the local classifier URL field."
+  },
+  "fieldToken": {
+    "message": "Server token",
+    "description": "Label for the server token field."
+  },
+  "phToken": {
+    "message": "paste from the server console",
+    "description": "Placeholder instructing where to get the server token."
+  },
+  "optShowToken": {
+    "message": "Show token",
+    "description": "Checkbox that reveals the masked token field."
+  },
+  "optSendData": {
+    "message": "Send image bytes (base64) too",
+    "description": "Checkbox to also POST the image bytes, not just the URL."
+  },
+  "optFailClosed": {
+    "message": "Block when classifier is unreachable",
+    "description": "Checkbox: fail closed (block) if the server can't be reached."
+  },
+  "optStrict": {
+    "message": "Strict mode (block until classifier allows)",
+    "description": "Checkbox: block everything until the classifier explicitly allows it."
+  },
+  "optScanBackgrounds": {
+    "message": "Scan CSS background images",
+    "description": "Checkbox to also filter CSS background images."
+  },
+  "headingTuning": {
+    "message": "Tuning",
+    "description": "Section heading for the threshold/salience sliders."
+  },
+  "tuneThreshold": {
+    "message": "Block threshold",
+    "description": "Label for the block-threshold slider."
+  },
+  "sliderBlockMore": {
+    "message": "Block more",
+    "description": "Left end label of a tuning slider (more aggressive blocking)."
+  },
+  "sliderBlockLess": {
+    "message": "Block less",
+    "description": "Right end label of a tuning slider (less aggressive blocking)."
+  },
+  "tuneSalience": {
+    "message": "Salience (size/detail) weighting",
+    "description": "Label for the salience-weighting slider."
+  },
+  "btnSave": {
+    "message": "Save settings",
+    "description": "Button that saves the advanced settings."
+  },
+  "btnSaved": {
+    "message": "Saved",
+    "description": "Transient confirmation shown on the Save button after saving."
+  },
+  "saveEndpointLocal": {
+    "message": "Endpoint must be local (localhost)",
+    "description": "Transient error on the Save button when a non-local endpoint is entered."
+  },
+
+  "headingBackup": {
+    "message": "Backup",
+    "description": "Section heading for settings export/import."
+  },
+  "backupNote": {
+    "message": "Save your setup to a JSON file or load one. The file holds only your detection mode, sliders, toggles, and endpoint — never your server token or any allowed/blocked URLs.",
+    "description": "Explanatory note above the export/import buttons."
+  },
+  "btnExport": {
+    "message": "Export settings",
+    "description": "Button that downloads settings as a JSON file."
+  },
+  "btnImport": {
+    "message": "Import settings",
+    "description": "Button that loads settings from a JSON file."
+  },
+  "flashExported": {
+    "message": "Exported",
+    "description": "Transient confirmation after exporting settings."
+  },
+  "flashImported": {
+    "message": "Imported",
+    "description": "Transient confirmation after importing settings."
+  },
+  "flashInvalidFile": {
+    "message": "Invalid file",
+    "description": "Transient error when an imported file can't be parsed."
+  },
+
+  "headingWhitelist": {
+    "message": "Whitelisted images",
+    "description": "Section heading for per-image whitelist entries."
+  },
+  "headingDomains": {
+    "message": "Allowed sites",
+    "description": "Section heading for whole-site allow entries."
+  },
+  "headingBlocklist": {
+    "message": "Blocked images",
+    "description": "Section heading for per-image block entries."
+  },
+  "listEmpty": {
+    "message": "Empty.",
+    "description": "Shown in a list that has no entries."
+  },
+  "btnRemove": {
+    "message": "Remove",
+    "description": "Button that removes a single list entry."
+  },
+  "privacyNote": {
+    "message": "Your settings and lists are stored locally in this browser (chrome.storage.local) and never leave your machine. Image classification is done by the local server you point to above.",
+    "description": "Privacy note at the bottom of the popup."
+  },
+
+  "placeholderBlocked": {
+    "message": "🚫 Blocked — click to show",
+    "description": "In-page placeholder text for a hidden image with no stated reason."
+  },
+  "placeholderBlockedReason": {
+    "message": "🚫 Blocked · $1 — click to show",
+    "description": "In-page placeholder text for a hidden image. $1 = short reason from the classifier."
+  },
+  "overlayLabel": {
+    "message": "ImgEdge decision breakdown",
+    "description": "Accessible label for the debug 'explain decision' overlay."
+  },
+  "overlayDismiss": {
+    "message": "click or press Esc to dismiss",
+    "description": "Tooltip on the debug overlay describing how to close it."
+  },
+
+  "menuAllowImage": {
+    "message": "ImgEdge: Allow this image",
+    "description": "Right-click context-menu item to allow the clicked image."
+  },
+  "menuBlockImage": {
+    "message": "ImgEdge: Block this image",
+    "description": "Right-click context-menu item to block the clicked image."
+  },
+  "menuAllowDomain": {
+    "message": "ImgEdge: Allow all images from this site",
+    "description": "Right-click context-menu item to allow the whole site."
+  },
+  "menuExplain": {
+    "message": "ImgEdge: Explain decision (debug)",
+    "description": "Right-click context-menu item to show the debug decision overlay."
+  },
+  "badgeUnreachable": {
+    "message": "ImgEdge — classifier unreachable; not filtering",
+    "description": "Toolbar-icon tooltip when the classifier can't be reached."
+  },
+  "badgeModelMissing": {
+    "message": "ImgEdge — model not loaded; not filtering",
+    "description": "Toolbar-icon tooltip when the server has no model loaded."
+  },
+  "badgeCounts": {
+    "message": "ImgEdge — allowed $1, blocked $2",
+    "description": "Toolbar-icon tooltip tally. $1 = allowed count, $2 = blocked count."
+  }
+}

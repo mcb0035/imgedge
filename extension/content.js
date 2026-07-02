@@ -165,8 +165,9 @@
     ph.setAttribute("role", "button");
     ph.setAttribute("tabindex", "0");
     ph.title = url || "";
-    ph.textContent =
-      "\u{1F6AB} Blocked" + (reason ? " \u00B7 " + reason : "") + " \u2014 click to show";
+    ph.textContent = reason
+      ? chrome.i18n.getMessage("placeholderBlockedReason", [reason])
+      : chrome.i18n.getMessage("placeholderBlocked");
     const w = el.getAttribute && el.getAttribute("width");
     const h = el.getAttribute && el.getAttribute("height");
     if (w && /^\d+$/.test(w)) ph.style.minWidth = w + "px";
@@ -434,11 +435,11 @@
     o.textContent = text;
     o.tabIndex = 0;
     o.setAttribute("role", "status");
-    o.setAttribute("aria-label", "ImgEdge decision breakdown");
+    o.setAttribute("aria-label", chrome.i18n.getMessage("overlayLabel"));
     o.style.cssText = "position:fixed;top:12px;right:12px;z-index:2147483647;max-width:90vw;"
       + "background:#111;color:#eee;font:12px/1.4 monospace;padding:10px 12px;border-radius:6px;"
       + "box-shadow:0 2px 12px rgba(0,0,0,.5);white-space:pre-wrap;cursor:pointer";
-    o.title = "click or press Esc to dismiss";
+    o.title = chrome.i18n.getMessage("overlayDismiss");
     const close = () => { o.remove(); document.removeEventListener("keydown", onKey, true); };
     const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
     o.addEventListener("click", close);

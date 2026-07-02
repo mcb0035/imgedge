@@ -8,6 +8,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Internationalized the extension (i18n).** All user-facing strings — the
+  popup UI, the in-page "Blocked" placeholder, the right-click menu items, and
+  the toolbar tooltip — now come from `extension/_locales/en/messages.json` via
+  the standard WebExtension i18n API (`chrome.i18n.getMessage`, `__MSG_…__` in
+  the manifest, and a small `data-i18n` loader in the popup). Adding a language
+  is now just dropping in `_locales/<lang>/messages.json` — no code changes. A
+  new `tests/js/i18n.test.mjs` asserts every referenced key is defined and every
+  defined message is used, so the catalogue can't drift. See
+  [docs/development.md](docs/development.md#internationalization-i18n).
 - **Signed releases + optional store publishing.** The release workflow now
   writes a `SHA256SUMS` and signs it with a **keyless Sigstore signature**
   (`cosign sign-blob`, OIDC — no stored key), then **self-verifies it**
