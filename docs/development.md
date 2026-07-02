@@ -169,13 +169,14 @@ into every commit.
 
 The version lives in **one** place — `[project].version` in
 [`pyproject.toml`](../pyproject.toml). [`tools/sync_version.py`](../tools/sync_version.py)
-propagates that canonical value into the three files that each need a *literal*
+propagates that canonical value into every file that carries a *literal*
 copy:
 
 | File | Field |
 | --- | --- |
 | [`extension/manifest.json`](../extension/manifest.json) | `"version"` — the published extension version |
 | [`package.json`](../package.json) | `"version"` |
+| [`package-lock.json`](../package-lock.json) | `"version"` (root + `packages[""]`) |
 | [`src/imgedge/__init__.py`](../src/imgedge/__init__.py) | `__version__` — runtime / `/health` |
 
 A [pre-commit](../.pre-commit-config.yaml) hook re-syncs whenever one of those

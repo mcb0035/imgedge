@@ -26,5 +26,12 @@ def test_package_json_and_pyproject_versions_match():
     assert pkg == _pyproject_version(), f"package.json {pkg!r} != pyproject"
 
 
+def test_package_lock_and_pyproject_versions_match():
+    lock = json.loads((ROOT / "package-lock.json").read_text(encoding="utf-8"))
+    want = _pyproject_version()
+    assert lock["version"] == want, f"package-lock root {lock['version']!r} != pyproject"
+    assert lock["packages"][""]["version"] == want, "package-lock packages[''] out of sync"
+
+
 def test_runtime_version_matches_pyproject():
     assert imgedge.__version__ == _pyproject_version(), f"imgedge.__version__ {imgedge.__version__!r} != pyproject"
