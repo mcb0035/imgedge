@@ -10,8 +10,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **Signed releases + optional store publishing.** The release workflow now
   writes a `SHA256SUMS` and signs it with a **keyless Sigstore signature**
-  (`cosign sign-blob`, OIDC — no stored key) alongside the existing SLSA
-  build-provenance attestation, attaching both to the GitHub Release;
+  (`cosign sign-blob`, OIDC — no stored key), then **self-verifies it**
+  (`cosign verify-blob`) so a bad signature fails the release before anything is
+  attested or published — alongside the existing SLSA build-provenance
+  attestation, attaching both to the GitHub Release;
   [SECURITY.md](SECURITY.md#verifying-a-release) documents the `cosign
   verify-blob` / `gh attestation verify` / checksum steps. Dormant, opt-in jobs
   publish to the **Chrome Web Store** and **Edge Add-ons** (gated on the
