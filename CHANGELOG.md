@@ -49,6 +49,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **`sync_version.py` now also keeps `package-lock.json` in step** with the
+  canonical `pyproject.toml` version (its root and `packages[""]` fields, leaving
+  every dependency version untouched); the pre-commit hook and
+  `tests/test_version.py` now cover it too. This fixes the lockfile version, which
+  had drifted to `0.1.0` while the project was `0.3.0`.
 - **Added an architecture overview + refreshed stale docs.** New
   [`docs/architecture.md`](docs/architecture.md) documents the high-level design
   (components, the request→verdict lifecycle, and trust boundaries); the README

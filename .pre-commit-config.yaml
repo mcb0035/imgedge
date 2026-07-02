@@ -29,8 +29,8 @@ repos:
         language: system
         files: \.js$
       - id: sync-version
-        name: sync version (pyproject -> manifest.json / package.json)
+        name: sync version (pyproject -> manifest / package(-lock).json / __init__)
         entry: python tools/sync_version.py
         language: system
-        files: ^(pyproject\.toml|extension/manifest\.json|package\.json|src/imgedge/__init__\.py)$
+        files: ^(pyproject\.toml|extension/manifest\.json|package\.json|package-lock\.json|src/imgedge/__init__\.py)$
         pass_filenames: false
