@@ -210,11 +210,56 @@ bump first, merge, then tag.
 
 3. **`release.yml` takes over** (on `windows-latest`): it verifies the tag matches
    `manifest.json`, builds the extension with [`package.ps1`](../package.ps1),
-   attaches a signed build-provenance attestation, and creates the GitHub Release
-   with auto-generated notes and the `dist/imgedge-<version>.zip` asset.
+   writes a `SHA256SUMS` and signs it with a **keyless Sigstore signature**
+   (`cosign sign-blob`, OIDC — no stored key), attaches a **SLSA build-provenance
+   attestation**, and creates the GitHub Release with auto-generated notes and the
+   `imgedge-<version>.zip`, `SHA256SUMS`, and `SHA256SUMS.cosign.bundle` assets
+   (plus a signed `imgedge.crx` when a key is configured — see below).
 
 If the tag and `manifest.json` disagree the release job fails fast — a guard
 against tagging before the version bump has merged.
+
+### Verifying a release
+
+Every asset is signed keyless (no long-lived key). See
+[SECURITY.md → Verifying a release](../SECURITY.md#verifying-a-release) for the
+exact `cosign verify-blob`, `gh attestation verify`, and checksum commands.
+
+### Optional: publish to the extension stores
+
+The store-publish jobs in [`release.yml`](../.github/workflows/release.yml) are
+**dormant by default** — each is skipped unless you opt in. Configure them under
+*Settings → Secrets and variables → Actions*: a repo **variable** is the on/off
+switch and the **secrets** hold the credentials.
+
+| Target | Set variable | Add secrets |
+| --- | --- | --- |
+| Chrome Web Store | `PUBLISH_CHROME = true` | `CWS_EXTENSION_ID`, `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN` |
+| Edge Add-ons | `PUBLISH_EDGE = true` | `EDGE_PRODUCT_ID`, `EDGE_CLIENT_ID`, `EDGE_API_KEY` |
+| Self-hosted `.crx` | *(none)* | `CRX_PRIVATE_KEY` |
+
+- **Chrome Web Store** — credentials come from a Google Cloud OAuth client with
+  the Chrome Web Store API enabled; see the
+  [`chrome-extension-upload`](https://github.com/mnao305/chrome-extension-upload)
+  action docs.
+- **Edge Add-ons** — credentials come from Partner Center (product id + API
+  client id/key); see the [`edge-addon`](https://github.com/wdzeng/edge-addon)
+  action docs.
+- **`.crx` signing key** — generate a stable RSA key once and store it
+  base64-encoded as `CRX_PRIVATE_KEY` so the extension ID stays constant across
+  releases (never commit it):
+
+  ```powershell
+  openssl genrsa 2048 > imgedge.pem
+  [Convert]::ToBase64String([IO.File]::ReadAllBytes("imgedge.pem")) | Set-Clipboard
+  # on bash/zsh:  base64 -w0 imgedge.pem
+  ```
+
+  With the secret set, the release also builds and signs `imgedge.crx`; without
+  it, only the store ZIP is produced. Keep `imgedge.pem` backed up — losing it
+  changes the extension's ID.
+
+The publish jobs run only after the signed GitHub Release succeeds.
 
 ## See also
 

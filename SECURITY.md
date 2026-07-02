@@ -159,6 +159,41 @@ password — so no password hashing (Argon2/bcrypt/scrypt/PBKDF2) is involved. A
 of the above is implementable with FLOSS (`hashlib`, `hmac`, `secrets`, platform
 TLS).
 
+## Verifying a release
+
+Each [GitHub Release](https://github.com/mcb0035/imgedge/releases) ships the
+extension ZIP with three independent, **keyless** ways to confirm it is genuine
+and untampered — there is no long-lived signing key to trust or leak; the
+signatures are bound to the release workflow's GitHub Actions OIDC identity and
+logged in the public Sigstore transparency log. Replace `<ver>` with the version.
+
+1. **Checksum** — the download matches the published hash:
+
+   ```powershell
+   (Get-FileHash imgedge-<ver>.zip -Algorithm SHA256).Hash.ToLower()   # compare to SHA256SUMS
+   # on bash/zsh:  sha256sum -c SHA256SUMS
+   ```
+
+2. **Sigstore signature** over `SHA256SUMS` (needs
+   [cosign](https://github.com/sigstore/cosign)):
+
+   ```bash
+   cosign verify-blob \
+     --bundle SHA256SUMS.cosign.bundle \
+     --certificate-identity-regexp '^https://github.com/mcb0035/imgedge/\.github/workflows/release\.yml@refs/tags/v' \
+     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+     SHA256SUMS
+   ```
+
+3. **Build provenance** (SLSA), tying the artifact to the workflow that built it
+   (needs the [GitHub CLI](https://cli.github.com/)):
+
+   ```bash
+   gh attestation verify imgedge-<ver>.zip --repo mcb0035/imgedge
+   ```
+
+The same checks apply to `imgedge.crx` when a self-hosted `.crx` is published.
+
 ## Known limitations & residual risks
 
 These are deliberately documented rather than hidden:

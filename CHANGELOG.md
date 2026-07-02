@@ -8,6 +8,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Signed releases + optional store publishing.** The release workflow now
+  writes a `SHA256SUMS` and signs it with a **keyless Sigstore signature**
+  (`cosign sign-blob`, OIDC — no stored key), then **self-verifies it**
+  (`cosign verify-blob`) so a bad signature fails the release before anything is
+  attested or published — alongside the existing SLSA build-provenance
+  attestation, attaching both to the GitHub Release;
+  [SECURITY.md](SECURITY.md#verifying-a-release) documents the `cosign
+  verify-blob` / `gh attestation verify` / checksum steps. Dormant, opt-in jobs
+  publish to the **Chrome Web Store** and **Edge Add-ons** (gated on the
+  `PUBLISH_CHROME` / `PUBLISH_EDGE` repo variables + their secrets), and a
+  **self-hosted signed `.crx`** is built when `CRX_PRIVATE_KEY` is set. See
+  [docs/development.md](docs/development.md#versioning--releases).
 - **Settings export / import.** The popup's new **Advanced → Backup** section
   saves your setup to a JSON file and loads it back. The file contains only the
   detection mode, tuning sliders, toggles, and endpoint — never the access token
