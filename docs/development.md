@@ -262,6 +262,44 @@ switch and the **secrets** hold the credentials.
 
 The publish jobs run only after the signed GitHub Release succeeds.
 
+## Internationalization (i18n)
+
+The extension is internationalized with the standard [WebExtension i18n
+API](https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/Internationalization).
+Every user-facing string lives in `extension/_locales/<lang>/messages.json`, and
+`en` is the `default_locale`; nothing user-facing is hard-coded in the scripts.
+
+How it's wired:
+
+- **Manifest** — `name`, `description`, and the action title use `__MSG_key__`
+  placeholders.
+- **Popup HTML** — elements carry a `data-i18n="key"` attribute (or
+  `data-i18n-placeholder` / `data-i18n-title` for those attributes) with the
+  English text inline as a fallback; `applyI18n()` in `popup.js` swaps in the
+  localized message at load. (HTML, unlike the manifest, isn't substituted
+  automatically, hence the tiny loader.)
+- **Scripts** — `popup.js`, `background.js`, and `content.js` call
+  `chrome.i18n.getMessage("key")`, using `$1` / `$2` for runtime values (the
+  counts line, the placeholder reason, the badge tooltip).
+
+### Add a translation
+
+1. Copy `extension/_locales/en/messages.json` to
+   `extension/_locales/<lang>/messages.json` (e.g. `de`, `ja`, `pt_BR`).
+2. Translate each `message` value. Leave the keys, the `$1` / `$2`
+   placeholders, and the brand name "ImgEdge" unchanged.
+3. Reload the extension; the browser picks the best match for the user's UI
+   language and falls back to `en`.
+
+No code changes are required — that is the point of internationalizing.
+
+### Add or change a string
+
+Add the key to `en/messages.json`, then reference it (a `data-i18n` attribute, a
+`__MSG_key__` placeholder, or `chrome.i18n.getMessage`). `npm test` runs
+`tests/js/i18n.test.mjs`, which fails if a referenced key is missing or a defined
+message is never used.
+
 ## See also
 
 - [Interface reference](api.md) — the local HTTP API and CLI.

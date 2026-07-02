@@ -210,110 +210,110 @@
   <body>
     <h1>ImgEdge</h1>
 
-    <div id="counts" class="counts">Allowed 0 &middot; Blocked 0</div>
-    <div id="health" class="health">Classifier: checking&hellip;</div>
+    <div id="counts" class="counts" data-i18n="countsInitial">Allowed 0 &middot; Blocked 0</div>
+    <div id="health" class="health" data-i18n="healthChecking">Classifier: checking&hellip;</div>
 
     <label class="row">
       <input type="checkbox" id="enabled" />
-      Filtering enabled
+      <span data-i18n="optEnabled">Filtering enabled</span>
     </label>
 
-    <h2>Detection mode</h2>
+    <h2 data-i18n="headingDetectionMode">Detection mode</h2>
     <div id="presets" class="presets">
       <label class="preset">
         <input type="radio" name="profile" value="fast" />
-        <span class="preset-body"><b>Fast</b><small>Fastest &middot; 2 models</small></span>
+        <span class="preset-body"><b data-i18n="presetFast">Fast</b><small data-i18n="presetFastDesc">Fastest &middot; 2 models</small></span>
       </label>
       <label class="preset">
         <input type="radio" name="profile" value="balanced" />
-        <span class="preset-body"><b>Balanced</b><small>+ MobileCLIP</small></span>
+        <span class="preset-body"><b data-i18n="presetBalanced">Balanced</b><small data-i18n="presetBalancedDesc">+ MobileCLIP</small></span>
       </label>
       <label class="preset">
         <input type="radio" name="profile" value="accurate" />
-        <span class="preset-body"><b>Accurate</b><small>Most thorough</small></span>
+        <span class="preset-body"><b data-i18n="presetAccurate">Accurate</b><small data-i18n="presetAccurateDesc">Most thorough</small></span>
       </label>
     </div>
     <p id="presethint" class="presethint"></p>
 
     <details id="advanced" class="advanced">
-      <summary>Advanced</summary>
+      <summary data-i18n="summaryAdvanced">Advanced</summary>
 
       <label class="field">
-        Classifier endpoint
+        <span data-i18n="fieldEndpoint">Classifier endpoint</span>
         <input type="text" id="endpoint" placeholder="http://localhost:8723/classify" />
       </label>
 
       <label class="field">
-        Server token
-        <input type="password" id="token" placeholder="paste from the server console" />
+        <span data-i18n="fieldToken">Server token</span>
+        <input type="password" id="token" data-i18n-placeholder="phToken" placeholder="paste from the server console" />
       </label>
 
       <label class="row">
         <input type="checkbox" id="showToken" />
-        Show token
+        <span data-i18n="optShowToken">Show token</span>
       </label>
 
       <label class="row">
         <input type="checkbox" id="sendData" />
-        Send image bytes (base64) too
+        <span data-i18n="optSendData">Send image bytes (base64) too</span>
       </label>
 
       <label class="row">
         <input type="checkbox" id="failClosed" />
-        Block when classifier is unreachable
+        <span data-i18n="optFailClosed">Block when classifier is unreachable</span>
       </label>
 
       <label class="row">
         <input type="checkbox" id="strict" />
-        Strict mode (block until classifier allows)
+        <span data-i18n="optStrict">Strict mode (block until classifier allows)</span>
       </label>
 
       <label class="row">
         <input type="checkbox" id="scanBackgrounds" />
-        Scan CSS background images
+        <span data-i18n="optScanBackgrounds">Scan CSS background images</span>
       </label>
 
-      <h2>Tuning</h2>
+      <h2 data-i18n="headingTuning">Tuning</h2>
 
       <label class="field">
-        Block threshold <span id="thresholdVal" class="sliderval"></span>
+        <span data-i18n="tuneThreshold">Block threshold</span> <span id="thresholdVal" class="sliderval"></span>
         <input type="range" id="threshold" min="0.05" max="0.95" step="0.01" value="0.18" />
-        <span class="sliderhint"><span>Block more</span><span>Block less</span></span>
+        <span class="sliderhint"><span data-i18n="sliderBlockMore">Block more</span><span data-i18n="sliderBlockLess">Block less</span></span>
       </label>
 
       <label class="field">
-        Salience (size/detail) weighting <span id="salienceVal" class="sliderval"></span>
+        <span data-i18n="tuneSalience">Salience (size/detail) weighting</span> <span id="salienceVal" class="sliderval"></span>
         <input type="range" id="salience" min="0" max="1" step="0.1" />
-        <span class="sliderhint"><span>Block more</span><span>Block less</span></span>
+        <span class="sliderhint"><span data-i18n="sliderBlockMore">Block more</span><span data-i18n="sliderBlockLess">Block less</span></span>
       </label>
 
-      <button id="save">Save settings</button>
+      <button id="save" data-i18n="btnSave">Save settings</button>
 
-      <h2>Backup</h2>
-      <p id="backupNote" class="note">
+      <h2 data-i18n="headingBackup">Backup</h2>
+      <p id="backupNote" class="note" data-i18n="backupNote">
         Save your setup to a JSON file or load one. The file holds only your
         detection mode, sliders, toggles, and endpoint &mdash; never your server
         token or any allowed/blocked URLs.
       </p>
       <div class="btnrow">
-        <button id="exportSettings" type="button">Export settings</button>
-        <button id="importSettings" type="button">Import settings</button>
+        <button id="exportSettings" type="button" data-i18n="btnExport">Export settings</button>
+        <button id="importSettings" type="button" data-i18n="btnImport">Import settings</button>
         <input type="file" id="importFile" accept="application/json,.json" hidden />
       </div>
     </details>
 
-    <h2>Whitelisted images</h2>
+    <h2 data-i18n="headingWhitelist">Whitelisted images</h2>
     <ul id="whitelist"></ul>
 
-    <h2>Allowed sites</h2>
+    <h2 data-i18n="headingDomains">Allowed sites</h2>
     <ul id="domains"></ul>
 
-    <h2>Blocked images</h2>
+    <h2 data-i18n="headingBlocklist">Blocked images</h2>
     <ul id="blocklist"></ul>
 
-    <p id="privacyNote" class="privacy">
+    <p id="privacyNote" class="privacy" data-i18n="privacyNote">
       Your settings and lists are stored locally in this browser
-      (<code>chrome.storage.local</code>) and never leave your machine. Image
+      (chrome.storage.local) and never leave your machine. Image
       classification is done by the local server you point to above.
     </p>
 

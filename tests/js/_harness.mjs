@@ -13,6 +13,19 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
+// Back the chrome.i18n stub with the real default-locale messages so the scripts
+// produce the same text they ship with, and tests can assert on it. Mirrors the
+// browser's positional $1..$9 substitution (and $$ -> $).
+const MESSAGES = JSON.parse(
+  fs.readFileSync(path.join(ROOT, "extension", "_locales", "en", "messages.json"), "utf8"),
+);
+function i18nGetMessage(key, subs) {
+  const entry = MESSAGES[key];
+  if (!entry) return "";
+  const arr = Array.isArray(subs) ? subs : subs != null ? [subs] : [];
+  return entry.message.replace(/\$(\$|\d)/g, (_, t) => (t === "$" ? "$" : arr[Number(t) - 1] ?? ""));
+}
+
 // A permissive stand-in for a DOM element: reads return benign defaults and every
 // method is a no-op, so the scripts' top-level DOM wiring runs without throwing.
 function makeElement() {
@@ -73,6 +86,10 @@ export function loadExtensionScript(file) {
       addEventListener() {},
     },
     chrome: {
+      i18n: {
+        getMessage: i18nGetMessage,
+        getUILanguage: () => "en",
+      },
       runtime: {
         id: "imgedge-test-id",
         getManifest: () => ({ version: "0.0.0-test" }),

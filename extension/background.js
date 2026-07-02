@@ -26,10 +26,10 @@ const DEFAULTS = {
 };
 
 const MENUS = [
-  { id: "imgedge-allow", title: "ImgEdge: Allow this image" },
-  { id: "imgedge-block", title: "ImgEdge: Block this image" },
-  { id: "imgedge-allow-domain", title: "ImgEdge: Allow all images from this site" },
-  { id: "imgedge-explain", title: "ImgEdge: Explain decision (debug)" },
+  { id: "imgedge-allow", titleKey: "menuAllowImage" },
+  { id: "imgedge-block", titleKey: "menuBlockImage" },
+  { id: "imgedge-allow-domain", titleKey: "menuAllowDomain" },
+  { id: "imgedge-explain", titleKey: "menuExplain" },
 ];
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -49,7 +49,7 @@ function setupMenus() {
   if (!chrome.contextMenus) return;
   chrome.contextMenus.removeAll(() => {
     for (const m of MENUS) {
-      chrome.contextMenus.create({ id: m.id, title: m.title, contexts: ["all"] });
+      chrome.contextMenus.create({ id: m.id, title: chrome.i18n.getMessage(m.titleKey), contexts: ["all"] });
     }
   });
 }
@@ -94,10 +94,10 @@ function sumTab(tabId) {
 }
 
 function badgeTitle(tabId) {
-  if (health === "error") return "ImgEdge \u2014 classifier unreachable; not filtering";
-  if (health === "model-missing") return "ImgEdge \u2014 model not loaded; not filtering";
+  if (health === "error") return chrome.i18n.getMessage("badgeUnreachable");
+  if (health === "model-missing") return chrome.i18n.getMessage("badgeModelMissing");
   const { allow, block } = sumTab(tabId);
-  return `ImgEdge \u2014 allowed ${allow}, blocked ${block}`;
+  return chrome.i18n.getMessage("badgeCounts", [String(allow), String(block)]);
 }
 
 function applyBadge(tabId) {
