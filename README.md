@@ -20,7 +20,8 @@ flowchart LR
     B -->|POST /classify + token<br/>+ image size and kind| C[Local classifier<br/>127.0.0.1:8723]
     C --> G[Voting ensemble]
     G -->|iNaturalist taxon model| H[Block evidence]
-    G -->|optional timm ImageNet model<br/>arachnid vs look-alike| H
+    G -->|timm ImageNet: arachnid vs look-alike| H
+    G -->|optional SigLIP / MobileCLIP<br/>open-vocabulary prompts| H
     H -->|scaled by image salience| D{"score ≥ threshold?"}
     D -->|yes| E[block → placeholder]
     D -->|no| F[show]
@@ -46,8 +47,15 @@ flowchart LR
      pushes toward a block when it recognizes a real arachnid and *against* one
      when it sees a mere look-alike (other insects, webs, geometric patterns,
      drawings);
+   - optional open-vocabulary voters (**SigLIP**, **MobileCLIP**) match free-text
+     prompts, catching arachnids the closed-vocab models have no class for;
    - the combined evidence is scaled by **image salience** so large, detailed,
      photorealistic images block more readily than tiny, flat, or fleeting ones.
+
+   The popup's **Detection mode** presets choose how many voters run (Fast →
+   Accurate), and a cascade skips the heavier voters when the cheap ones already
+   decide. See the [architecture overview](docs/architecture.md) for the full
+   design.
 
 ## Project layout
 
@@ -64,6 +72,8 @@ flowchart LR
 
 ## Documentation
 
+- **[Architecture](docs/architecture.md)** — high-level design: components, data
+  flow, and trust boundaries.
 - **[Developer guide](docs/development.md)** — set up, build, test, and benchmark
   ImgEdge from source.
 - **[Interface reference](docs/api.md)** — the local HTTP API (`/classify`,

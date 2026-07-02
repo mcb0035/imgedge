@@ -49,6 +49,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Added an architecture overview + refreshed stale docs.** New
+  [`docs/architecture.md`](docs/architecture.md) documents the high-level design
+  (components, the request→verdict lifecycle, and trust boundaries); the README
+  "How it works" section + diagram now include the SigLIP / MobileCLIP voters and
+  the Detection-mode presets (they previously described only iNat + timm). The
+  OpenSSF Best Practices badge is linked on the README front page.
 - **Documented the cryptography & network-protocol posture** in `SECURITY.md` for
   the OpenSSF Best Practices "silver" criteria: credential/key storage separation
   (token in its own `600` file, never in logs/cache/config; the `.crx` key only a

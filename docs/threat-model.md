@@ -152,7 +152,7 @@ dedupe · optional decode sandbox / AppContainer.
 
 ## 5. Did we do a good job? — pre-distribution checklist (OWASP ASVS L1, trimmed)
 
-- [x] **V1 Architecture** — this document exists and is reviewed each release.
+- [x] **V1 Architecture** — documented in [architecture.md](architecture.md) and this document; reviewed each release.
 - [x] **V5 Validation** — request size caps; image format allow-list; SSRF input validation.
 - [x] **V7 Errors/Logging** — generic client errors (**F11** ✅); no secrets in logs (token ✅).
 - [x] **V9 Comms** — loopback only; no CORS; no redirects on fetch; server identity proof (**F2**).
