@@ -49,6 +49,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Documented the cryptography & network-protocol posture** in `SECURITY.md` for
+  the OpenSSF Best Practices "silver" criteria: credential/key storage separation
+  (token in its own `600` file, never in logs/cache/config; the `.crx` key only a
+  transient CI secret), a protocol map (HTTPS-only downloads, optional-TLS public
+  image fetch, loopback-only API), TLS 1.2/1.3 with certificate + hostname
+  verification on by default (kept even under the SSRF IP-pinning), no private
+  headers sent over external TLS, and crypto-algorithm agility. Documentation
+  only — no behaviour change.
 - **Documented response & fix SLAs and a release-notes vulnerability policy.**
   `SECURITY.md` now states initial-response targets (≤ 14 days to acknowledge a
   vulnerability report or a bug report; ≤ 30 days an enhancement request), a
