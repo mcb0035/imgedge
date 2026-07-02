@@ -34,8 +34,13 @@ interface, see the [API reference](docs/api.md); for every tunable, the
   [private vulnerability reporting](https://github.com/mcb0035/imgedge/security/advisories/new)
   as described in [SECURITY.md](SECURITY.md).
 
-This is a single-maintainer hobby project, so please allow reasonable time for a
-response.
+This is a single-maintainer project, so responses are best-effort — but there are
+concrete commitments: the maintainer **acknowledges bug reports within 14 days**
+and **responds to enhancement requests within 30 days** (the answer may be "no"
+or a discussion of merits). Security reports have their own response and fix
+targets — see
+[SECURITY.md → Response and fix targets](SECURITY.md#response-and-fix-targets).
+These targets bind anyone triaging or reviewing on the project's behalf.
 
 ## Make a change
 
@@ -119,6 +124,33 @@ checks — see the [developer guide](docs/development.md#continuous-integration)
   *Verified*.
 - **Pin any new GitHub Action to a full commit SHA** (with a `# vX.Y.Z`
   comment) — the project keeps a clean OpenSSF Scorecard.
+
+### Security & vulnerabilities
+
+These requirements hold for every contribution, and for anyone triaging or
+reviewing on the project's behalf:
+
+- **Report vulnerabilities privately** — never in a public issue or PR. Use
+  [private vulnerability reporting](https://github.com/mcb0035/imgedge/security/advisories/new)
+  ([SECURITY.md](SECURITY.md)). The maintainer's response and fix targets
+  (≤ 14-day acknowledgement; ≤ 60-day fix for medium-or-higher severity) are in
+  [SECURITY.md → Response and fix targets](SECURITY.md#response-and-fix-targets).
+- **List fixed vulnerabilities in the release notes.** A change that fixes a
+  publicly known vulnerability in ImgEdge's *own* code must record it in the
+  [CHANGELOG](CHANGELOG.md) with its CVE (or comparable) identifier and
+  what/where it was fixed, per the
+  [disclosure policy](SECURITY.md#release-notes-and-disclosure). Dependency
+  advisories are handled by `pip-audit` / Dependabot / Scorecard, not re-listed.
+- **Fix confirmed medium+ findings on time.** Any medium-or-higher severity
+  (CVSS ≥ 4.0) exploitable vulnerability confirmed by static analysis (CodeQL,
+  the Ruff ruleset) or dynamic analysis (the tests or the ClusterFuzzLite
+  fuzzers) must be fixed within the project's ≤ 60-day target.
+- **Keep assertions on during analysis.** Dynamic analysis runs *with assertions
+  enabled* so faults surface before release: `pytest` runs without `-O` (so
+  `assert` is live) and turns warnings into errors (`filterwarnings = ["error"]`
+  in [`pyproject.toml`](pyproject.toml)), and the ClusterFuzzLite fuzzers build
+  under AddressSanitizer. Don't weaken these — they are pre-deployment checks; the
+  classifier's normal run ships without them.
 
 ### Handling the arachnid datasets — please read
 
