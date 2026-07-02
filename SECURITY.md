@@ -149,8 +149,6 @@ uses only standard, published primitives from the Python standard library:
 - **Asset integrity** — model / taxonomy files are pinned to a **SHA-256**,
   verified on download *and* before load; Python dependencies are hash-pinned
   (`pip install --require-hashes`).
-- **Transport** — model downloads and image fetches use **HTTPS** (platform TLS);
-  the fetch follows no redirects.
 
 No broken or weak algorithms are used (no MD5, SHA-1, RC4, or single DES) and no
 cipher modes are configured; SHA-256 and a ~144-bit token meet the NIST-2030
@@ -158,6 +156,63 @@ minimums. No user passwords are stored — the token is a random secret, not a
 password — so no password hashing (Argon2/bcrypt/scrypt/PBKDF2) is involved. All
 of the above is implementable with FLOSS (`hashlib`, `hmac`, `secrets`, platform
 TLS).
+
+### Credential & key storage
+
+Authentication credentials and keys live in their **own files, separate from
+configuration, logs, and the cache**, and can be replaced without recompiling:
+
+- **Access token** — stored only in its own file (default `~/.imgedge_token`,
+  created atomically with `O_EXCL` and mode `600`) or supplied via the
+  `IMGEDGE_TOKEN` environment variable. Rotate it by editing the env var or
+  deleting the file (the server mints a fresh one on start) — no rebuild. It is
+  **never** written to the log, the verdict cache (which stores only HMACs), or a
+  config file.
+- **Release signing key** — the optional self-hosted `.crx` key exists only as a
+  CI secret (`CRX_PRIVATE_KEY`), written to a transient file during packaging and
+  deleted immediately; it never lives in the repo or the runtime. The Sigstore
+  release-signing path is keyless (no stored private key at all).
+- **No other secrets** are held at runtime — no passwords, no long-lived keys.
+
+### Network protocols & TLS
+
+ImgEdge makes three kinds of connection; each uses a secure protocol or stays on
+the loopback interface, and no insecure protocol (FTP, telnet, SSH, SNMP, SSLv3)
+is used or enabled:
+
+| Path | Protocol | Notes |
+| --- | --- | --- |
+| Model / taxonomy download | **HTTPS only** | Non-HTTPS URLs refused; redirects restricted to `github.com` / `githubusercontent.com`; assets SHA-256 pinned. |
+| Image fetch (to classify) | **HTTPS or HTTP** | HTTP is allowed because image URLs are public page content with no credentials; set `IMGEDGE_FETCH_HTTPS_ONLY=1` to require TLS. Follows no redirects. |
+| Extension &harr; classifier | **HTTP on `127.0.0.1`** | Loopback only — the traffic never crosses a network, so TLS adds nothing; the port is not bound beyond localhost. |
+
+- **TLS version** — HTTPS uses Python's default `ssl` context (platform TLS),
+  which negotiates **TLS 1.2 / 1.3**; SSLv3 and TLS 1.0/1.1 are not offered.
+- **Certificate verification is on by default** — the default context verifies
+  the chain **and** the hostname. The SSRF guard pins the socket to the
+  pre-validated IP but still wraps TLS with the original `server_hostname`, so
+  certificate + hostname checks run against the real host (never the bare IP), on
+  the main resource and any redirect target. Verification is disabled nowhere in
+  the code.
+- **No private data before verification** — the access token is sent **only** to
+  the loopback classifier (never over an external connection); outbound HTTPS
+  image fetches carry no cookies, tokens, or auth headers (just a neutral
+  `User-Agent`), so no private header is ever transmitted, and TLS verification
+  precedes every request regardless.
+
+### Algorithm agility
+
+Cryptography is deliberately swappable if a primitive is ever weakened:
+
+- **Transport** — TLS cipher selection is negotiated by the platform library, so
+  AES-GCM and ChaCha20-Poly1305 (among others) are available and chosen per
+  connection; the suite can be constrained via a custom `ssl` context without
+  touching application logic.
+- **Hashing / MAC** — the integrity and HMAC code uses `hashlib`, which exposes
+  the full **SHA-2** family (SHA-224/256/384/512) and **SHA-3**, so moving off
+  SHA-256 is a one-line constructor change (plus re-pinning the assets).
+- **Token** — generation is algorithm-independent CSPRNG output (`secrets`), not
+  bound to any cipher.
 
 ## Verifying a release
 
