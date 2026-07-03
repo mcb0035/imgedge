@@ -86,7 +86,7 @@ flowchart LR
 - **[Accessibility](docs/accessibility.md)** — keyboard, contrast, and
   screen-reader posture of the popup and the blocked-image placeholder.
 - **[Security policy](SECURITY.md)** · **[Privacy](PRIVACY.md)** ·
-  **[Contributing](CONTRIBUTING.md)**
+  **[Contributing](CONTRIBUTING.md)** · **[Code of Conduct](CODE_OF_CONDUCT.md)**
 
 ## Quick start
 
@@ -248,7 +248,8 @@ disclosure (including the one-time model download and the classification fetch).
 
 Bug reports, feature ideas, and pull requests are welcome — see
 [CONTRIBUTING.md](CONTRIBUTING.md) for how to get the code, give feedback, and
-the standards a change has to meet. Security issues go through
+the standards a change has to meet. All participation is subject to our
+[Code of Conduct](CODE_OF_CONDUCT.md). Security issues go through
 [private reporting](https://github.com/mcb0035/imgedge/security/advisories/new)
 (see [SECURITY.md](SECURITY.md)), not public issues.
 
