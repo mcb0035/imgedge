@@ -7,6 +7,9 @@ Manifest V3 browser extension plus an on-device Python image classifier. This
 page covers how to **get the code**, how to **give feedback**, and the
 **standards a change has to meet** to be merged.
 
+Please note that this project is released with a [Code of Conduct](CODE_OF_CONDUCT.md). By
+participating in this project, you agree to abide by its terms.
+
 ## Get the software
 
 ```powershell
