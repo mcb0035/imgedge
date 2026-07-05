@@ -8,6 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Documented the upgrade path.**
+  [docs/development.md](docs/development.md#upgrading) now explains how to upgrade
+  the classifier (`git pull` + `pip install`) and the extension (reload / store
+  auto-update, with settings preserved in `chrome.storage.local` + the Backup
+  export/import), states the SemVer + latest-only support policy, and points to
+  the CHANGELOG for any per-release migration steps. Linked from
+  [SECURITY.md](SECURITY.md#supported-versions).
 - **Added SPDX license + copyright headers to every source file.** Each tracked
   source file (Python, JS, CSS, HTML, shell, PowerShell, YAML, Dockerfile, TOML)
   now begins with `Copyright the ImgEdge contributors.` +
