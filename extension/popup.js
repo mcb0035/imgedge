@@ -11,6 +11,7 @@ const DEFAULTS = {
   endpoint: "http://localhost:8723/classify",
   token: "",
   sendData: false,
+  inBrowserOnly: false,
   failClosed: false,
   strict: false,
   scanBackgrounds: true,
@@ -22,7 +23,7 @@ const DEFAULTS = {
 // Keys included when exporting/importing a config. Deliberately excludes `token`
 // (a secret) and the allow/block lists (they contain URLs) -- see PRIVACY.md.
 const EXPORT_KEYS = [
-  "enabled", "endpoint", "sendData", "failClosed",
+  "enabled", "endpoint", "sendData", "inBrowserOnly", "failClosed",
   "strict", "scanBackgrounds", "threshold", "salience", "profile",
 ];
 
@@ -62,6 +63,7 @@ async function load() {
   $("endpoint").value = s.endpoint;
   $("token").value = s.token;
   $("sendData").checked = s.sendData;
+  $("inBrowserOnly").checked = s.inBrowserOnly;
   $("failClosed").checked = s.failClosed;
   $("strict").checked = s.strict;
   $("scanBackgrounds").checked = s.scanBackgrounds;
@@ -104,6 +106,10 @@ async function checkHealth() {
   const el = $("health");
   const data = await chrome.storage.local.get([KEYS.settings]);
   const settings = Object.assign({}, DEFAULTS, data[KEYS.settings] || {});
+  if (settings.inBrowserOnly) {
+    setHealthLine(el, "ok", chrome.i18n.getMessage("healthInBrowser"));
+    return;
+  }
   let base;
   try { base = new URL(settings.endpoint || DEFAULTS.endpoint); }
   catch { setHealthLine(el, "bad", chrome.i18n.getMessage("healthInvalidEndpoint")); return; }
@@ -253,6 +259,7 @@ async function save() {
     endpoint,
     token: $("token").value.trim(),
     sendData: $("sendData").checked,
+    inBrowserOnly: $("inBrowserOnly").checked,
     failClosed: $("failClosed").checked,
     strict: $("strict").checked,
     scanBackgrounds: $("scanBackgrounds").checked,
@@ -340,7 +347,7 @@ $("showToken").addEventListener("change", (e) => {
 // Toggle checkboxes persist immediately (no Save needed), so enabling/disabling
 // filtering sticks across page reloads and navigation. endpoint/token still use
 // the Save button (endpoint needs localhost validation; the token is a paste field).
-const TOGGLES = ["enabled", "sendData", "failClosed", "strict", "scanBackgrounds"];
+const TOGGLES = ["enabled", "sendData", "inBrowserOnly", "failClosed", "strict", "scanBackgrounds"];
 async function persistToggle(id) {
   const data = await chrome.storage.local.get([KEYS.settings]);
   const s = Object.assign({}, DEFAULTS, data[KEYS.settings] || {});

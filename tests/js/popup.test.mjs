@@ -80,7 +80,7 @@ test("applyProfiles greys out unavailable presets and falls back to the best ava
 test("buildExport includes only non-secret settings (no token, no lists)", () => {
   const s = {
     enabled: true, endpoint: "http://localhost:8723/classify", token: "SECRET-TOKEN",
-    sendData: false, failClosed: true, strict: false, scanBackgrounds: true,
+    sendData: false, inBrowserOnly: false, failClosed: true, strict: false, scanBackgrounds: true,
     threshold: 0.3, salience: 0.8, profile: "accurate",
   };
   const out = context.buildExport(s);
@@ -89,7 +89,7 @@ test("buildExport includes only non-secret settings (no token, no lists)", () =>
   assert.ok(!("token" in out.settings), "token must never be exported");
   assert.equal(JSON.stringify(out).includes("SECRET-TOKEN"), false);
   assert.deepEqual(Object.keys(out.settings).sort(), [
-    "enabled", "endpoint", "failClosed", "profile", "salience",
+    "enabled", "endpoint", "failClosed", "inBrowserOnly", "profile", "salience",
     "scanBackgrounds", "sendData", "strict", "threshold",
   ]);
   assert.equal(out.settings.profile, "accurate");
