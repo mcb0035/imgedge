@@ -68,6 +68,10 @@ omit = [
     "*/imgedge/classifier/appcontainer.py",
     "*/imgedge/classifier/confine.py",
     "*/imgedge/classifier/ac_pool.py",
+    # Opt-in out-of-process decode pool: worker-subprocess orchestration is
+    # integration-level (the fast unit gate never spawns workers); its testable
+    # surface is covered by tests/test_decode_pool.py.
+    "*/imgedge/classifier/decode_pool.py",
     # Optional backends / offline tools (extra deps not installed in the gate)
     "*/imgedge/voters/timm_voter.py",
     "*/imgedge/voters/siglip_voter.py",

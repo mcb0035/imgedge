@@ -9,6 +9,8 @@ bytes and no network — so the suite stays image-free and offline.
 
 import json
 
+import pytest
+
 import imgedge.classifier.server as server
 
 
@@ -189,3 +191,38 @@ def test_host_allowed_respects_allowlist(monkeypatch):
     assert server._host_allowed("evil.org") is False
     monkeypatch.setattr(server, "ALLOW_HOSTS", ())
     assert server._host_allowed("anything.example") is True  # empty allowlist -> allow all
+
+
+# ---- SSRF host resolution (mocked getaddrinfo -- no real network) -----------
+def _addrinfo(ip, port=0):
+    return [(2, 1, 6, "", (ip, port))]  # (family, type, proto, canonname, sockaddr)
+
+
+def test_is_public_host_checks_resolved_addresses(monkeypatch):
+    def _fail(*a, **k):
+        raise server.socket.gaierror("no such host")
+
+    monkeypatch.setattr(server.socket, "getaddrinfo", _fail)
+    assert server._is_public_host("nope.invalid") is False  # unresolvable
+
+    monkeypatch.setattr(server.socket, "getaddrinfo", lambda *a, **k: [])
+    assert server._is_public_host("void") is False  # empty result
+
+    monkeypatch.setattr(server.socket, "getaddrinfo", lambda *a, **k: _addrinfo("10.0.0.1"))
+    assert server._is_public_host("intranet") is False  # resolves to a private IP
+
+    monkeypatch.setattr(server.socket, "getaddrinfo", lambda *a, **k: _addrinfo("93.184.216.34"))
+    assert server._is_public_host("example.com") is True  # public
+
+
+def test_resolve_pinned_addr_requires_public(monkeypatch):
+    monkeypatch.setattr(server.socket, "getaddrinfo", lambda *a, **k: _addrinfo("93.184.216.34", 443))
+    assert server._resolve_pinned_addr("example.com", 443) == ("93.184.216.34", 443)
+
+    monkeypatch.setattr(server.socket, "getaddrinfo", lambda *a, **k: _addrinfo("127.0.0.1", 443))
+    with pytest.raises(OSError):
+        server._resolve_pinned_addr("localhost", 443)  # non-public -> blocked
+
+    monkeypatch.setattr(server.socket, "getaddrinfo", lambda *a, **k: [])
+    with pytest.raises(OSError):
+        server._resolve_pinned_addr("void", 80)  # no addresses

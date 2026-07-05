@@ -10,10 +10,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **Raised the statement-coverage gate to 80%.** New unit tests for `server.py`
   (classify error / cache paths, `VerdictCache`, `_verify_pinned`, `_env_ports`,
-  `_host_allowed`) and `voters/base.py` (`assess` / `vote`, the `_decide`
-  policies, the out-of-process decoder path) lift core coverage to ~81%, and CI's
-  `--cov-fail-under` is now **80** (was 55). Satisfies the OpenSSF
-  `test_statement_coverage80` criterion.
+  `_host_allowed`, and the SSRF host-resolution guards) and `voters/base.py`
+  (`assess` / `vote`, the `_decide` policies, the out-of-process decoder path)
+  lift the gated core to ~83%, and CI's `--cov-fail-under` is now **80** (was 55).
+  The opt-in out-of-process decode sandbox (`decode_pool.py`) is scoped out of the
+  gate like its sibling sandbox modules — its subprocess orchestration is
+  integration-level and stays covered by `tests/test_decode_pool.py`. Satisfies
+  the OpenSSF `test_statement_coverage80` criterion.
 - **Documented a security-acknowledgments policy.**
   [SECURITY.md](SECURITY.md#acknowledgments) now records that every security issue
   resolved so far was maintainer-identified (no external reports yet) and commits
