@@ -667,7 +667,7 @@ def _host_allowed(host):
 
 def _url_allowed(url):
     """Scheme, https-only, host-allowlist, and port checks on the user URL."""
-    if not url:
+    if not isinstance(url, str) or not url:
         return False
     parsed = urlparse(url)
     scheme = parsed.scheme.lower()
@@ -715,7 +715,7 @@ def _acquire_host_slot(host):
 
 def fetch_image_bytes(url, data):
     """Bytes from an inline data URL, else fetch the http(s) URL (SSRF-guarded)."""
-    if data and data.startswith("data:"):
+    if isinstance(data, str) and data.startswith("data:"):
         try:
             return base64.b64decode(data.split(",", 1)[1])
         except (ValueError, IndexError):
@@ -956,12 +956,17 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length) or b"{}")
         except (ValueError, TypeError):
             payload = {}
+        if not isinstance(payload, dict):
+            payload = {}  # valid JSON that isn't an object (e.g. an array) carries no fields
+        url = payload.get("url")
+        data = payload.get("data")
+        meta = payload.get("meta")
         self._send_json(
             200,
             classify(
-                payload.get("url"),
-                payload.get("data"),
-                payload.get("meta"),
+                url if isinstance(url, str) else None,
+                data if isinstance(data, str) else None,
+                meta if isinstance(meta, dict) else None,
                 _clamp01(payload.get("threshold")),
                 _clamp01(payload.get("salience")),
                 payload.get("profile"),
