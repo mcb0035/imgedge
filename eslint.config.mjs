@@ -29,4 +29,9 @@ export default [
       globals: { ...globals.node, ...globals.browser },
     },
   },
+  {
+    // Pure ES-module core of the in-browser classifier (no DOM / Node globals).
+    files: ["extension/inbrowser/**/*.mjs"],
+    languageOptions: { ecmaVersion: 2022, sourceType: "module" },
+  },
 ];

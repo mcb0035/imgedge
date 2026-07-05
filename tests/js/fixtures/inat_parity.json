@@ -1,0 +1,18 @@
+{
+  "_comment": "Reference values from the real Python pipeline (imgedge.inat.inat_filter, prep_input/postprocess). The Node parity test (tests/js/inbrowser_parity.test.mjs) and the pytest (tests/test_inbrowser_parity.py) both assert against these so the JS and Python ports cannot silently diverge.",
+  "tolerance": 1e-05,
+  "preprocess": {
+    "width": 2,
+    "height": 2,
+    "divisor": 127.5,
+    "offset": -1.0,
+    "rgba": [0, 0, 0, 255, 255, 255, 255, 255, 127, 128, 64, 255, 10, 200, 90, 255],
+    "expected_nhwc": [-1.0, -1.0, -1.0, 1.0, 1.0, 1.0, -0.003921568393707275, 0.003921627998352051, -0.498039186000824, -0.9215686321258545, 0.5686274766921997, -0.29411762952804565]
+  },
+  "postprocess": {
+    "num_classes": 8,
+    "output": [-0.5, 2.0, 0.0, 1.0, 3.0, -1.0, 0.5, 0.25],
+    "arachnida_leaf_indices": [1, 4, 6],
+    "expected_score": 0.8148148655891418
+  }
+}
