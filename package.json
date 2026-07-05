@@ -1,6 +1,6 @@
 {
   "name": "imgedge-extension",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Lint config for the ImgEdge MV3 extension front-end (background.js, content.js, popup.js).",
   "type": "module",
