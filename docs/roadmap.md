@@ -68,10 +68,12 @@ the MV3 service worker has no DOM/canvas.
 
 ### Follow-ups (in-browser)
 
-- **Salience port.** The server scales positive evidence by image salience
-  (size / surface kind / photorealism, boost-only); the in-browser ensemble
-  currently uses a flat multiplier of `1.0`. Port `voters/salience.py` to JS so
-  large / photoreal images are weighted like the server.
+- **Salience (measured — not worth porting yet).** The server scales positive
+  evidence by image salience (size / surface kind / photorealism, boost-only);
+  the in-browser ensemble uses a flat `1.0`. Measured with `tools/tune_inbrowser.py`
+  on the eval reports, applying salience to the 2-model combo is a wash — ±1–2 %,
+  dataset-dependent (slightly helps OpenImages, slightly hurts the harder
+  iNaturalist set) — so the JS port of `voters/salience.py` isn't worth it for now.
 - **timm center-crop parity.** The in-browser path resizes straight to 224²,
   while the server resizes the shorter side then center-crops (`crop_pct` 0.875,
   bicubic). Match it — or confirm the stretch is good enough — if Fast-mode
