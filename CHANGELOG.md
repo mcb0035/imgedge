@@ -29,6 +29,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   runtime are bundled into `extension/inbrowser/vendor/` by
   `tools/bundle_inbrowser.py` (git-ignored, not committed). The background
   fallback logic is unit-tested and the offscreen classifier is browser-validated.
+- **In-browser "only" mode (no server).** A new "Classify in the browser (no
+  server needed)" popup toggle (`inBrowserOnly`) routes classification straight
+  to the bundled model, skipping the local server entirely — no failed
+  connection attempts, no double-fetch. The popup health line shows "In-browser
+  mode" instead of "unreachable".
 
 ### Changed
 

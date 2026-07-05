@@ -21,6 +21,7 @@ const DEFAULTS = {
   sendData: false, // POST base64 image bytes in addition to the URL
   failClosed: false, // block when the classifier can't be reached
   inBrowserFallback: true, // if the server is unreachable, classify locally in an offscreen document
+  inBrowserOnly: false, // skip the server entirely and always classify locally (no server needed)
   strict: false, // block by default; show only what the classifier explicitly allows
   scanBackgrounds: true, // also filter CSS background / list images
   threshold: 0.5, // block threshold, sent per request (lower = block more); popup slider
@@ -321,7 +322,7 @@ async function classifyInBrowser(url, data, threshold) {
 // Verdict when the server can't be used: try the in-browser fallback, else fail
 // open/closed per settings.
 async function unreachableVerdict(s, strict, url, data, reason, error) {
-  if (s.inBrowserFallback) {
+  if (s.inBrowserFallback || s.inBrowserOnly) {
     try {
       const r = await classifyInBrowser(url, data, s.threshold);
       if (r) {
@@ -352,6 +353,11 @@ async function classify(url, data, meta) {
   if (whitelist.includes(url)) return { allow: true };
   const host = hostOf(url);
   if (host && domains.includes(host)) return { allow: true };
+
+  // "In-browser only": never contact the server -- classify locally straight away.
+  if (s.inBrowserOnly) {
+    return await unreachableVerdict(s, strict, url, data, "inbrowser-unavailable");
+  }
 
   if (s.token && !(await ensureServerTrusted(s))) {
     return await unreachableVerdict(s, strict, url, data, "server-unverified");

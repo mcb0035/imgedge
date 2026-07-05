@@ -107,6 +107,14 @@
     "message": "Show token",
     "description": "Checkbox that reveals the masked token field."
   },
+  "optInBrowserOnly": {
+    "message": "Classify in the browser (no server needed)",
+    "description": "Checkbox: run the bundled model locally in the browser instead of contacting the classifier server."
+  },
+  "healthInBrowser": {
+    "message": "In-browser mode (no server)",
+    "description": "Status line shown when classifying locally in the browser."
+  },
   "optSendData": {
     "message": "Send image bytes (base64) too",
     "description": "Checkbox to also POST the image bytes, not just the URL."

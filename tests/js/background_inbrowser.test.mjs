@@ -96,3 +96,18 @@ test("classifyInBrowser uses a data: URL directly (no fetch needed)", async () =
   assert.equal(created(), 1);
   assert.equal(fetched, false); // the data: URL is used as-is, not re-fetched
 });
+
+test("classify with inBrowserOnly skips the server and classifies in-browser", async () => {
+  const { context } = loadExtensionScript("background.js");
+  context.chrome.storage.local.get = async () => ({ "imgedge:settings": { inBrowserOnly: true } });
+  let serverFetched = false;
+  context.fetch = async () => {
+    serverFetched = true;
+    throw new Error("no server");
+  };
+  withOffscreen(context, () => ({ ok: true, blocked: true, score: 0.9 }));
+  const res = await context.classify("http://example.com/a.jpg", "data:image/png;base64,AAAA", null);
+  assert.equal(serverFetched, false); // never contacted the server
+  assert.equal(res.reason, "inbrowser");
+  assert.equal(res.allow, false);
+});
