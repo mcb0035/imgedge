@@ -32,8 +32,10 @@ function ensureReady() {
       const ort = globalThis.ort;
       ort.env.wasm.wasmPaths = resource("vendor/");
       const meta = await (await fetch(resource("inat_web.json"))).json();
+      // WASM only: a headless offscreen document can't reliably get a WebGPU
+      // context, and the WebGPU EP can crash/hang the document while loading.
       const session = await ort.InferenceSession.create(resource("vendor/inat.onnx"), {
-        executionProviders: ["webgpu", "wasm"],
+        executionProviders: ["wasm"],
       });
       return { ort, session, meta };
     })().catch((e) => {
