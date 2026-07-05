@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Documented a security-acknowledgments policy.**
+  [SECURITY.md](SECURITY.md#acknowledgments) now records that every security issue
+  resolved so far was maintainer-identified (no external reports yet) and commits
+  to crediting future reporters by name/handle unless they request anonymity.
 - **Documented the upgrade path.**
   [docs/development.md](docs/development.md#upgrading) now explains how to upgrade
   the classifier (`git pull` + `pip install`) and the extension (reload / store

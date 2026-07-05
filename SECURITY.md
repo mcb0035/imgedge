@@ -77,6 +77,18 @@ OpenSSF Scorecard instead of being re-listed per release, because enumerating
 every transitive dependency's advisories does not scale. A release that fixes no
 such publicly known project vulnerability simply lists none.
 
+## Acknowledgments
+
+All security issues resolved in ImgEdge to date were identified **internally** by
+the maintainer — through the [threat model](docs/threat-model.md) (STRIDE +
+LINDDUN), code review, and static/dynamic analysis (CodeQL, `pip-audit`,
+ClusterFuzzLite) — rather than reported by an outside party, so there are no
+external reporters to credit yet.
+
+Reporters of future externally-reported vulnerabilities will be credited here by
+name or handle, unless they ask to remain anonymous. If you report an issue and
+have a preference for how you are credited, say so in the report.
+
 ## Security model
 
 **Local-only by design.** The classifier binds to `127.0.0.1:8723`. Image
