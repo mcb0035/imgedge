@@ -91,7 +91,8 @@ anonymous or pseudonymous sign-offs are not accepted.
 
 A CI check ([`dco.yml`](.github/workflows/dco.yml)) enforces this: a pull request
 whose commits are not all signed off fails until you amend or rebase
-(`--signoff`) and force-push.
+(`--signoff`) and force-push. Automated dependency PRs from trusted bots
+(currently Dependabot) are allow-listed and exempt from the sign-off check.
 
 ## License headers
 
