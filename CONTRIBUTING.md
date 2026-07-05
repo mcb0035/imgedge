@@ -104,8 +104,9 @@ SPDX-License-Identifier: Apache-2.0
 
 New source files should carry it. `python tools/add_license_headers.py` adds the
 header to any tracked source file missing it (idempotent), and
-`python tools/add_license_headers.py --check` verifies coverage. JSON files are
-exempt (JSON has no comment syntax).
+`python tools/add_license_headers.py --check` verifies coverage — CI runs this
+check on every push and pull request, so a missing header fails the build. JSON
+files are exempt (JSON has no comment syntax).
 
 ## Requirements for acceptable contributions
 

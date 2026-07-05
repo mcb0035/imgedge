@@ -13,8 +13,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   now begins with `Copyright the ImgEdge contributors.` +
   `SPDX-License-Identifier: Apache-2.0` in its comment syntax. A new idempotent
   helper, [`tools/add_license_headers.py`](tools/add_license_headers.py), applies
-  and (with `--check`) verifies them; JSON is exempt (no comment syntax).
-  Satisfies the OpenSSF `copyright_per_file` / `license_per_file` criteria.
+  and (with `--check`) verifies them, and CI runs `--check` on every push / PR so
+  a missing header fails the build; JSON is exempt (no comment syntax). Satisfies
+  the OpenSSF `copyright_per_file` / `license_per_file` criteria.
 - **Enforced the DCO in CI.** A new [`dco.yml`](.github/workflows/dco.yml)
   workflow fails any pull request whose commits are not all signed off (a
   `Signed-off-by` trailer matching the commit author), so the
