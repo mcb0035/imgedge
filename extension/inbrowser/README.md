@@ -22,9 +22,8 @@ and delegates classification to it, so filtering keeps working with **no server*
 (for ONNX Runtime's WebAssembly).
 
 **Not here yet** (Phase 3 polish): an explicit "Fast (in-browser)" preset in the
-popup, trimming `vendor/` to just the shipped ORT build (it currently copies all
-variants), and a resize that matches Pillow's `BILINEAR` exactly if Fast-mode
-recall needs it.
+popup, and a resize that matches Pillow's `BILINEAR` exactly if Fast-mode recall
+needs it.
 
 ## Parity
 
@@ -54,6 +53,10 @@ python src/imgedge/inat/convert_to_onnx.py   # once: produce the ONNX model
 npm install onnxruntime-web                  # once: fetch the ORT Web dist
 python tools/bundle_inbrowser.py             # copy model + runtime into vendor/
 ```
+
+By default this copies a **lean** ORT set (the WebGPU + WASM builds — ~70 MB with
+the model). Pass `--all` to include every wasm variant (~130 MB) for maximum
+browser compatibility.
 
 The pre/post-processing math is validated in Phase 0's spike
 ([`spike/inbrowser-fast/`](../../spike/inbrowser-fast/)), which confirmed the

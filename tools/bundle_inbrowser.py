@@ -28,7 +28,18 @@ ORT_CANDIDATES = [
     ROOT / "node_modules" / "onnxruntime-web" / "dist",
     ROOT / "spike" / "inbrowser-fast" / "node_modules" / "onnxruntime-web" / "dist",
 ]
-ORT_PATTERNS = ("ort.webgpu.min.js", "ort-wasm-*.wasm", "ort-wasm-*.mjs")
+# The webgpu bundle only needs the JSEP build (WebGPU + its CPU fallback) and the
+# asyncify build (its threading/proxy path). The plain build is for the wasm-only
+# bundle we don't ship, and jspi is experimental -- `--all` copies every variant
+# for maximum browser compatibility (roughly 2x the size).
+LEAN_PATTERNS = (
+    "ort.webgpu.min.js",
+    "ort-wasm-simd-threaded.jsep.wasm",
+    "ort-wasm-simd-threaded.jsep.mjs",
+    "ort-wasm-simd-threaded.asyncify.wasm",
+    "ort-wasm-simd-threaded.asyncify.mjs",
+)
+ALL_PATTERNS = ("ort.webgpu.min.js", "ort-wasm-*.wasm", "ort-wasm-*.mjs")
 
 
 def find_ort_dist(override):
@@ -42,6 +53,7 @@ def find_ort_dist(override):
 def main():
     ap = argparse.ArgumentParser(description="Bundle the iNat model + ORT Web into the extension.")
     ap.add_argument("--ort-dist", default=None, help="path to onnxruntime-web/dist")
+    ap.add_argument("--all", action="store_true", help="copy every ORT wasm variant (max compat, ~2x size)")
     args = ap.parse_args()
 
     if not MODEL.exists():
@@ -50,9 +62,14 @@ def main():
     ort_dist = find_ort_dist(args.ort_dist)
     VENDOR.mkdir(parents=True, exist_ok=True)
 
+    # Clear stale vendored model + ORT builds so a lean rebuild doesn't leave old
+    # variants behind (the .gitignore is preserved).
+    for old in [*VENDOR.glob("ort*"), VENDOR / "inat.onnx"]:
+        old.unlink(missing_ok=True)
+
     shutil.copy2(MODEL, VENDOR / "inat.onnx")
     copied = ["inat.onnx"]
-    for pattern in ORT_PATTERNS:
+    for pattern in ALL_PATTERNS if args.all else LEAN_PATTERNS:
         for f in sorted(ort_dist.glob(pattern)):
             shutil.copy2(f, VENDOR / f.name)
             copied.append(f.name)
