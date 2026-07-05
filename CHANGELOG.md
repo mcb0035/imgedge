@@ -20,7 +20,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   workflow fails any pull request whose commits are not all signed off (a
   `Signed-off-by` trailer matching the commit author), so the
   [DCO](CONTRIBUTING.md#developer-certificate-of-origin-dco) is checked
-  automatically rather than only by convention.
+  automatically rather than only by convention. Trusted automation bots
+  (allow-listed; currently Dependabot) are exempt, since they can't add a
+  sign-off and their commits are mechanical dependency bumps.
 - **Documented project governance + adopted the DCO.** New
   [`GOVERNANCE.md`](GOVERNANCE.md) defines the single-maintainer governance model,
   the maintainer and contributor roles (and who holds them), and how decisions and
