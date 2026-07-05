@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Pinned the ClusterFuzzLite fuzz image's numpy / Pillow exactly.** The
+  decode-fuzzer build installs `numpy==2.2.6` + `pillow==11.3.0` (the last
+  Python-3.11-compatible releases the OSS-Fuzz base needs) instead of `<2.3` /
+  `<12` ranges — reproducible fuzz builds, consistent with the project's
+  exact-pin policy.
+
 ## [0.4.0] - 2026-07-05
 
 ### Added
