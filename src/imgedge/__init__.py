@@ -4,4 +4,4 @@
 
 # Single source of truth is pyproject.toml; propagated here (and to extension/manifest.json
 # / package.json) by tools/sync_version.py -- do not edit the version by hand.
-__version__ = "0.3.0"
+__version__ = "0.4.0"
