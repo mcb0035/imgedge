@@ -106,6 +106,27 @@ Legend: ✅ addressed · 🟡 partial / by-design residual · 🔴 open (see rem
 | **ML evasion** — adversarial / low-salience images score below threshold | 🟡 **F10**, inherent to ML; strict mode + threshold tuning are the levers |
 | Late DOM/background swaps not re-scanned; preload-scanner fetches bytes before hiding | 🟡 documented limitations (display still prevented) |
 
+### In-browser "Fast" mode (no server)
+
+When the local server is unreachable (or `inBrowserOnly` is set), classification
+runs client-side in an offscreen document via bundled ONNX Runtime Web. This
+**removes** the server's largest surfaces — no loopback HTTP port, no token, no
+server-side SSRF re-fetch — but shifts the trust boundary:
+
+| Δ vs. server | Threat | Status |
+|---|---|---|
+| Extension pages need `'wasm-unsafe-eval'` for the ORT WASM runtime | A wider CSP could aid an injected-script → WASM step | 🟡 necessary for ORT; `script-src 'self'` / `object-src 'self'` with no inline or JS `eval`, so it adds little on top of a script-execution bypass |
+| Bundled model + ORT `.wasm` ship in the package (`vendor/`, built by `bundle_inbrowser.py`) | Build-time supply-chain tampering | 🟡 `onnxruntime-web` pinned exact; artifacts load from the package (self) and are never fetched at runtime (MV3 forbids remote code) |
+| The service worker re-fetches image bytes (`fetchAsDataUrl`) instead of the server | Client-side SSRF / credential / referrer leak on the re-fetch | ✅ sent with **no credentials** and **no `Referer`**, 8 MB cap; the URL is already page-referenced and the bytes stay **local** (classified in place, never egressed) — far lower risk than a server-side SSRF |
+| The offscreen document accepts `runtime` classify messages | A rogue/compromised content script drives the classifier (score oracle / CPU) | ✅ the handler accepts only same-extension, non-tab (service-worker) senders; input is an inert `data:` / image URL decoded by the browser's own sandboxed `createImageBitmap` |
+| Cross-origin isolation (COOP/COEP manifest keys) enables WASM threads | Policy change across extension pages | ✅ hardening (isolates extension pages); the service worker stays non-isolated so remote image fetches are unaffected |
+
+Net: the in-browser path **shrinks** the attack surface (no server, token, or
+server-side SSRF) while its new items are low-risk or necessary. Residuals: the
+re-fetch is still a duplicate request to the image host (detectability — as with
+the server, avoidable when the content script supplies the bytes), and ML
+evasion is unchanged.
+
 ---
 
 ## 3. What can go wrong? — LINDDUN (privacy)

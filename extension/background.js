@@ -188,7 +188,10 @@ function bufferToBase64(buf) {
 
 async function fetchAsDataUrl(url) {
   try {
-    const r = await fetch(url);
+    // No credentials and no Referer: the re-fetch must not carry the user's
+    // cookies to the image host, nor reveal (via a chrome-extension:// Referer)
+    // that ImgEdge is installed. Bytes are classified locally, never egressed.
+    const r = await fetch(url, { credentials: "omit", referrerPolicy: "no-referrer" });
     if (!r.ok) {
       console.warn("[imgedge] image fetch failed: HTTP", r.status, url);
       return null;

@@ -79,8 +79,11 @@ export async function classifyDataUrl(dataUrl, threshold = 0.5) {
 // Wire the background <-> offscreen message channel (only in the extension).
 const runtime = globalThis.chrome && globalThis.chrome.runtime;
 if (runtime && runtime.onMessage) {
-  runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (!msg || msg.target !== "offscreen" || msg.type !== "inbrowser-classify") return false;
+    // Only our own service worker may drive the classifier -- reject other
+    // extensions and any tab / content-script sender (defense-in-depth).
+    if (!sender || sender.id !== runtime.id || sender.tab) return false;
     classifyDataUrl(msg.dataUrl, msg.threshold)
       .then((r) => sendResponse({ ok: true, score: r.score, blocked: r.blocked }))
       .catch((e) => {
