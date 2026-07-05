@@ -18,6 +18,13 @@ allowed), *Scan CSS backgrounds*, and the **Block threshold** and **Salience
 weighting** tuning sliders (sent per request, so they tune live and override the
 server defaults below). The whitelist / allowed-sites / blocklist stay visible.
 
+**In-browser Fast mode.** *Classify in the browser (no server needed)*
+(`inBrowserOnly`) runs the iNat + timm ensemble entirely client-side, so no local
+server is required. Even with it off, ImgEdge falls back to in-browser
+classification whenever the server is unreachable (`inBrowserFallback`, on by
+default). Either way the bundled models run in an offscreen document via ONNX
+Runtime Web — see the [in-browser Fast mode notes](../extension/inbrowser/README.md).
+
 Under **Advanced → Backup**, *Export settings* saves your setup to a JSON file and
 *Import settings* loads one back. The file holds only the detection mode, sliders,
 toggles, and endpoint — never your token or any allow/block URLs. All settings and

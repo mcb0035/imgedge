@@ -33,26 +33,49 @@ the MV3 service worker has no DOM/canvas.
   confirmed the quantized iNat ONNX loads and runs under ORT Web with **no
   unsupported operators**. Measured (2026-07-05, ORT Web 1.27, input NHWC
   `[1, 299, 299, 3]` → output `[1, 507]`): **~8.5 ms p50 on WebGPU** and
-  **~447 ms p50 on the WASM fallback**. The biggest unknown is resolved — proceed
-  to Phase 1.
-- **Phase 1 — iNat-only Fast:** a single model in an offscreen document; verdict =
-  iNat score vs. threshold; `content.js` falls back to in-browser when no server
-  is reachable. Ships zero-install filtering.
-- **Phase 2 — add the timm voter:** two-model Fast using the evidence policy
-  ported to JS, parity-tested against the Python pipeline on synthetic images.
-- **Phase 3 — polish:** WebGPU path, per-URL verdict cache, preset/health UX,
-  bundle-size trimming, and `NOTICE` attribution for the bundled models.
+  **~447 ms p50 on the WASM fallback**.
+- **Phase 1 — iNat-only Fast ✅ shipped:** a single model in an offscreen
+  document; verdict = iNat score vs. threshold; `background.js` falls back to
+  in-browser when no server is reachable, and an `inBrowserOnly` toggle skips the
+  server entirely. Zero-install filtering.
+- **Phase 2 — timm voter ✅ shipped:** two-model Fast (iNat + timm) using the
+  evidence policy ([`ensemble.mjs`](../extension/inbrowser/ensemble.mjs)) ported
+  to JS and parity-tested against the Python pipeline. timm is exported and
+  int8-quantized to ~5.4 MB by
+  [`tools/convert_timm_to_onnx.py`](../tools/convert_timm_to_onnx.py) and runs
+  ~43 ms/image (WASM, 4 threads); the block threshold default is tuned for this
+  2-model combo via `tools/tune_inbrowser.py`.
+- **Phase 3 — polish (mostly shipped):** ✅ WASM multithreading via cross-origin
+  isolation (~140 ms/image), ✅ per-URL verdict cache + in-flight dedup, ✅
+  offscreen stability (WASM-only — the headless WebGPU path crashed the
+  document), ✅ lean vendor bundle. Remaining: an explicit "Fast (in-browser)"
+  preset label in the popup, `NOTICE` attribution for the bundled models, and the
+  follow-ups below.
 
 ### Key risks
 
 - ~~Quantized-operator support in ORT Web WASM~~ — **cleared in Phase 0** (the
   model runs cleanly on both the WASM and WebGPU execution providers).
-- Preprocessing / normalization parity between JS and Python (guarded by a parity
-  test on synthetic images).
-- Maintaining the ensemble in two languages (mitigated by shared constants +
-  parity tests).
-- WASM threading needs cross-origin isolation; plan for single-thread + SIMD as
-  the baseline.
+- ~~WASM threading needs cross-origin isolation~~ — **resolved:** the extension
+  opts in with the `cross_origin_embedder_policy` / `cross_origin_opener_policy`
+  manifest keys, so the offscreen document is cross-origin isolated and runs
+  multi-threaded WASM. The service worker stays non-isolated, so remote image
+  fetches are unaffected.
+- Preprocessing / normalization parity between JS and Python — guarded by parity
+  tests on synthetic images (iNat, timm, and the ensemble).
+- Maintaining the ensemble in two languages — mitigated by shared constants
+  (`inat_web.json` / `timm_web.json`) + parity tests.
+
+### Follow-ups (in-browser)
+
+- **Salience port.** The server scales positive evidence by image salience
+  (size / surface kind / photorealism, boost-only); the in-browser ensemble
+  currently uses a flat multiplier of `1.0`. Port `voters/salience.py` to JS so
+  large / photoreal images are weighted like the server.
+- **timm center-crop parity.** The in-browser path resizes straight to 224²,
+  while the server resizes the shorter side then center-crops (`crop_pct` 0.875,
+  bicubic). Match it — or confirm the stretch is good enough — if Fast-mode
+  recall needs it.
 
 ## Potential improvements (unscheduled)
 

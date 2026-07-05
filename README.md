@@ -164,6 +164,10 @@ total crosses the threshold.
 Tune with the `IMGEDGE_VOTE` / `IMGEDGE_TIMM_*` variables below, or edit the
 block / contrast term lists in [src/imgedge/voters/timm_voter.py](src/imgedge/voters/timm_voter.py).
 
+The extension can also run this **iNat + timm ensemble in the browser** — no
+local server — via ONNX Runtime Web in an offscreen document. See the
+[in-browser Fast mode](extension/inbrowser/README.md).
+
 ## Configuration
 
 ImgEdge is configured in the extension **popup** (per-browser: the **Detection
