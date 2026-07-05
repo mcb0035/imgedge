@@ -103,6 +103,34 @@ local state, delete `~/.imgedge_token`, `~/.imgedge_cache.json`, and
 `~/.imgedge.log` — the full data-removal steps are in
 [PRIVACY.md](../PRIVACY.md).
 
+## Upgrading
+
+ImgEdge follows [Semantic Versioning](https://semver.org/), and only the latest
+release / `main` is supported (see
+[SECURITY.md](../SECURITY.md#supported-versions)) — there is no long-term support
+of older versions, so the supported path is to **upgrade to the newest version**.
+Every release's changes, including any breaking ones, are listed in
+[CHANGELOG.md](../CHANGELOG.md).
+
+**Classifier (Python):**
+
+```powershell
+git pull                 # or download the newer release
+pip install -e .         # reinstall (use `pip install --upgrade .` for a non-editable install)
+imgedge-download-models  # only if the CHANGELOG notes a new model pin
+```
+
+Then restart `imgedge-server`.
+
+**Extension:** reload it — an unpacked extension updates when you press *Reload*
+on `chrome://extensions`; a store-installed one auto-updates. Your settings and
+lists live in `chrome.storage.local` and are read with defaults for any new
+fields, so they carry across upgrades untouched. To move settings between
+browsers or machines, use the popup's **Advanced → Backup** export / import.
+
+Upgrades are normally drop-in. If a release ever needs manual migration steps,
+they are called out under that version in the [CHANGELOG](../CHANGELOG.md).
+
 ## Test
 
 **Python** ([pytest](https://docs.pytest.org/)):
