@@ -1,0 +1,45 @@
+name: DCO
+
+# Enforces the Developer Certificate of Origin: every non-merge commit in a pull
+# request must carry a `Signed-off-by:` trailer matching its author (git commit -s).
+# See CONTRIBUTING.md#developer-certificate-of-origin-dco.
+
+on: pull_request
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    name: Sign-off check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0 # need the full base..head commit range
+      - name: Every commit must be signed off by its author
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          fail=0
+          for sha in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
+            author="$(git show -s --format='%an <%ae>' "$sha")"
+            if ! git show -s --format='%(trailers:key=Signed-off-by,valueonly)' "$sha" \
+                 | grep -qxF "$author"; then
+              subject="$(git show -s --format='%s' "$sha")"
+              echo "::error::Commit $sha is not signed off by its author ($author): $subject"
+              fail=1
+            fi
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::One or more commits lack a matching 'Signed-off-by' (DCO). Fix with 'git commit --amend -s' (last commit) or 'git rebase --signoff $BASE_SHA' (a series), then force-push. See CONTRIBUTING.md#developer-certificate-of-origin-dco"
+            exit 1
+          fi
+          echo "All non-merge commits are signed off by their authors."
