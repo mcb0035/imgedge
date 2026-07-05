@@ -58,6 +58,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Pinned the ClusterFuzzLite fuzzing base image by digest.** The
+  `.clusterfuzzlite/Dockerfile` now references
+  `gcr.io/oss-fuzz-base/base-builder-python` by `@sha256:…` instead of the
+  floating tag, so fuzz builds are reproducible and a swapped base image can't
+  slip in (OpenSSF Scorecard *Pinned-Dependencies*: containerImage 0/1 → 1/1).
+  Bump the digest periodically to pick up base-image updates.
 - **Accessibility: popup contrast fixes + keyboard-dismissable debug overlay +
   a11y doc.** The popup's muted and status text now uses CSS custom properties
   tuned for **>= 4.5:1 contrast (WCAG 1.4.3)** in *both* light and dark modes (via
