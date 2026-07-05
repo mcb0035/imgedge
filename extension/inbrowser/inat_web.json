@@ -1,0 +1,29 @@
+{
+  "model": "INatVision_Small_2_fact256_8bit",
+  "target": "Arachnida",
+  "num_classes": 507,
+  "input": {
+    "height": 299,
+    "width": 299,
+    "layout": "NHWC",
+    "dtype": "float32",
+    "divisor": 127.5,
+    "offset": -1.0
+  },
+  "arachnida_leaf_indices": [
+    3,
+    35,
+    57,
+    102,
+    173,
+    229,
+    305,
+    342,
+    344,
+    371,
+    390,
+    426,
+    452,
+    462
+  ]
+}
