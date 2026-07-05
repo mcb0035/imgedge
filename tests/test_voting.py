@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Ensemble voting + salience interaction (voters/base.py)."""
 
+import numpy as np
+
 from imgedge.voters import base
 from imgedge.voters.base import VoteEnsemble, Voter
 
@@ -51,6 +53,60 @@ def test_salience_is_boost_only(monkeypatch):
     _pin_salience(monkeypatch, 1.5)
     weak = VoteEnsemble([_Stub(0.40, "inat", weight=1.0)], policy="evidence", threshold=0.5)
     assert weak.classify(None)["block"] is True  # 0.40 * 1.5 = 0.60
+
+
+class _ScoreOnly(Voter):
+    """A voter that overrides only score(), to exercise the base assess()/vote()."""
+
+    def __init__(self, s, **kw):
+        super().__init__(**kw)
+        self.name = "scoreonly"
+        self._s = s
+
+    def score(self, img):
+        return self._s
+
+
+def test_voter_assess_and_vote_use_score_by_default():
+    v = _ScoreOnly(0.7, threshold=0.5, weight=1.0)
+    assert v.assess(None) == (0.7, 0.7)  # default evidence == score
+    assert v.vote(None) == (True, 0.7)  # 0.7 >= 0.5
+    assert _ScoreOnly(0.3, threshold=0.5, weight=1.0).vote(None) == (False, 0.3)
+
+
+class _FakeDecoder:
+    """Stands in for the out-of-process decode pool: returns a trusted RGB array."""
+
+    def decode(self, raw):
+        return np.zeros((3, 4, 3), dtype=np.uint8), 123, 45  # arr, orig_w, orig_h
+
+
+def test_classify_bytes_decoder_path_preserves_true_size(monkeypatch):
+    ens = VoteEnsemble([], policy="any", threshold=0.5)
+    captured = {}
+
+    def _fake_classify(img, meta, threshold, salience, only):
+        captured["meta"] = meta
+        return {"block": False, "reason": "ok", "score": 0.0}
+
+    monkeypatch.setattr(ens, "classify", _fake_classify)
+    out = ens.classify_bytes(b"raw-not-an-image", meta=None, decoder=_FakeDecoder())
+    assert out["block"] is False
+    # the decoder's reported original size is carried into meta for salience
+    assert captured["meta"]["w"] == 123 and captured["meta"]["h"] == 45
+
+
+def test_decide_policies_cover_all_branches():
+    v = _Stub(0.5, weight=2.0)  # carries .weight for the weighted policy
+    yes, no = (v, True, 0.0), (v, False, 0.0)
+    assert VoteEnsemble([], policy="all")._decide([]) is False  # n == 0
+    assert VoteEnsemble([], policy="all")._decide([yes, yes]) is True
+    assert VoteEnsemble([], policy="all")._decide([yes, no]) is False
+    assert VoteEnsemble([], policy="majority")._decide([yes, yes, no]) is True  # 2 > 1.5
+    assert VoteEnsemble([], policy="majority")._decide([yes, no, no]) is False  # 1 !> 1.5
+    assert VoteEnsemble([], policy="weighted")._decide([yes, no]) is True  # 2/4 >= 0.5
+    assert VoteEnsemble([], policy="any")._decide([no]) is False
+    assert VoteEnsemble([], policy="any")._decide([yes, no]) is True
 
 
 def test_policy_any_blocks_on_one():

@@ -137,7 +137,7 @@ they are called out under that version in the [CHANGELOG](../CHANGELOG.md).
 
 ```powershell
 pytest                                                                            # full suite, quiet
-pytest -m "not perf" --cov=imgedge --cov-report=term-missing --cov-fail-under=55  # the CI core gate (>= 55 %)
+pytest -m "not perf" --cov=imgedge --cov-report=term-missing --cov-fail-under=80  # the CI core gate (>= 80 %)
 pytest -m perf                                                                    # performance-regression guards
 pytest tests/test_voting.py -k evidence                                           # a single file / selection
 ```
@@ -200,7 +200,7 @@ a full commit SHA.
 
 | Job | What it runs |
 | --- | --- |
-| **Python (lint + compile + tests)** | `ruff check`, `ruff format --check`, `py_compile`, and `pytest` with the ≥ 55 % coverage gate |
+| **Python (lint + compile + tests)** | `ruff check`, `ruff format --check`, `py_compile`, and `pytest` with the ≥ 80 % coverage gate |
 | **Extension JS (lint + tests)** | `npx eslint .` and `node --test` over the extension front-end |
 | **Dependency audit (pip-audit)** | audits the pinned runtime (gating) and the optional voters (report-only) |
 | **Dependency review (PR)** | fails a PR that introduces a new high-severity advisory |

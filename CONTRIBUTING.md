@@ -126,10 +126,10 @@ checks — see the [developer guide](docs/development.md#continuous-integration)
   ruff format --check .
   ```
 
-- **Tests pass with coverage** — the always-on core must stay at **≥ 55 %**:
+- **Tests pass with coverage** — the always-on core must stay at **≥ 80 %**:
 
   ```powershell
-  pytest -m "not perf" --cov=imgedge --cov-report=term-missing --cov-fail-under=55
+  pytest -m "not perf" --cov=imgedge --cov-report=term-missing --cov-fail-under=80
   ```
 
 - **Everything compiles** — `python -m py_compile` runs over the `classifier`,
