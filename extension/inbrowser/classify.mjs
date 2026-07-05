@@ -54,6 +54,24 @@ function bitmapToRgba(bitmap, width, height) {
 }
 
 /**
+ * Resize + center-crop like timm's ImageNet eval transform: scale the centered
+ * `cropPct * shorter-side` square of the source to size*size (equivalent to
+ * Resize(size / cropPct) then CenterCrop(size)), so the model sees the framing
+ * it was trained/served on rather than an aspect-distorted stretch.
+ */
+function bitmapToRgbaCropped(bitmap, size, cropPct) {
+  const crop = Math.min(bitmap.width, bitmap.height) * cropPct;
+  const sx = (bitmap.width - crop) / 2;
+  const sy = (bitmap.height - crop) / 2;
+  const canvas = new OffscreenCanvas(size, size);
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(bitmap, sx, sy, crop, crop, 0, 0, size, size);
+  return ctx.getImageData(0, 0, size, size).data;
+}
+
+/**
  * Run a prepared float32 input through the session and return the raw output
  * vector. The tensor layout follows `meta.input.layout` ("NCHW" for the timm
  * model, otherwise NHWC as the iNat model expects).
@@ -149,10 +167,13 @@ export async function classifyBlobEnsemble(ort, models, blob, threshold) {
     // timm voter: signed evidence over ImageNet arachnid/look-alike classes.
     if (models.timm) {
       const tm = models.timm.meta.input;
-      const timmInput = toTimmInput(bitmapToRgba(bitmap, tm.width, tm.height), tm.width, tm.height, {
-        mean: tm.mean,
-        std: tm.std,
-      });
+      // Match timm's ImageNet eval transform (resize + center-crop) rather than
+      // a straight stretch, so the model sees the framing it was served on.
+      const cropOk = typeof tm.crop_pct === "number" && tm.crop_pct > 0 && tm.crop_pct < 1;
+      const timmRgba = cropOk
+        ? bitmapToRgbaCropped(bitmap, tm.width, tm.crop_pct)
+        : bitmapToRgba(bitmap, tm.width, tm.height);
+      const timmInput = toTimmInput(timmRgba, tm.width, tm.height, { mean: tm.mean, std: tm.std });
       const logits = await runModel(ort, models.timm.session, models.timm.meta, timmInput);
       const evidence = evidenceFromLogits(
         logits,
