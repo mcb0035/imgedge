@@ -1,38 +1,51 @@
 # In-browser "Fast" mode
 
-The client-side classifier for the [in-browser Fast mode](../../docs/roadmap.md)
-(Phase 1). Goal: run the iNat model **in the extension** so images are filtered
-with **zero install**, keeping the local server optional for the heavier tiers.
-
-This directory is being built up in reviewable increments. **What's here now:**
+The client-side classifier for the [in-browser Fast mode](../../docs/roadmap.md):
+it runs the two small voters (iNat + timm) **in the extension** so images are
+filtered with **zero install**, keeping the local server optional for the
+heavier tiers. It mirrors the server's **Fast** preset (iNat + timm) via
+[ONNX Runtime Web](https://onnxruntime.ai/docs/tutorials/web/) in an offscreen
+document.
 
 | File | Purpose |
 | --- | --- |
-| [`inat.mjs`](inat.mjs) | Pure preprocess / score functions, in numeric parity with the Python pipeline (`imgedge.inat.inat_filter`). No DOM / ONNX — safe to unit-test in Node and reuse in the offscreen document. |
-| [`classify.mjs`](classify.mjs) | Browser glue on top of `inat.mjs`: decode image bytes + resize (canvas) → run the model (ONNX Runtime is injected, not imported) → `{ score, blocked }`. Validated end-to-end in a real browser. |
-| [`inat_web.json`](inat_web.json) | Generated metadata: input size + float scaling, and the **Arachnida leaf-index mask** (14 of the model's 507 outputs). Lets the extension avoid shipping/parsing the full taxonomy. |
-| [`offscreen.mjs`](offscreen.mjs) + [`offscreen.html`](offscreen.html) | The offscreen document: hosts one ORT session for the bundled model and answers classify requests from the service worker (reusing `classify.mjs`). MV3 service workers can't keep a model warm, so this does. |
-| `vendor/` | The bundled `inat.onnx` + ONNX Runtime Web, populated by `tools/bundle_inbrowser.py`. Git-ignored — not committed. |
+| [`inat.mjs`](inat.mjs) | Pure iNat preprocess / score functions, in numeric parity with `imgedge.inat.inat_filter`. No DOM / ONNX — unit-testable in Node. |
+| [`timm.mjs`](timm.mjs) | Pure timm (ImageNet) voter: ImageNet-normalized NCHW input, softmax, and signed arachnid evidence. Mirrors `imgedge.voters.timm_voter`. |
+| [`ensemble.mjs`](ensemble.mjs) | Pure evidence combiner (`combineEvidence`): weighted signed evidence + the iNat-confidence override. Mirrors `imgedge.voters.base` (salience deferred). |
+| [`classify.mjs`](classify.mjs) | Browser glue: decode + resize (canvas) → run each model (ORT injected, not imported) → combine. `classifyBlobEnsemble` runs iNat + timm; validated end-to-end in a real browser. |
+| [`inat_web.json`](inat_web.json) / [`timm_web.json`](timm_web.json) | Generated metadata (input config + class indices) so the extension never ships the taxonomy or ImageNet labels. |
+| [`offscreen.mjs`](offscreen.mjs) + [`offscreen.html`](offscreen.html) | The offscreen document: hosts the ORT sessions (WASM, multi-threaded when cross-origin isolated) and answers classify requests from the service worker. MV3 workers can't keep a model warm; this does. |
+| `vendor/` | The bundled `inat.onnx` + `timm.onnx` + ONNX Runtime Web, populated by `tools/bundle_inbrowser.py`. Git-ignored — not committed. |
 
-**How it's wired:** when the local server is unreachable (and the
-`inBrowserFallback` setting is on — the default), `background.js` creates the
+**How it's wired:** when the server is unreachable (`inBrowserFallback`, on by
+default) or `inBrowserOnly` is set, `background.js` creates the
 [offscreen document](https://developer.chrome.com/docs/extensions/reference/api/offscreen)
-and delegates classification to it, so filtering keeps working with **no server**.
-`manifest.json` grants the `offscreen` permission and a `'wasm-unsafe-eval'` CSP
-(for ONNX Runtime's WebAssembly).
+and delegates classification to it — deduped and cached per URL, and serialized
+so a busy session isn't mistaken for a hung one. `manifest.json` grants the
+`offscreen` permission, a `'wasm-unsafe-eval'` CSP, and the COOP/COEP keys that
+make the offscreen document cross-origin isolated so WASM threads engage.
 
-**Not here yet** (Phase 3 polish): an explicit "Fast (in-browser)" preset in the
-popup, and a resize that matches Pillow's `BILINEAR` exactly if Fast-mode recall
-needs it.
+**Building the bundle** (models are git-ignored, not committed):
+
+```
+python src/imgedge/inat/convert_to_onnx.py   # iNat -> ONNX
+python tools/convert_timm_to_onnx.py         # timm -> int8 ONNX (needs timm + torch)
+python tools/bundle_inbrowser.py             # copy models + ORT Web into vendor/
+```
+
+**Deferred** (see the [roadmap follow-ups](../../docs/roadmap.md)): the salience
+multiplier (currently `1.0` in `ensemble.mjs`) and timm center-crop parity
+(currently a 224² stretch).
 
 ## Parity
 
-`inat.mjs` re-implements the Python pre/post-processing, so the two must stay in
-lock-step. Both a Node test and a pytest assert against one committed fixture:
+The pure modules re-implement the Python pre/post-processing, so the two sides
+must stay in lock-step. Node tests and pytest assert against committed fixtures:
 
-- [`tests/js/inbrowser_parity.test.mjs`](../../tests/js/inbrowser_parity.test.mjs) — `npm test`
-- [`tests/test_inbrowser_parity.py`](../../tests/test_inbrowser_parity.py) — `pytest`
-- Fixture: [`tests/js/fixtures/inat_parity.json`](../../tests/js/fixtures/inat_parity.json)
+- iNat: [`tests/js/inbrowser_parity.test.mjs`](../../tests/js/inbrowser_parity.test.mjs) + [`tests/test_inbrowser_parity.py`](../../tests/test_inbrowser_parity.py) (fixture [`inat_parity.json`](../../tests/js/fixtures/inat_parity.json))
+- timm + ensemble: [`tests/js/timm_parity.test.mjs`](../../tests/js/timm_parity.test.mjs) + [`tests/test_timm_parity.py`](../../tests/test_timm_parity.py) (fixture [`timm_parity.json`](../../tests/js/fixtures/timm_parity.json))
+
+Run with `npm test` (Node) and `pytest` (Python).
 
 ## Regenerating `inat_web.json`
 

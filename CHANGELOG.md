@@ -34,6 +34,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   to the bundled model, skipping the local server entirely — no failed
   connection attempts, no double-fetch. The popup health line shows "In-browser
   mode" instead of "unreachable".
+- **In-browser Fast mode hardening.** The offscreen classifier now runs
+  **WASM-only** (the headless WebGPU path could crash the document), enables
+  **multi-threaded WASM** via cross-origin isolation (the
+  `cross_origin_embedder_policy` / `cross_origin_opener_policy` manifest keys) for
+  ~2.5× faster inference, and **caches + dedupes** verdicts per URL and serializes
+  offscreen requests so a heavy page can't trip a false "unresponsive" timeout.
+- **In-browser second voter (Phase 2).** Fast mode now runs the same two-model
+  ensemble as the server's Fast preset — the iNat taxon model **plus the timm
+  `mobilenetv3_large_100` ImageNet voter** — combined by the evidence policy
+  ([`ensemble.mjs`](extension/inbrowser/ensemble.mjs)), entirely in the offscreen
+  document. `timm.mjs` + `timm_web.json` (via `tools/export_timm_web.py`) mirror
+  the Python voter and are parity-tested (Node + pytest); the model is exported
+  and int8-quantized (~5.4 MB) by `tools/convert_timm_to_onnx.py` and bundled by
+  `tools/bundle_inbrowser.py`.
+- **Tuned the in-browser block threshold.** The default drops from `0.5` to
+  `0.15`, tuned for the 2-model in-browser ensemble with a new
+  `tools/tune_inbrowser.py` sweep over the saved eval
+  reports — roughly doubling arachnid recall on the hard set (≈0.48 → ≈0.84) at a
+  modest false-positive cost. Existing users keep any saved threshold.
 
 ### Changed
 
