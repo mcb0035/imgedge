@@ -4,9 +4,9 @@
 #   pip install pip-tools
 #   pip-compile --generate-hashes -o src/imgedge/inat/requirements.lock src/imgedge/inat/requirements.txt
 #   pip install --require-hashes -r src/imgedge/inat/requirements.lock
-numpy==2.5.0
-pillow==12.2.0
-ai-edge-litert==2.1.5            # native LiteRT runtime (the server prefers this)
+numpy==2.5.1
+pillow==12.3.0
+ai-edge-litert==2.1.6            # native LiteRT runtime (the server prefers this)
 
 # Heavier alternative runtime — bundles tf.lite.Interpreter; use instead of
 # ai-edge-litert only if LiteRT has no wheel for your platform:
