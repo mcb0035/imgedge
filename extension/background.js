@@ -274,15 +274,37 @@ async function ensureOffscreen() {
 // Ask the offscreen document to classify; returns { ok, blocked, score } or null.
 async function classifyInBrowser(url, data, threshold) {
   const dataUrl = data || (/^https?:/i.test(url) ? await fetchAsDataUrl(url) : null);
-  if (!dataUrl) return null;
-  if (!(await ensureOffscreen())) return null;
-  const resp = await chrome.runtime.sendMessage({
-    target: "offscreen",
-    type: "inbrowser-classify",
-    dataUrl,
-    threshold,
-  });
-  return resp && resp.ok ? resp : null;
+  if (!dataUrl) {
+    console.warn("[imgedge] in-browser: no image bytes to classify", url);
+    return null;
+  }
+  if (!chrome.offscreen) {
+    console.warn("[imgedge] in-browser: chrome.offscreen is unavailable in this browser");
+    return null;
+  }
+  try {
+    await ensureOffscreen();
+  } catch (e) {
+    console.warn("[imgedge] in-browser: could not create the offscreen document:", String(e));
+    return null;
+  }
+  let resp;
+  try {
+    resp = await chrome.runtime.sendMessage({
+      target: "offscreen",
+      type: "inbrowser-classify",
+      dataUrl,
+      threshold,
+    });
+  } catch (e) {
+    console.warn("[imgedge] in-browser: offscreen document did not respond:", String(e));
+    return null;
+  }
+  if (!resp || !resp.ok) {
+    console.warn("[imgedge] in-browser: classify failed:", (resp && resp.error) || "no response");
+    return null;
+  }
+  return resp;
 }
 
 // Verdict when the server can't be used: try the in-browser fallback, else fail
@@ -295,7 +317,9 @@ async function unreachableVerdict(s, strict, url, data, reason, error) {
         setHealth("ok");
         return { allow: strict ? r.blocked === false : !r.blocked, reason: "inbrowser", score: r.score };
       }
-    } catch { /* fall through to fail open/closed */ }
+    } catch (e) {
+      console.warn("[imgedge] in-browser fallback error:", String(e));
+    }
   }
   setHealth("error");
   return { allow: strict ? false : !s.failClosed, reason, error };
