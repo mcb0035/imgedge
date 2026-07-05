@@ -1,0 +1,21 @@
+<!-- Copyright the ImgEdge contributors. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ImgEdge — in-browser inference spike</title>
+    <!-- webgpu bundle so both the WebGPU and WASM execution providers are available -->
+    <script src="node_modules/onnxruntime-web/dist/ort.webgpu.min.js"></script>
+    <style>
+      body { font: 14px system-ui, sans-serif; margin: 24px; max-width: 720px; }
+      pre { background: #f4f4f4; padding: 12px; border-radius: 6px; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>ImgEdge in-browser inference spike</h1>
+    <p>Loads <code>inat.onnx</code> and times inference under ONNX Runtime Web.</p>
+    <pre id="out">running…</pre>
+    <script src="spike.js"></script>
+  </body>
+</html>
