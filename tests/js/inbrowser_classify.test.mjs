@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { runModel } from "../../extension/inbrowser/classify.mjs";
+import { runModel, tooSmallToClassify, MIN_CLASSIFY_DIM } from "../../extension/inbrowser/classify.mjs";
 
 test("runModel feeds an NHWC float32 tensor under the model's input name", async () => {
   const meta = { input: { height: 2, width: 2 } };
@@ -36,4 +36,12 @@ test("runModel feeds an NHWC float32 tensor under the model's input name", async
   assert.equal(tensor.type, "float32");
   assert.deepEqual(tensor.dims, [1, 2, 2, 3]);
   assert.equal(tensor.data, input);
+});
+
+test("tooSmallToClassify flags placeholders and tiny images", () => {
+  assert.equal(tooSmallToClassify(1, 1), true); // 1x1 lazy-load placeholder
+  assert.equal(tooSmallToClassify(MIN_CLASSIFY_DIM - 1, 500), true);
+  assert.equal(tooSmallToClassify(500, MIN_CLASSIFY_DIM - 1), true);
+  assert.equal(tooSmallToClassify(MIN_CLASSIFY_DIM, MIN_CLASSIFY_DIM), false);
+  assert.equal(tooSmallToClassify(800, 600), false);
 });

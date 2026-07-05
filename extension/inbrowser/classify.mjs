@@ -12,6 +12,16 @@
  */
 import { toModelInput, targetScore, isBlocked } from "./inat.mjs";
 
+// Images smaller than this on either side (1x1 lazy-load placeholders, tracking
+// pixels, tiny sprites) can't meaningfully depict the target -- and running the
+// model on every one of them floods the machine. Skip them (treat as allow).
+export const MIN_CLASSIFY_DIM = 32;
+
+/** True when a decoded image is too small to be worth classifying. */
+export function tooSmallToClassify(width, height) {
+  return width < MIN_CLASSIFY_DIM || height < MIN_CLASSIFY_DIM;
+}
+
 /**
  * Decode image bytes and resize to the model input, returning RGBA pixels.
  * Uses the canvas resampler (a later phase may swap in a resize that matches
@@ -25,15 +35,20 @@ import { toModelInput, targetScore, isBlocked } from "./inat.mjs";
 export async function decodeToRgba(blob, width, height) {
   const bitmap = await createImageBitmap(blob);
   try {
-    const canvas = new OffscreenCanvas(width, height);
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(bitmap, 0, 0, width, height);
-    return ctx.getImageData(0, 0, width, height).data;
+    return bitmapToRgba(bitmap, width, height);
   } finally {
     bitmap.close();
   }
+}
+
+/** Draw an already-decoded ImageBitmap into a width*height canvas -> RGBA pixels. */
+function bitmapToRgba(bitmap, width, height) {
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  return ctx.getImageData(0, 0, width, height).data;
 }
 
 /**
@@ -66,9 +81,19 @@ export async function runModel(ort, session, meta, input) {
  */
 export async function classifyBlob(ort, session, meta, blob, threshold) {
   const { width, height, divisor, offset } = meta.input;
-  const rgba = await decodeToRgba(blob, width, height);
-  const input = toModelInput(rgba, width, height, { divisor, offset });
-  const output = await runModel(ort, session, meta, input);
-  const score = targetScore(output, meta.arachnida_leaf_indices);
-  return { score, blocked: isBlocked(score, threshold) };
+  const bitmap = await createImageBitmap(blob);
+  try {
+    // Skip trivially small images (placeholders / tracking pixels): they can't
+    // depict the target, and classifying every one would flood the machine.
+    if (tooSmallToClassify(bitmap.width, bitmap.height)) {
+      return { score: 0, blocked: false, skipped: true };
+    }
+    const rgba = bitmapToRgba(bitmap, width, height);
+    const input = toModelInput(rgba, width, height, { divisor, offset });
+    const output = await runModel(ort, session, meta, input);
+    const score = targetScore(output, meta.arachnida_leaf_indices);
+    return { score, blocked: isBlocked(score, threshold) };
+  } finally {
+    bitmap.close();
+  }
 }
