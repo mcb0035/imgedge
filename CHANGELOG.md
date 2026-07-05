@@ -8,6 +8,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Added an "Install & uninstall" guide.**
+  [docs/development.md](docs/development.md#install--uninstall) now documents
+  installing the classifier with `pip install .` (and the standard `pip` location
+  controls — `--user` / `--prefix` / `--target` / `--root`, the `DESTDIR`
+  equivalent), loading/removing the extension, and uninstalling
+  (`pip uninstall imgedge` plus local-state cleanup, cross-linking `PRIVACY.md`).
 - **Internationalized the extension (i18n).** All user-facing strings — the
   popup UI, the in-page "Blocked" placeholder, the right-click menu items, and
   the toolbar tooltip — now come from `extension/_locales/en/messages.json` via
