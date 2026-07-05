@@ -71,6 +71,38 @@ during development. Build a store-ready package with PowerShell:
 See [Packaging for distribution](../README.md#packaging-for-distribution) for the
 store-upload details.
 
+## Install & uninstall
+
+For day-to-day development use the editable install under
+[Get started](#get-started). To **install** the classifier as a normal package
+(into system Python, a virtualenv, or via `pipx`), use the standard Python
+convention:
+
+```powershell
+pip install .                 # from a clone; or `pip install <path-to-wheel>`
+```
+
+That puts `imgedge-server` and `imgedge-download-models` on your `PATH`. The
+**extension** is installed by loading `extension/` unpacked, or from the Chrome
+Web Store / Edge Add-ons package (see [Build](#build)).
+
+**Install location.** Installation is performed by `pip`, which honours the
+standard location controls — `--user`, `--prefix`, `--target`, a virtualenv, and
+`--root` (the staged-install / `DESTDIR` equivalent, e.g.
+`pip install --root /staging .`). ImgEdge ships no custom installer that would
+override them.
+
+**Uninstall.**
+
+```powershell
+pip uninstall imgedge         # identical on bash/zsh
+```
+
+Then remove the unpacked or store extension from your browser. To also clear
+local state, delete `~/.imgedge_token`, `~/.imgedge_cache.json`, and
+`~/.imgedge.log` — the full data-removal steps are in
+[PRIVACY.md](../PRIVACY.md).
+
 ## Test
 
 **Python** ([pytest](https://docs.pytest.org/)):
