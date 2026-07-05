@@ -38,12 +38,30 @@ def load_records(paths):
             tc = r.get("timm_contrast")
             if inat is None or tb is None or tc is None:
                 continue  # need both voters
-            recs.append((r["label"] == "block", float(inat), float(tb), float(tc)))
+            mult = r.get("mult")
+            recs.append(
+                (
+                    r["label"] == "block",
+                    float(inat),
+                    float(tb),
+                    float(tc),
+                    float(mult) if mult is not None else 1.0,
+                )
+            )
     return recs
 
 
-def combined(inat, tb, tc, tw, cw):
-    """Mirror ensemble.mjs combineEvidence (salience = 1.0), returning (score, override)."""
+def _salience_mult(mult, mode):
+    if mode == "boost":
+        return max(1.0, mult)  # server behaviour: salience never suppresses
+    if mode == "full":
+        return mult  # also allow suppression below 1.0
+    return 1.0  # "off": current in-browser (salience deferred)
+
+
+def combined(inat, tb, tc, tw, cw, mult=1.0, sal="off"):
+    """Mirror ensemble.mjs combineEvidence, returning (score, override). `sal`
+    selects the salience strategy applied to the positive evidence."""
     timm_ev = tb - cw * tc
     pos = inat if inat > 0 else 0.0  # iNat weight 1.0, evidence = score >= 0
     neg = 0.0
@@ -52,17 +70,17 @@ def combined(inat, tb, tc, tw, cw):
             pos += tw * timm_ev
         elif timm_ev < 0:
             neg += tw * timm_ev
-    score = max(0.0, min(1.0, pos + neg))
+    score = max(0.0, min(1.0, pos * _salience_mult(mult, sal) + neg))
     override = inat >= INAT_OVERRIDE
     if override:
         score = max(score, inat)
     return score, override
 
 
-def metrics_at(recs, tw, cw, thr):
+def metrics_at(recs, tw, cw, thr, sal="off"):
     tp = fp = tn = fn = 0
-    for positive, inat, tb, tc in recs:
-        score, override = combined(inat, tb, tc, tw, cw)
+    for positive, inat, tb, tc, mult in recs:
+        score, override = combined(inat, tb, tc, tw, cw, mult, sal)
         pred = override or score >= thr
         if positive and pred:
             tp += 1
@@ -80,12 +98,12 @@ def metrics_at(recs, tw, cw, thr):
     return recall, fpr, prec, f1
 
 
-def best_for(recs, tw, cw, max_fpr):
+def best_for(recs, tw, cw, max_fpr, sal="off"):
     """Return (best-F1 point, best recall@fpr<=max_fpr point)."""
     best_f1 = (0.0, None)  # (f1, (thr,recall,fpr,prec))
     best_rec = (-1.0, None)  # (recall, (thr,recall,fpr,prec))
     for thr in THRESHOLDS:
-        recall, fpr, prec, f1 = metrics_at(recs, tw, cw, thr)
+        recall, fpr, prec, f1 = metrics_at(recs, tw, cw, thr, sal)
         if f1 > best_f1[0]:
             best_f1 = (f1, (thr, recall, fpr, prec))
         if fpr <= max_fpr and recall > best_rec[0]:
@@ -125,6 +143,16 @@ def main():
                     else "  ||  (none within FPR budget)"
                 )
             )
+
+    print("\nSalience at timm_w=0.5, cw=0.0 (does applying image salience help the 2-model combo?):")
+    print(f"{'strategy':>10} | best-F1: thr  rec   fpr   prec  ||  rec@fpr<={args.max_fpr}")
+    for sal, label in (("off", "off (1.0)"), ("boost", "boost-only"), ("full", "full")):
+        f1pt, recpt = best_for(recs, 0.5, 0.0, args.max_fpr, sal)
+        thr, rec, fpr, prec = f1pt
+        print(
+            f"{label:>10} | thr={thr:>4.2f} rec={rec:.3f} fpr={fpr:.3f} prec={prec:.3f}"
+            + (f"  ||  {recpt[1]:.3f} @thr={recpt[0]:.2f}" if recpt else "  ||  (none)")
+        )
 
 
 if __name__ == "__main__":
