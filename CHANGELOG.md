@@ -15,9 +15,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **In-browser "Fast" mode groundwork (Phase 1).** Added `extension/inbrowser/`
   with a pure JavaScript port of the iNat pre/post-processing (`inat.mjs`) in
   numeric parity with the Python pipeline, a generated Arachnida leaf-index mask
-  (`inat_web.json` via `tools/export_inat_web.py`), and Node + pytest parity
-  tests pinned to one fixture. Internal scaffolding toward zero-install
-  client-side filtering — no user-facing behavior change yet.
+  (`inat_web.json` via `tools/export_inat_web.py`), and the browser classify glue
+  (`classify.mjs`: decode + resize → run the model → verdict), validated
+  end-to-end in a browser. Node + pytest parity tests are pinned to one fixture.
+  Internal scaffolding toward zero-install client-side filtering — no user-facing
+  behavior change yet.
 
 ### Changed
 
