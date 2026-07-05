@@ -74,10 +74,12 @@ the MV3 service worker has no DOM/canvas.
   on the eval reports, applying salience to the 2-model combo is a wash — ±1–2 %,
   dataset-dependent (slightly helps OpenImages, slightly hurts the harder
   iNaturalist set) — so the JS port of `voters/salience.py` isn't worth it for now.
-- **timm center-crop parity.** The in-browser path resizes straight to 224²,
-  while the server resizes the shorter side then center-crops (`crop_pct` 0.875,
-  bicubic). Match it — or confirm the stretch is good enough — if Fast-mode
-  recall needs it.
+- **timm center-crop (done).** The in-browser timm input now resizes +
+  center-crops like timm's ImageNet eval transform (`crop_pct` 0.875) instead of
+  a flat stretch, so the model sees the framing it was served on. (iNat keeps a
+  stretch — its server preprocessing stretches too, so it was already in parity.)
+  `tools/measure_resize.py` quantifies the stretch-vs-crop verdict delta over the
+  eval set.
 
 ## Potential improvements (unscheduled)
 
