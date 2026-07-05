@@ -36,9 +36,7 @@ def find_ort_dist(override):
     for c in candidates:
         if (c / "ort.webgpu.min.js").exists():
             return c
-    raise SystemExit(
-        "ONNX Runtime Web not found. Run `npm install onnxruntime-web` or pass --ort-dist <dir>."
-    )
+    raise SystemExit("ONNX Runtime Web not found. Run `npm install onnxruntime-web` or pass --ort-dist <dir>.")
 
 
 def main():
