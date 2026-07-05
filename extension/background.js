@@ -252,7 +252,16 @@ async function ensureServerTrusted(s) {
 // offscreen document — MV3 service workers can't keep a model warm. No network
 // and no token surface: the zero-install path. See extension/inbrowser/.
 const OFFSCREEN_URL = "inbrowser/offscreen.html";
+const INBROWSER_TIMEOUT_MS = 20000; // don't let a stuck offscreen document freeze a verdict forever
 let offscreenReady = null;
+
+// Reject after `ms` so a hung offscreen document can't block classify() forever.
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("offscreen timeout")), ms)),
+  ]);
+}
 
 async function ensureOffscreen() {
   if (!chrome.offscreen) return false; // browser too old for offscreen documents
@@ -302,12 +311,15 @@ async function classifyInBrowser(url, data, threshold) {
   }
   let resp;
   try {
-    resp = await chrome.runtime.sendMessage({
-      target: "offscreen",
-      type: "inbrowser-classify",
-      dataUrl,
-      threshold,
-    });
+    resp = await withTimeout(
+      chrome.runtime.sendMessage({
+        target: "offscreen",
+        type: "inbrowser-classify",
+        dataUrl,
+        threshold,
+      }),
+      INBROWSER_TIMEOUT_MS,
+    );
   } catch (e) {
     console.warn("[imgedge] in-browser: offscreen document did not respond:", String(e));
     return null;
