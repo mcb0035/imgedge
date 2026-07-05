@@ -31,6 +31,19 @@ function ensureReady() {
     ready = (async () => {
       const ort = globalThis.ort;
       ort.env.wasm.wasmPaths = resource("vendor/");
+      // Multi-threaded WASM is ~2-4x faster than single-threaded, but it needs
+      // SharedArrayBuffer (cross-origin isolation). Guard on it so we quietly
+      // fall back to one thread where it isn't available instead of erroring.
+      if (typeof SharedArrayBuffer !== "undefined") {
+        const cores = (globalThis.navigator && globalThis.navigator.hardwareConcurrency) || 1;
+        ort.env.wasm.numThreads = Math.min(4, cores);
+      }
+      console.info(
+        "[imgedge] offscreen: crossOriginIsolated=" +
+          globalThis.crossOriginIsolated +
+          " wasmThreads=" +
+          ort.env.wasm.numThreads,
+      );
       const meta = await (await fetch(resource("inat_web.json"))).json();
       // WASM only: a headless offscreen document can't reliably get a WebGPU
       // context, and the WebGPU EP can crash/hang the document while loading.
@@ -66,4 +79,7 @@ if (runtime && runtime.onMessage) {
       });
     return true; // keep the channel open for the async response
   });
+  // Start loading the model as soon as the document exists so the first
+  // classify doesn't pay the ~0.4s session-create cost on top of inference.
+  ensureReady().catch(() => {});
 }
