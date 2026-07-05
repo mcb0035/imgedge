@@ -14,8 +14,9 @@ const log = (msg) => {
 const MODEL_URL = "inat.onnx";
 const WARMUP = 3;
 const ITERS = 20;
-// Override if the model's input shape can't be read at runtime (see README).
-const INPUT_SHAPE = null; // e.g. [1, 3, 224, 224] or [1, 224, 224, 3]
+// iNat ONNX input is NHWC float32 [batch, 299, 299, 3] (batch dim is dynamic).
+// Set to null to instead read the shape from the model's input metadata.
+const INPUT_SHAPE = [1, 299, 299, 3];
 
 async function makeSession() {
   ort.env.wasm.wasmPaths = "./"; // .wasm copied next to index.html

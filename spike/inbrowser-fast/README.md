@@ -16,7 +16,7 @@ decode / preprocessing is Phase 1.
 ```powershell
 cd spike/inbrowser-fast
 npm init -y ; npm install onnxruntime-web      # brings ORT Web + its .wasm files
-Copy-Item node_modules/onnxruntime-web/dist/*.wasm .   # wasm must sit next to index.html
+Copy-Item node_modules/onnxruntime-web/dist/ort-wasm-*.* .   # wasm binaries + .mjs loaders, next to index.html
 # generate the iNat ONNX (see docs/development.md) and drop it here as inat.onnx
 python -m http.server 8000                     # a static server; file:// can't load wasm
 ```

@@ -5,7 +5,8 @@
   <head>
     <meta charset="utf-8" />
     <title>ImgEdge — in-browser inference spike</title>
-    <script src="node_modules/onnxruntime-web/dist/ort.min.js"></script>
+    <!-- webgpu bundle so both the WebGPU and WASM execution providers are available -->
+    <script src="node_modules/onnxruntime-web/dist/ort.webgpu.min.js"></script>
     <style>
       body { font: 14px system-ui, sans-serif; margin: 24px; max-width: 720px; }
       pre { background: #f4f4f4; padding: 12px; border-radius: 6px; white-space: pre-wrap; }
