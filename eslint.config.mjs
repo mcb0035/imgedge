@@ -4,7 +4,7 @@ import js from "@eslint/js";
 import globals from "globals";
 
 export default [
-  { ignores: ["dist/", "node_modules/", "training/", "extension/icons/", ".venv/", "**/site-packages/**"] },
+  { ignores: ["dist/", "spike/", "node_modules/", "training/", "extension/icons/", ".venv/", "**/site-packages/**"] },
   js.configs.recommended,
   {
     // The extension front-end runs as classic scripts with the WebExtension +

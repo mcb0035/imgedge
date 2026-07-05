@@ -85,6 +85,8 @@ flowchart LR
 - **[Threat model](docs/threat-model.md)** — STRIDE + LINDDUN analysis.
 - **[Accessibility](docs/accessibility.md)** — keyboard, contrast, and
   screen-reader posture of the popup and the blocked-image placeholder.
+- **[Roadmap](docs/roadmap.md)** — planned direction, including the in-browser
+  "Fast" (no-server) mode.
 - **[Security policy](SECURITY.md)** · **[Privacy](PRIVACY.md)** ·
   **[Contributing](CONTRIBUTING.md)** · **[Code of Conduct](CODE_OF_CONDUCT.md)** ·
   **[Governance](GOVERNANCE.md)**

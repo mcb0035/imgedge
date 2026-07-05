@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Roadmap** ([docs/roadmap.md](docs/roadmap.md)) capturing the in-browser
+  "Fast" mode epic (Phases 0–3) and unscheduled improvement ideas, plus a Phase 0
+  feasibility spike under `spike/inbrowser-fast/` that times the iNat ONNX model
+  under ONNX Runtime Web. Docs and scaffolding only — no runtime behavior change.
 - **In-browser "Fast" mode groundwork (Phase 1).** Added `extension/inbrowser/`
   with a pure JavaScript port of the iNat pre/post-processing (`inat.mjs`) in
   numeric parity with the Python pipeline, a generated Arachnida leaf-index mask

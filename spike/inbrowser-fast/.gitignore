@@ -1,0 +1,8 @@
+# Phase 0 spike artifacts — not committed.
+inat.onnx
+*.onnx
+*.wasm
+*.mjs
+node_modules/
+package.json
+package-lock.json
