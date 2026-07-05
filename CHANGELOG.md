@@ -126,6 +126,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   4-model holds ~91% recall at ~1.0% web FPR. `IMGEDGE_SIGLIP_PROMPTS` /
   `IMGEDGE_MOBILECLIP_PROMPTS` still override.
 
+### Security
+
+- **Hardened `/classify` request-input validation (CWE-20).** The server now
+  type/shape-checks every field of the request body at the boundary: the body
+  must be a JSON object, and `url`/`data` must be strings and `meta` an object
+  (each otherwise treated as absent) — alongside the existing `[0,1]` clamping of
+  `threshold`/`salience` and the allowlisted `profile`. Previously a local client
+  sending a wrong-typed value (e.g. a numeric `data`, or a top-level JSON array)
+  could trigger an unhandled exception (HTTP 500) instead of a clean verdict;
+  such requests are now normalized/rejected gracefully. `_url_allowed` and
+  `fetch_image_bytes` also reject non-string URLs up front. Not remotely
+  exploitable (the endpoint is loopback-only and token-gated), but it closes an
+  input-validation gap in line with the threat model. Regression tests added to
+  `tests/test_server_http.py`.
+
 ## [0.3.0] - 2026-06-30
 
 ### Changed

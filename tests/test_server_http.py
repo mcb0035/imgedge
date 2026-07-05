@@ -101,6 +101,36 @@ def test_classify_body_too_large_is_rejected(live_server, monkeypatch):
     assert payload == {"error": "payload too large"}
 
 
+def test_classify_tolerates_malformed_body_types(live_server):
+    # A valid-but-non-object body (array / string / number) carries no fields and
+    # must be handled cleanly, not raise a 500.
+    for body in (b"[1, 2, 3]", b'"just a string"', b"42"):
+        status, _ = _request(f"{live_server}/classify", method="POST", token=TOKEN, body=body)
+        assert status == 200, body
+    # Wrong-typed fields are coerced to "absent" at the boundary, not fatal.
+    status, _ = _request(
+        f"{live_server}/classify",
+        method="POST",
+        token=TOKEN,
+        body={"url": 123, "data": ["x"], "meta": "nope", "threshold": "high"},
+    )
+    assert status == 200
+
+
+def test_url_allowed_rejects_non_string_inputs():
+    # Untrusted callers can send any JSON type; a non-string URL is rejected up
+    # front (an allowlist) rather than reaching urlparse, where it would raise.
+    for bad in (None, 123, ["http://e/x.jpg"], {"u": "http://e/x.jpg"}):
+        assert server._url_allowed(bad) is False
+
+
+def test_fetch_image_bytes_ignores_non_string_url_and_data():
+    # No network: each input is rejected before any host resolution or fetch.
+    assert server.fetch_image_bytes(123, None) is None
+    assert server.fetch_image_bytes(["http://e/x.jpg"], None) is None
+    assert server.fetch_image_bytes("ftp://e/x.jpg", 456) is None
+
+
 def test_unknown_get_path_is_404(live_server):
     status, _ = _request(f"{live_server}/nope")
     assert status == 404

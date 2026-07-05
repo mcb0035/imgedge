@@ -189,6 +189,7 @@ Mapping to the usual suspects (OWASP Top 10 / CWE) for a fetch-and-decode networ
 
 | Weakness (CWE / OWASP) | Mitigation |
 |---|---|
+| **Improper input validation** (CWE-20) | Every `/classify` field is type/shape-checked at the boundary: the body must be a JSON object; `url`/`data` must be strings and `meta` an object (else coerced to absent); `threshold`/`salience` are clamped to `[0,1]`; `profile` must be an allowlisted preset |
 | **SSRF** (CWE-918 / A10) | Host validation + IP pinning + NAT64/CGNAT/IPv4-mapped unwrap + port allowlist + no redirects + content-type gate + per-host cap |
 | **Injection / OS command** (CWE-77/78) | No shell, `eval`, or `exec`; no user string reaches a shell; fixed-argv subprocesses |
 | **XSS / DOM injection** (CWE-79) | Content script uses `textContent` only — no `innerHTML`/`eval`; MV3 strict CSP |
