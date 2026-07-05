@@ -79,3 +79,20 @@ test("classify fails open (per failClosed) when no offscreen support is availabl
   assert.equal(res.reason, "classifier-error");
   assert.equal(res.allow, true);
 });
+
+test("classifyInBrowser uses a data: URL directly (no fetch needed)", async () => {
+  const { context } = loadExtensionScript("background.js");
+  let fetched = false;
+  context.fetch = async () => {
+    fetched = true;
+    throw new Error("should not fetch a data: URL");
+  };
+  const created = withOffscreen(context, (msg) => {
+    assert.equal(msg.dataUrl, "data:image/gif;base64,R0lGODlhAQABAAAAACw=");
+    return { ok: true, blocked: false, score: 0.01 };
+  });
+  const r = await context.classifyInBrowser("data:image/gif;base64,R0lGODlhAQABAAAAACw=", null, 0.5);
+  assert.deepEqual(r, { ok: true, blocked: false, score: 0.01 });
+  assert.equal(created(), 1);
+  assert.equal(fetched, false); // the data: URL is used as-is, not re-fetched
+});

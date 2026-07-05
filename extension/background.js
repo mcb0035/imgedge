@@ -188,14 +188,18 @@ function bufferToBase64(buf) {
 async function fetchAsDataUrl(url) {
   try {
     const r = await fetch(url);
-    if (!r.ok) return null;
+    if (!r.ok) {
+      console.warn("[imgedge] image fetch failed: HTTP", r.status, url);
+      return null;
+    }
     const len = parseInt(r.headers.get("Content-Length") || "", 10);
     if (len > MAX_FETCH_BYTES) return null;            // skip oversized before buffering
     const buf = await r.arrayBuffer();
     if (buf.byteLength > MAX_FETCH_BYTES) return null;  // and after, if no header
     const type = r.headers.get("Content-Type") || "application/octet-stream";
     return `data:${type};base64,${bufferToBase64(buf)}`;
-  } catch {
+  } catch (e) {
+    console.warn("[imgedge] image fetch error:", String(e), url);
     return null;
   }
 }
@@ -273,7 +277,14 @@ async function ensureOffscreen() {
 
 // Ask the offscreen document to classify; returns { ok, blocked, score } or null.
 async function classifyInBrowser(url, data, threshold) {
-  const dataUrl = data || (/^https?:/i.test(url) ? await fetchAsDataUrl(url) : null);
+  // Get image bytes: the content script may pass them (e.g. for blob: URLs), a
+  // data: URL already IS the bytes, and http(s) images are fetched here (the
+  // worker has host_permissions). Anything else (file:, chrome:) has no bytes.
+  let dataUrl = data;
+  if (!dataUrl) {
+    if (url.startsWith("data:")) dataUrl = url;
+    else if (/^https?:/i.test(url)) dataUrl = await fetchAsDataUrl(url);
+  }
   if (!dataUrl) {
     console.warn("[imgedge] in-browser: no image bytes to classify", url);
     return null;
