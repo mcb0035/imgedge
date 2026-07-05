@@ -8,6 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Documented project governance + adopted the DCO.** New
+  [`GOVERNANCE.md`](GOVERNANCE.md) defines the single-maintainer governance model,
+  the maintainer and contributor roles (and who holds them), and how decisions and
+  disputes are resolved. [CONTRIBUTING.md](CONTRIBUTING.md) now asks contributors
+  to sign off their commits under the
+  [Developer Certificate of Origin](https://developercertificate.org/)
+  (`git commit -s`) and explains what that certifies.
 - **Added an "Install & uninstall" guide.**
   [docs/development.md](docs/development.md#install--uninstall) now documents
   installing the classifier with `pip install .` (and the standard `pip` location
