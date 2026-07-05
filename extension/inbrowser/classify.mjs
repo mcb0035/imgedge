@@ -81,7 +81,15 @@ export async function runModel(ort, session, meta, input) {
  */
 export async function classifyBlob(ort, session, meta, blob, threshold) {
   const { width, height, divisor, offset } = meta.input;
-  const bitmap = await createImageBitmap(blob);
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(blob);
+  } catch {
+    // The browser can't decode it (e.g. an SVG, or a corrupt / unsupported
+    // format). The model only handles raster images, so treat it as allowed --
+    // this mirrors the server's JPEG/PNG/WEBP/GIF/BMP format allow-list.
+    return { score: 0, blocked: false, skipped: true };
+  }
   try {
     // Skip trivially small images (placeholders / tracking pixels): they can't
     // depict the target, and classifying every one would flood the machine.
