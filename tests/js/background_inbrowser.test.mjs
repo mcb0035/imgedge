@@ -111,3 +111,33 @@ test("classify with inBrowserOnly skips the server and classifies in-browser", a
   assert.equal(res.reason, "inbrowser");
   assert.equal(res.allow, false);
 });
+
+test("classifyInBrowser caches the verdict so a repeated URL classifies once", async () => {
+  const { context } = loadExtensionScript("background.js");
+  let calls = 0;
+  context.chrome.offscreen = { createDocument: async () => {} };
+  context.chrome.runtime.sendMessage = async () => {
+    calls += 1;
+    return { ok: true, blocked: false, score: 0.02 };
+  };
+  const a = await context.classifyInBrowser("http://x/logo.png", "data:image/png;base64,AAAA", 0.5);
+  const b = await context.classifyInBrowser("http://x/logo.png", "data:image/png;base64,AAAA", 0.5);
+  assert.deepEqual(a, b);
+  assert.equal(calls, 1); // the second call is served from cache
+});
+
+test("classifyInBrowser shares one in-flight request for concurrent duplicates", async () => {
+  const { context } = loadExtensionScript("background.js");
+  let calls = 0;
+  context.chrome.offscreen = { createDocument: async () => {} };
+  context.chrome.runtime.sendMessage = async () => {
+    calls += 1;
+    return { ok: true, blocked: true, score: 0.95 };
+  };
+  const [a, b] = await Promise.all([
+    context.classifyInBrowser("http://x/same.png", "data:image/png;base64,AAAA", 0.5),
+    context.classifyInBrowser("http://x/same.png", "data:image/png;base64,AAAA", 0.5),
+  ]);
+  assert.deepEqual(a, b);
+  assert.equal(calls, 1); // concurrent duplicates collapse to one classify
+});
