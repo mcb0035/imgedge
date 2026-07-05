@@ -24,7 +24,7 @@ const DEFAULTS = {
   inBrowserOnly: false, // skip the server entirely and always classify locally (no server needed)
   strict: false, // block by default; show only what the classifier explicitly allows
   scanBackgrounds: true, // also filter CSS background / list images
-  threshold: 0.5, // block threshold, sent per request (lower = block more); popup slider
+  threshold: 0.15, // block threshold, sent per request (lower = block more); tuned for the iNat+timm ensemble (tools/tune_inbrowser.py)
   salience: 1.0, // size/detail weighting strength 0..1 (lower = block more); popup slider
   profile: "balanced", // easy-mode preset: which voter subset to run; popup selector
 };
