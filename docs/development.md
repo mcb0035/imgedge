@@ -188,6 +188,9 @@ Alongside it:
   benchmarks that comment per-PR deltas.
 - **ClusterFuzzLite** — a short fuzzing campaign over the image-decode path on
   each PR.
+- **[DCO](../.github/workflows/dco.yml)** — verifies every pull-request commit is
+  signed off (`git commit -s`), per the
+  [DCO policy](../CONTRIBUTING.md#developer-certificate-of-origin-dco).
 - **[`release.yml`](../.github/workflows/release.yml)** — builds and publishes
   the extension package for a tagged release.
 

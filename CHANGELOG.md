@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Enforced the DCO in CI.** A new [`dco.yml`](.github/workflows/dco.yml)
+  workflow fails any pull request whose commits are not all signed off (a
+  `Signed-off-by` trailer matching the commit author), so the
+  [DCO](CONTRIBUTING.md#developer-certificate-of-origin-dco) is checked
+  automatically rather than only by convention.
 - **Documented project governance + adopted the DCO.** New
   [`GOVERNANCE.md`](GOVERNANCE.md) defines the single-maintainer governance model,
   the maintainer and contributor roles (and who holds them), and how decisions and
