@@ -51,7 +51,9 @@ These targets bind anyone triaging or reviewing on the project's behalf.
 2. Make the change with a matching **test** and a
    [CHANGELOG](CHANGELOG.md) entry under `## [Unreleased]`.
 3. Run the checks below locally.
-4. Open a pull request describing the *why*, not just the *what*. Keep PRs
+4. **Sign off** every commit (`git commit -s`) to certify the
+   [DCO](#developer-certificate-of-origin-dco).
+5. Open a pull request describing the *why*, not just the *what*. Keep PRs
    focused — one concern per PR merges fastest.
 
 **Testing policy.** Any change that adds or alters behaviour must add or update
@@ -61,6 +63,31 @@ with it, in the same PR.
 
 New to the codebase? The [README](README.md#project-layout) project-layout table
 and the [threat model](docs/threat-model.md) are the fastest way in.
+
+## Developer Certificate of Origin (DCO)
+
+ImgEdge uses the [Developer Certificate of Origin](https://developercertificate.org/)
+(DCO) as its contribution agreement. The DCO is a lightweight, in-commit way to
+certify that **you wrote the contribution, or otherwise have the right to submit
+it** under the project's Apache-2.0 license. It is short — read the full text at
+<https://developercertificate.org/>.
+
+You certify it by **signing off** each commit:
+
+```powershell
+git commit -s -m "your message"
+```
+
+That appends a trailer with your real name and email:
+
+```text
+Signed-off-by: Your Name <you@example.com>
+```
+
+Set `git config user.name` / `user.email` first (identical on bash/zsh). Forgot
+one? `git commit --amend -s` fixes the last commit, or `git rebase --signoff
+main` a whole branch. By signing off you agree to the DCO for that contribution;
+anonymous or pseudonymous sign-offs are not accepted.
 
 ## Requirements for acceptable contributions
 

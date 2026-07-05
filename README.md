@@ -86,7 +86,8 @@ flowchart LR
 - **[Accessibility](docs/accessibility.md)** — keyboard, contrast, and
   screen-reader posture of the popup and the blocked-image placeholder.
 - **[Security policy](SECURITY.md)** · **[Privacy](PRIVACY.md)** ·
-  **[Contributing](CONTRIBUTING.md)** · **[Code of Conduct](CODE_OF_CONDUCT.md)**
+  **[Contributing](CONTRIBUTING.md)** · **[Code of Conduct](CODE_OF_CONDUCT.md)** ·
+  **[Governance](GOVERNANCE.md)**
 
 ## Quick start
 
