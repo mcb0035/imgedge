@@ -11,12 +11,20 @@ This directory is being built up in reviewable increments. **What's here now:**
 | [`inat.mjs`](inat.mjs) | Pure preprocess / score functions, in numeric parity with the Python pipeline (`imgedge.inat.inat_filter`). No DOM / ONNX — safe to unit-test in Node and reuse in the offscreen document. |
 | [`classify.mjs`](classify.mjs) | Browser glue on top of `inat.mjs`: decode image bytes + resize (canvas) → run the model (ONNX Runtime is injected, not imported) → `{ score, blocked }`. Validated end-to-end in a real browser. |
 | [`inat_web.json`](inat_web.json) | Generated metadata: input size + float scaling, and the **Arachnida leaf-index mask** (14 of the model's 507 outputs). Lets the extension avoid shipping/parsing the full taxonomy. |
+| [`offscreen.mjs`](offscreen.mjs) + [`offscreen.html`](offscreen.html) | The offscreen document: hosts one ORT session for the bundled model and answers classify requests from the service worker (reusing `classify.mjs`). MV3 service workers can't keep a model warm, so this does. |
+| `vendor/` | The bundled `inat.onnx` + ONNX Runtime Web, populated by `tools/bundle_inbrowser.py`. Git-ignored — not committed. |
 
-**Not here yet** (later phases): the bundled `inat.onnx` + ONNX Runtime Web, the
+**How it's wired:** when the local server is unreachable (and the
+`inBrowserFallback` setting is on — the default), `background.js` creates the
 [offscreen document](https://developer.chrome.com/docs/extensions/reference/api/offscreen)
-that hosts a session and calls `classifyBlob`, and the `manifest.json` /
-`background.js` wiring (offscreen permission, CSP, web-accessible resources) that
-falls back to in-browser when no server is reachable.
+and delegates classification to it, so filtering keeps working with **no server**.
+`manifest.json` grants the `offscreen` permission and a `'wasm-unsafe-eval'` CSP
+(for ONNX Runtime's WebAssembly).
+
+**Not here yet** (Phase 3 polish): an explicit "Fast (in-browser)" preset in the
+popup, trimming `vendor/` to just the shipped ORT build (it currently copies all
+variants), and a resize that matches Pillow's `BILINEAR` exactly if Fast-mode
+recall needs it.
 
 ## Parity
 
@@ -34,6 +42,17 @@ Re-run whenever the model or taxonomy changes (needs the taxonomy from
 
 ```powershell
 python tools/export_inat_web.py
+```
+
+## Bundling the model + runtime
+
+The offscreen document loads `inat.onnx` + ONNX Runtime Web from `vendor/`
+(git-ignored). Populate it before loading or packaging the extension:
+
+```powershell
+python src/imgedge/inat/convert_to_onnx.py   # once: produce the ONNX model
+npm install onnxruntime-web                  # once: fetch the ORT Web dist
+python tools/bundle_inbrowser.py             # copy model + runtime into vendor/
 ```
 
 The pre/post-processing math is validated in Phase 0's spike

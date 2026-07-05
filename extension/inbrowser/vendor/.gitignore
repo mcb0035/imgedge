@@ -1,0 +1,5 @@
+# Bundled model + ONNX Runtime Web for the in-browser classifier.
+# Populated by tools/bundle_inbrowser.py before packaging; never committed
+# (the model is ~21 MB and the ORT runtime is redistributable but large).
+*
+!.gitignore

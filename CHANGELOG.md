@@ -20,6 +20,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   end-to-end in a browser. Node + pytest parity tests are pinned to one fixture.
   Internal scaffolding toward zero-install client-side filtering — no user-facing
   behavior change yet.
+- **In-browser Fast fallback (Phase 1).** When the local classifier server is
+  unreachable, ImgEdge now filters images **in the browser** — the bundled iNat
+  model runs in an [offscreen document](https://developer.chrome.com/docs/extensions/reference/api/offscreen)
+  via ONNX Runtime Web (WebGPU, with a WASM fallback), so filtering keeps working
+  with **no server running**. On by default (the `inBrowserFallback` setting);
+  adds the `offscreen` permission and a `'wasm-unsafe-eval'` CSP. The model +
+  runtime are bundled into `extension/inbrowser/vendor/` by
+  `tools/bundle_inbrowser.py` (git-ignored, not committed). The background
+  fallback logic is unit-tested and the offscreen classifier is browser-validated.
 
 ### Changed
 

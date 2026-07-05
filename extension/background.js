@@ -20,6 +20,7 @@ const DEFAULTS = {
   token: "", // shared secret the local classifier requires (from its console)
   sendData: false, // POST base64 image bytes in addition to the URL
   failClosed: false, // block when the classifier can't be reached
+  inBrowserFallback: true, // if the server is unreachable, classify locally in an offscreen document
   strict: false, // block by default; show only what the classifier explicitly allows
   scanBackgrounds: true, // also filter CSS background / list images
   threshold: 0.5, // block threshold, sent per request (lower = block more); popup slider
@@ -241,6 +242,65 @@ async function ensureServerTrusted(s) {
   return false; // don't cache failure; retry next call
 }
 
+// ---- In-browser fallback (offscreen document) ------------------------------
+// When the local server is unreachable, classify with the bundled model in an
+// offscreen document — MV3 service workers can't keep a model warm. No network
+// and no token surface: the zero-install path. See extension/inbrowser/.
+const OFFSCREEN_URL = "inbrowser/offscreen.html";
+let offscreenReady = null;
+
+async function ensureOffscreen() {
+  if (!chrome.offscreen) return false; // browser too old for offscreen documents
+  if (offscreenReady) return offscreenReady;
+  offscreenReady = (async () => {
+    try {
+      await chrome.offscreen.createDocument({
+        url: OFFSCREEN_URL,
+        reasons: ["BLOBS"],
+        justification: "Classify images locally with the bundled model (no server).",
+      });
+    } catch (e) {
+      // A document may already exist (race / prior create): reuse it; else fail.
+      if (!/single offscreen|already/i.test(String(e))) {
+        offscreenReady = null;
+        throw e;
+      }
+    }
+    return true;
+  })();
+  return offscreenReady;
+}
+
+// Ask the offscreen document to classify; returns { ok, blocked, score } or null.
+async function classifyInBrowser(url, data, threshold) {
+  const dataUrl = data || (/^https?:/i.test(url) ? await fetchAsDataUrl(url) : null);
+  if (!dataUrl) return null;
+  if (!(await ensureOffscreen())) return null;
+  const resp = await chrome.runtime.sendMessage({
+    target: "offscreen",
+    type: "inbrowser-classify",
+    dataUrl,
+    threshold,
+  });
+  return resp && resp.ok ? resp : null;
+}
+
+// Verdict when the server can't be used: try the in-browser fallback, else fail
+// open/closed per settings.
+async function unreachableVerdict(s, strict, url, data, reason, error) {
+  if (s.inBrowserFallback) {
+    try {
+      const r = await classifyInBrowser(url, data, s.threshold);
+      if (r) {
+        setHealth("ok");
+        return { allow: strict ? r.blocked === false : !r.blocked, reason: "inbrowser", score: r.score };
+      }
+    } catch { /* fall through to fail open/closed */ }
+  }
+  setHealth("error");
+  return { allow: strict ? false : !s.failClosed, reason, error };
+}
+
 // ---- Classification --------------------------------------------------------
 async function classify(url, data, meta) {
   const s = await getSettings();
@@ -259,8 +319,7 @@ async function classify(url, data, meta) {
   if (host && domains.includes(host)) return { allow: true };
 
   if (s.token && !(await ensureServerTrusted(s))) {
-    setHealth("error");
-    return { allow: strict ? false : !s.failClosed, reason: "server-unverified" };
+    return await unreachableVerdict(s, strict, url, data, "server-unverified");
   }
 
   const body = { url };
@@ -297,19 +356,15 @@ async function classify(url, data, meta) {
     const allow = strict ? json.block === false : !json.block;
     return { allow, reason: json.reason, score: json.score, votes: json.votes, salience: json.salience, dbg: json.dbg };
   } catch (e) {
-    setHealth("error");
-    // Classifier unreachable / timed out: strict blocks, otherwise honor failClosed.
-    return {
-      allow: strict ? false : !s.failClosed,
-      reason: strict ? "strict-blocked" : "classifier-error",
-      error: String(e),
-    };
+    // Classifier unreachable / timed out: try in-browser, else strict blocks / honor failClosed.
+    return await unreachableVerdict(s, strict, url, data, strict ? "strict-blocked" : "classifier-error", String(e));
   }
 }
 
 // ---- Messaging -------------------------------------------------------------
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return false; // ignore non-extension senders
+  if (msg && msg.target === "offscreen") return false; // handled by the offscreen document
   (async () => {
     try {
       switch (msg && msg.type) {

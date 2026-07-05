@@ -1,0 +1,16 @@
+<!-- Copyright the ImgEdge contributors. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ImgEdge classifier</title>
+    <!-- ONNX Runtime Web (bundled into vendor/ by tools/bundle_inbrowser.py). -->
+    <script src="vendor/ort.webgpu.min.js"></script>
+  </head>
+  <body>
+    <!-- Headless: this offscreen document just hosts the ORT session so the
+         service worker can classify images locally. No visible UI. -->
+    <script type="module" src="offscreen.mjs"></script>
+  </body>
+</html>
