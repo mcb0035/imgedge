@@ -4,6 +4,7 @@ name: DCO
 
 # Enforces the Developer Certificate of Origin: every non-merge commit in a pull
 # request must carry a `Signed-off-by:` trailer matching its author (git commit -s).
+# Trusted automation bots (allow-listed below, e.g. Dependabot) are exempt.
 # See CONTRIBUTING.md#developer-certificate-of-origin-dco.
 
 on: pull_request
@@ -30,9 +31,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Author names allow-listed as trusted bots: they can't add a DCO
+          # sign-off and their commits are mechanical dependency bumps. GitHub bot
+          # logins end in "[bot]" and can't be a human username, so this is
+          # spoof-proof. Add more entries here if the project adopts other bots.
+          BOT_AUTHORS=("dependabot[bot]")
           fail=0
           for sha in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
+            name="$(git show -s --format='%an' "$sha")"
             author="$(git show -s --format='%an <%ae>' "$sha")"
+            skip=0
+            for bot in "${BOT_AUTHORS[@]}"; do
+              if [ "$name" = "$bot" ]; then skip=1; break; fi
+            done
+            if [ "$skip" -eq 1 ]; then continue; fi
             if ! git show -s --format='%(trailers:key=Signed-off-by,valueonly)' "$sha" \
                  | grep -qxF "$author"; then
               subject="$(git show -s --format='%s' "$sha")"
