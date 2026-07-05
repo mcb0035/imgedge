@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 # Local hooks for ImgEdge. Set up with:
 #   pip install pre-commit && pre-commit install
 #   npm install                     # for the eslint hook

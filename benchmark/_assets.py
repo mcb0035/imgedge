@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Shared synthetic-image fixtures for the benchmark suite.
 
 Images are generated deterministically (seeded RNG) so the encoded bytes and the

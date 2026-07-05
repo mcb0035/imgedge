@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Warm inference latency: per-voter cost and 2-/3-/4-model profile totals.
 
 Times the ensemble INFERENCE path (not decode -- see bench_decode.py) on a fixed

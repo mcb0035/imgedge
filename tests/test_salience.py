@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Image-salience weighting (voters/salience.py)."""
 
 import numpy as np

@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Voting ensemble: combine several image classifiers into one verdict.
 
 Each Voter scores an image in [0, 1] (probability it should be blocked) and

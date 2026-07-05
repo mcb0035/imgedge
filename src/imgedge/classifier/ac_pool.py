@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Production AppContainer decode pool (feature/sandbox, Windows only).
 
 Decodes image bytes inside warm, prespawned AppContainer worker processes that

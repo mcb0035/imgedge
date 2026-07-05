@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """MobileCLIP voter scoring math (pure helper) + an opt-in model-path test."""
 
 import os

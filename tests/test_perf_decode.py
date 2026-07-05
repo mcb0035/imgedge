@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Performance-regression guards (the CI 'perf' job; ``pytest -m perf``).
 
 Deliberately RELATIVE / invariant checks rather than absolute-millisecond

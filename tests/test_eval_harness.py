@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the evaluation harness pure logic (no models, no network needed).
 
 The encrypted-zip round-trip is skipped when pyzipper isn't installed (the CI

@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Ensemble voting + salience interaction (voters/base.py)."""
 
 from imgedge.voters import base

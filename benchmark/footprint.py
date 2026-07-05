@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Resident memory footprint of the server + decode workers (Windows).
 
 Run from the repo root with the project venv:

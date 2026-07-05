@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Test bootstrap: pin token/cache via env so importing the server is side-effect
 free. Modules are imported as ``imgedge.*`` (install with ``pip install -e .``).
 """

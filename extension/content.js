@@ -1,3 +1,5 @@
+// Copyright the ImgEdge contributors.
+// SPDX-License-Identifier: Apache-2.0
 /* ImgEdge content script — filters every image surface the user can see:
  *   <img> (incl. <picture>/<source> and srcset), <input type="image">,
  *   SVG <image>, <video poster>, and CSS background-image / list-style-image.

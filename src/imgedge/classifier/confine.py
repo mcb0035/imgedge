@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """OS-level confinement for decode workers (feature/sandbox).
 
 Windows: the workers are placed in a Job object that caps each worker's committed

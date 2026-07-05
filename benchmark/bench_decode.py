@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Warm decode latency: in-process vs subprocess pool vs AppContainer.
 
 Run from the repo root with the project venv:

@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """SigLIP voter scoring math (pure helpers) + an opt-in model-path smoke test."""
 
 import os

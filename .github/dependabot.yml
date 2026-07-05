@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 version: 2
 updates:
   # App + dev tools, pinned in the root pyproject.toml.

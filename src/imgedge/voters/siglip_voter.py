@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Open-vocabulary voter using a SigLIP 2 image-text model.
 
 Default model: google/siglip2-base-patch16-224  (Apache-2.0).

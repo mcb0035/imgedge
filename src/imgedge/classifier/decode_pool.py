@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Optional out-of-process image decode (prototype, feature/sandbox).
 
 Runs the memory-unsafe part — the Pillow format decode in ``open_guarded`` — in a

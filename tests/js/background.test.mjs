@@ -1,3 +1,5 @@
+// Copyright the ImgEdge contributors.
+// SPDX-License-Identifier: Apache-2.0
 // Tests for the background service worker's helpers: URL host extraction, base64
 // encoding of image bytes, the HMAC proof (F2), and the message-sender guard that
 // ignores messages from other extensions / pages (threat-model F7).

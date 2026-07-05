@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """open_guarded decode hardening: large-image downscale + reject ceilings."""
 
 import io

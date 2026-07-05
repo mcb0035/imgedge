@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Single source of truth for the project version: ``pyproject.toml``.
 
 ``src/imgedge/__init__.py`` (``__version__``), the browser-extension manifest,

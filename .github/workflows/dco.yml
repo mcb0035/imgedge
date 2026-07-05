@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 name: DCO
 
 # Enforces the Developer Certificate of Origin: every non-merge commit in a pull

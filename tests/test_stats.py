@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Rolling latency stats accumulator (server.py)."""
 
 import imgedge.classifier.server as server

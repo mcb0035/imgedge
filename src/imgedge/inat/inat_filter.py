@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Block images of a target taxon (default: class Arachnida) using the
 iNaturalist vision model — fully local, no training.
 

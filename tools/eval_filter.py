@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """ImgEdge filtering evaluation harness.
 
 Run the REAL classification pipeline over a labelled dataset and report

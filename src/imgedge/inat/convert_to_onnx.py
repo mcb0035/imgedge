@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Convert the iNaturalist vision TFLite model to ONNX for GPU/NPU inference.
 
 Requires (in addition to the model download):

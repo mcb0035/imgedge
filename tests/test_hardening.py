@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Hardening fixes from docs/threat-model.md (server-side units: F1-F5, F8, F11)."""
 
 import hashlib

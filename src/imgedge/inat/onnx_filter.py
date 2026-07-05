@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """ONNX Runtime backend for the iNaturalist vision model — runs on GPU/NPU.
 
 Reuses the taxonomy mask, decode hardening, and pre/post-processing from

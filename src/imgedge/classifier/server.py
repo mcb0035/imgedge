@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """ImgEdge local classifier — blocks images of a target taxon (default:
 class Arachnida) using the iNaturalist vision model. Fully local; nothing
 about image content leaves the machine.

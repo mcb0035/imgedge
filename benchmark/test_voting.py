@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Ensemble-voting and pre/post-processing benchmarks.
 
 ``VoteEnsemble.classify`` combines the voters' signed evidence and (under the

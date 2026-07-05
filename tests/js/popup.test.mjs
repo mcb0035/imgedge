@@ -1,3 +1,5 @@
+// Copyright the ImgEdge contributors.
+// SPDX-License-Identifier: Apache-2.0
 // Tests for the popup's security-relevant helpers: the local-endpoint allowlist
 // (threat-model F6), the constant-time hex compare, and the HMAC proof used to
 // verify the server's identity before the token is sent (F2).

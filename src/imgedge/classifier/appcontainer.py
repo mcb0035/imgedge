@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """AppContainer launch primitives (feature/sandbox, Windows only).
 
 An AppContainer cannot be entered by a running process -- it must be applied at

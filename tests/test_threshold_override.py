@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Per-request threshold + salience overrides on the voting ensemble."""
 
 from PIL import Image

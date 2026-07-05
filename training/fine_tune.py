@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Fine-tune MobileNetV3 on your own images (transfer learning).
 
 Expected data layout (torchvision ImageFolder):
