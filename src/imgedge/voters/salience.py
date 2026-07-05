@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Image-salience weighting for the voting ensemble.
 
 A big, sharp, photorealistic close-up of an arachnid is both the most certain

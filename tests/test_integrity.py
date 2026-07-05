@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Model/taxonomy integrity verification (download_models.py + server.py)."""
 
 import hashlib

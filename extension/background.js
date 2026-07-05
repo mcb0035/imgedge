@@ -1,3 +1,5 @@
+// Copyright the ImgEdge contributors.
+// SPDX-License-Identifier: Apache-2.0
 /* ImgEdge background service worker.
  * Owns settings + lists (whitelist URLs, allowed domains, blocklist URLs) and
  * talks to the local classifier. Also wires the right-click context menu so the

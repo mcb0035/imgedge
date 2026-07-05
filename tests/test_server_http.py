@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """HTTP-layer tests for the classifier server: token auth, the request-body cap,
 path routing, and the `/health` challenge proof.
 

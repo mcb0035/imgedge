@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 <#
 .SYNOPSIS
   Package the ImgEdge browser extension for distribution.

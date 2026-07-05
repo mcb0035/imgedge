@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Open-vocabulary voter using a MobileCLIP model (open_clip).
 
 Default: MobileCLIP2-S0 / dfndr2b -- a small, fast CLIP variant built for

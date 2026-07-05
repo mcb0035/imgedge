@@ -1,3 +1,5 @@
+// Copyright the ImgEdge contributors.
+// SPDX-License-Identifier: Apache-2.0
 // Verifies the WebExtension i18n wiring is complete and self-consistent:
 //  - every message has a non-empty string,
 //  - every key referenced by the scripts / popup / manifest is defined,

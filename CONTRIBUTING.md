@@ -93,6 +93,21 @@ A CI check ([`dco.yml`](.github/workflows/dco.yml)) enforces this: a pull reques
 whose commits are not all signed off fails until you amend or rebase
 (`--signoff`) and force-push.
 
+## License headers
+
+Every source file begins with a two-line header, in that file's comment syntax:
+
+```text
+Copyright the ImgEdge contributors.
+SPDX-License-Identifier: Apache-2.0
+```
+
+New source files should carry it. `python tools/add_license_headers.py` adds the
+header to any tracked source file missing it (idempotent), and
+`python tools/add_license_headers.py --check` verifies coverage — CI runs this
+check on every push and pull request, so a missing header fails the build. JSON
+files are exempt (JSON has no comment syntax).
+
 ## Requirements for acceptable contributions
 
 These are the standards the CI gate enforces on every pull request

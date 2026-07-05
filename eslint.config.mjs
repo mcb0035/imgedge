@@ -1,3 +1,5 @@
+// Copyright the ImgEdge contributors.
+// SPDX-License-Identifier: Apache-2.0
 import js from "@eslint/js";
 import globals from "globals";
 

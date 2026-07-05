@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """SSRF guard + fetch input handling (server.py)."""
 
 import base64

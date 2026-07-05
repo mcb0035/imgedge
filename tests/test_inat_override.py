@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """The iNat-confidence override: a confident real-organism match blocks outright
 and is not vetoed by the look-alike contrast voter's negative evidence.
 """

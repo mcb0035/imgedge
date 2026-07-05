@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """ImgEdge — local image-classifier backend for the ImgEdge MV3 extension."""
 
 # Single source of truth is pyproject.toml; propagated here (and to extension/manifest.json

@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Run the iNaturalist vision TFLite model on an image (species identification).
 
 This loads the quantized .tflite, reads the input/output tensor specs directly

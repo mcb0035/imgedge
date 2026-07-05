@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """AppContainer decode pool — opt-in (Windows, sets up icacls grants).
 
 Skipped by default so the normal suite and Linux CI stay fast and green. Run on

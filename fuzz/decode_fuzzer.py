@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Fuzz the untrusted image-decode path.
 
 This is the classifier's real attack surface: it fetches image bytes supplied by

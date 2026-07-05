@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Decode-path benchmarks: the guarded Pillow decode + RGB conversion + cap
 resize that every classified image goes through (``decode_pool._decode`` and the
 hardened ``open_guarded`` entry point).

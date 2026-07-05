@@ -1,3 +1,5 @@
+// Copyright the ImgEdge contributors.
+// SPDX-License-Identifier: Apache-2.0
 const KEYS = {
   settings: "imgedge:settings",
   whitelist: "imgedge:whitelist",

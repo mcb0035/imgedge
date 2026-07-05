@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Run the exported ONNX model on one image (sanity check + serving reference).
 
 The preprocessing here mirrors the validation transform in fine_tune.py, so it

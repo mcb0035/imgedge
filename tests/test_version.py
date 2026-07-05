@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """The extension manifest and the Python package version must stay in lockstep."""
 
 import json

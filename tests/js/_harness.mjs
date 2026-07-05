@@ -1,3 +1,5 @@
+// Copyright the ImgEdge contributors.
+// SPDX-License-Identifier: Apache-2.0
 // Test harness for the extension's classic scripts (background.js, popup.js).
 //
 // They run in the browser as non-module scripts that touch WebExtension + DOM

@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Bootstrap for the CodSpeed benchmark suite.
 
 Pins token/cache env so importing the server / voter modules is side-effect

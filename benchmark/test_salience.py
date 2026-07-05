@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Salience-weighting benchmarks (``voters/salience.image_salience``).
 
 Salience runs once per classified image and is pure numpy/Pillow: a 128x128

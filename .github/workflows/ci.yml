@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 name: CI
 
 on:
@@ -32,6 +34,8 @@ jobs:
         run: ruff check .
       - name: Format check (ruff)
         run: ruff format --check .
+      - name: License headers (SPDX)
+        run: python tools/add_license_headers.py --check
       - name: Compile
         run: python -m py_compile src/imgedge/classifier/*.py src/imgedge/inat/*.py src/imgedge/voters/*.py
       - name: Tests (with coverage)

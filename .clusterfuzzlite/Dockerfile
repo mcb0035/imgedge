@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 # ClusterFuzzLite build image for the image-decode fuzzers.
 # https://google.github.io/clusterfuzzlite/build-integration/python/
 # Pinned by digest for reproducible fuzz builds (OpenSSF Scorecard

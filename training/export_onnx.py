@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Export a fine-tuned MobileNetV3 checkpoint to ONNX for the local classifier.
 
 Writes <out>.onnx plus a sidecar <out>.json holding the labels and the exact

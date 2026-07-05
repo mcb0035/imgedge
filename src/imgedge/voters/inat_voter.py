@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Wrap the iNaturalist taxon filter (TFLite/ONNX backend) as an ensemble voter."""
 
 from imgedge.voters.base import Voter

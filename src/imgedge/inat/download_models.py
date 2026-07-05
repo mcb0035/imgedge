@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """Download + verify the iNaturalist vision model + taxonomy.
 
 These assets come from https://github.com/inaturalist/model-files/releases and

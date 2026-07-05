@@ -1,3 +1,5 @@
+# Copyright the ImgEdge contributors.
+# SPDX-License-Identifier: Apache-2.0
 """ImageNet voter using a Hugging Face / timm model.
 
 Default model: mobilenetv3_large_100.ra_in1k  (timm, ImageNet-1k, 1000 classes).
