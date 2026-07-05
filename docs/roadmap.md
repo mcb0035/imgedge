@@ -29,10 +29,12 @@ the MV3 service worker has no DOM/canvas.
 
 ### Phases
 
-- **Phase 0 — feasibility spike** ([`spike/inbrowser-fast/`](../spike/inbrowser-fast/)):
-  confirm the quantized iNat ONNX loads and runs under ORT Web (WASM, and WebGPU
-  where available) and measure per-inference latency. Resolves the biggest
-  unknown before any real work.
+- **Phase 0 — feasibility spike ✅ GO** ([`spike/inbrowser-fast/`](../spike/inbrowser-fast/)):
+  confirmed the quantized iNat ONNX loads and runs under ORT Web with **no
+  unsupported operators**. Measured (2026-07-05, ORT Web 1.27, input NHWC
+  `[1, 299, 299, 3]` → output `[1, 507]`): **~8.5 ms p50 on WebGPU** and
+  **~447 ms p50 on the WASM fallback**. The biggest unknown is resolved — proceed
+  to Phase 1.
 - **Phase 1 — iNat-only Fast:** a single model in an offscreen document; verdict =
   iNat score vs. threshold; `content.js` falls back to in-browser when no server
   is reachable. Ships zero-install filtering.
@@ -43,7 +45,8 @@ the MV3 service worker has no DOM/canvas.
 
 ### Key risks
 
-- Quantized-operator support in ORT Web WASM — the Phase 0 gate.
+- ~~Quantized-operator support in ORT Web WASM~~ — **cleared in Phase 0** (the
+  model runs cleanly on both the WASM and WebGPU execution providers).
 - Preprocessing / normalization parity between JS and Python (guarded by a parity
   test on synthetic images).
 - Maintaining the ensemble in two languages (mitigated by shared constants +

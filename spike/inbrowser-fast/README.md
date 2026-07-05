@@ -18,11 +18,13 @@ cd spike/inbrowser-fast
 npm init -y ; npm install onnxruntime-web      # brings ORT Web + its .wasm files
 Copy-Item node_modules/onnxruntime-web/dist/ort-wasm-*.* .   # wasm binaries + .mjs loaders, next to index.html
 # generate the iNat ONNX (see docs/development.md) and drop it here as inat.onnx
-python -m http.server 8000                     # a static server; file:// can't load wasm
+python serve.py 8080                            # static server w/ correct .mjs + .wasm MIME (file:// can't load wasm)
 ```
 
-Then open <http://localhost:8000/> and read the results panel (and the DevTools
-console). On bash/zsh the `cp`/server commands are the same idea.
+Then open <http://localhost:8080/> and read the results panel (and the DevTools
+console). `serve.py` is a tiny wrapper around `http.server` that fixes the `.mjs`
+MIME type (Windows serves it as `text/plain`, which browsers refuse to import).
+On bash/zsh the `cp`/server commands are the same idea.
 
 ## What to look for
 
