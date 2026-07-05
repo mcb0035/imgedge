@@ -9,12 +9,14 @@ This directory is being built up in reviewable increments. **What's here now:**
 | File | Purpose |
 | --- | --- |
 | [`inat.mjs`](inat.mjs) | Pure preprocess / score functions, in numeric parity with the Python pipeline (`imgedge.inat.inat_filter`). No DOM / ONNX — safe to unit-test in Node and reuse in the offscreen document. |
+| [`classify.mjs`](classify.mjs) | Browser glue on top of `inat.mjs`: decode image bytes + resize (canvas) → run the model (ONNX Runtime is injected, not imported) → `{ score, blocked }`. Validated end-to-end in a real browser. |
 | [`inat_web.json`](inat_web.json) | Generated metadata: input size + float scaling, and the **Arachnida leaf-index mask** (14 of the model's 507 outputs). Lets the extension avoid shipping/parsing the full taxonomy. |
 
 **Not here yet** (later phases): the bundled `inat.onnx` + ONNX Runtime Web, the
 [offscreen document](https://developer.chrome.com/docs/extensions/reference/api/offscreen)
-that decodes images and runs the model, and the `manifest.json` / `background.js`
-wiring that falls back to in-browser when no server is reachable.
+that hosts a session and calls `classifyBlob`, and the `manifest.json` /
+`background.js` wiring (offscreen permission, CSP, web-accessible resources) that
+falls back to in-browser when no server is reachable.
 
 ## Parity
 

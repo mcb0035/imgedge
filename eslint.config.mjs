@@ -30,8 +30,9 @@ export default [
     },
   },
   {
-    // Pure ES-module core of the in-browser classifier (no DOM / Node globals).
+    // ES-module core of the in-browser classifier. inat.mjs is pure; classify.mjs
+    // uses browser globals (createImageBitmap / OffscreenCanvas).
     files: ["extension/inbrowser/**/*.mjs"],
-    languageOptions: { ecmaVersion: 2022, sourceType: "module" },
+    languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: { ...globals.browser } },
   },
 ];
