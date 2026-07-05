@@ -45,3 +45,30 @@ test("tooSmallToClassify flags placeholders and tiny images", () => {
   assert.equal(tooSmallToClassify(MIN_CLASSIFY_DIM, MIN_CLASSIFY_DIM), false);
   assert.equal(tooSmallToClassify(800, 600), false);
 });
+
+test("runModel lays out an NCHW tensor when meta.input.layout is NCHW (timm)", async () => {
+  const meta = { input: { height: 2, width: 2, layout: "NCHW" } };
+  const input = Float32Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]); // 3*2*2
+
+  let seen = null;
+  const ort = {
+    Tensor: class {
+      constructor(type, data, dims) {
+        this.type = type;
+        this.data = data;
+        this.dims = dims;
+      }
+    },
+  };
+  const session = {
+    inputNames: ["input"],
+    outputNames: ["logits"],
+    run: async (feeds) => {
+      seen = feeds;
+      return { logits: { data: Float32Array.from([0.5]) } };
+    },
+  };
+
+  await runModel(ort, session, meta, input);
+  assert.deepEqual(seen["input"].dims, [1, 3, 2, 2]);
+});

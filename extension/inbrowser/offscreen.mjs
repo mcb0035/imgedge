@@ -13,7 +13,7 @@
  *   { target: "offscreen", type: "inbrowser-classify", dataUrl, threshold }
  * and gets back { ok: true, score, blocked } or { ok: false, error }.
  */
-import { classifyBlob } from "./classify.mjs";
+import { classifyBlobEnsemble } from "./classify.mjs";
 
 /** Resolve a bundled resource to an absolute URL (extension origin at runtime, page-relative in a harness). */
 function resource(path) {
@@ -44,13 +44,23 @@ function ensureReady() {
           " wasmThreads=" +
           ort.env.wasm.numThreads,
       );
-      const meta = await (await fetch(resource("inat_web.json"))).json();
       // WASM only: a headless offscreen document can't reliably get a WebGPU
       // context, and the WebGPU EP can crash/hang the document while loading.
-      const session = await ort.InferenceSession.create(resource("vendor/inat.onnx"), {
-        executionProviders: ["wasm"],
-      });
-      return { ort, session, meta };
+      const providers = { executionProviders: ["wasm"] };
+      const inatMeta = await (await fetch(resource("inat_web.json"))).json();
+      const inatSession = await ort.InferenceSession.create(resource("vendor/inat.onnx"), providers);
+      const inat = { session: inatSession, meta: inatMeta };
+      // Second voter (timm ImageNet model). Optional: if it isn't bundled, fall
+      // back to iNat-only so the classifier still works.
+      let timm = null;
+      try {
+        const timmMeta = await (await fetch(resource("timm_web.json"))).json();
+        const timmSession = await ort.InferenceSession.create(resource("vendor/timm.onnx"), providers);
+        timm = { session: timmSession, meta: timmMeta };
+      } catch (e) {
+        console.warn("[imgedge] offscreen: timm voter unavailable, using iNat only:", String(e));
+      }
+      return { ort, inat, timm };
     })().catch((e) => {
       ready = null; // let a later request retry a failed load
       throw e;
@@ -62,8 +72,8 @@ function ensureReady() {
 /** Classify an image given as a data URL; returns { score, blocked }. */
 export async function classifyDataUrl(dataUrl, threshold = 0.5) {
   const blob = await (await fetch(dataUrl)).blob();
-  const { ort, session, meta } = await ensureReady();
-  return classifyBlob(ort, session, meta, blob, threshold);
+  const { ort, inat, timm } = await ensureReady();
+  return classifyBlobEnsemble(ort, { inat, timm }, blob, threshold);
 }
 
 // Wire the background <-> offscreen message channel (only in the extension).
