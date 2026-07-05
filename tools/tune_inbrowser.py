@@ -106,8 +106,7 @@ def main():
     # Current in-browser defaults, for reference.
     r0 = metrics_at(recs, 0.5, 0.0, 0.5)
     print(
-        f"CURRENT (timm_w=0.5, cw=0.0, thr=0.50): "
-        f"recall={r0[0]:.3f} fpr={r0[1]:.3f} prec={r0[2]:.3f} f1={r0[3]:.3f}\n"
+        f"CURRENT (timm_w=0.5, cw=0.0, thr=0.50): recall={r0[0]:.3f} fpr={r0[1]:.3f} prec={r0[2]:.3f} f1={r0[3]:.3f}\n"
     )
 
     print(
