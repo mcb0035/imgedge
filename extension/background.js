@@ -256,11 +256,56 @@ const INBROWSER_TIMEOUT_MS = 20000; // don't let a stuck offscreen document free
 let offscreenReady = null;
 
 // Reject after `ms` so a hung offscreen document can't block classify() forever.
+// The timer is cleared on either outcome so a stray 20s timer never lingers.
 function withTimeout(promise, ms) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error("offscreen timeout")), ms)),
-  ]);
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error("offscreen timeout")), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+// Classify each image only once. Pages reuse images (logos, avatars, sprites)
+// and content scripts run in every frame, so without this the single offscreen
+// session gets flooded and requests at the tail of the queue time out. Verdicts
+// are cached and concurrent duplicates share one request, keyed by url+threshold.
+const INBROWSER_CACHE_MAX = 500;
+const inbrowserCache = new Map(); // "threshold|url" -> { ok, score, blocked }
+const inbrowserInFlight = new Map(); // "threshold|url" -> Promise<result|null>
+
+function inbrowserCacheGet(key) {
+  const v = inbrowserCache.get(key);
+  if (v !== undefined) {
+    inbrowserCache.delete(key); // re-insert so it counts as most-recently used
+    inbrowserCache.set(key, v);
+  }
+  return v;
+}
+
+function inbrowserCacheSet(key, val) {
+  inbrowserCache.set(key, val);
+  if (inbrowserCache.size > INBROWSER_CACHE_MAX) {
+    inbrowserCache.delete(inbrowserCache.keys().next().value); // evict oldest
+  }
+}
+
+// The offscreen document has one ORT session and classifies serially, so queue
+// requests through a chain and time each from its actual dispatch. That way a
+// busy offscreen (long queue) isn't mistaken for a hung one -- which would trip
+// the timeout and wrongly block images under load.
+let offscreenChain = Promise.resolve();
+function askOffscreen(dataUrl, threshold) {
+  const attempt = offscreenChain.then(() =>
+    withTimeout(
+      chrome.runtime.sendMessage({ target: "offscreen", type: "inbrowser-classify", dataUrl, threshold }),
+      INBROWSER_TIMEOUT_MS,
+    ),
+  );
+  offscreenChain = attempt.then(
+    () => {},
+    () => {},
+  );
+  return attempt;
 }
 
 async function ensureOffscreen() {
@@ -285,8 +330,31 @@ async function ensureOffscreen() {
   return offscreenReady;
 }
 
-// Ask the offscreen document to classify; returns { ok, blocked, score } or null.
+// Classify via the offscreen document, but only once per image: cache verdicts
+// and share concurrent duplicate requests (keyed by url+threshold). Un-cacheable
+// (very long data:) URLs fall through to a direct classify.
 async function classifyInBrowser(url, data, threshold) {
+  const key = url && url.length < 2048 ? threshold + "|" + url : null;
+  if (key) {
+    const hit = inbrowserCacheGet(key);
+    if (hit) return hit;
+    const pending = inbrowserInFlight.get(key);
+    if (pending) return pending;
+  }
+  const promise = classifyInBrowserRaw(url, data, threshold);
+  if (key) {
+    inbrowserInFlight.set(key, promise);
+    promise
+      .then((r) => {
+        if (r) inbrowserCacheSet(key, r);
+      })
+      .finally(() => inbrowserInFlight.delete(key));
+  }
+  return promise;
+}
+
+// Ask the offscreen document to classify; returns { ok, blocked, score } or null.
+async function classifyInBrowserRaw(url, data, threshold) {
   // Get image bytes: the content script may pass them (e.g. for blob: URLs), a
   // data: URL already IS the bytes, and http(s) images are fetched here (the
   // worker has host_permissions). Anything else (file:, chrome:) has no bytes.
@@ -311,15 +379,7 @@ async function classifyInBrowser(url, data, threshold) {
   }
   let resp;
   try {
-    resp = await withTimeout(
-      chrome.runtime.sendMessage({
-        target: "offscreen",
-        type: "inbrowser-classify",
-        dataUrl,
-        threshold,
-      }),
-      INBROWSER_TIMEOUT_MS,
-    );
+    resp = await askOffscreen(dataUrl, threshold);
   } catch (e) {
     console.warn("[imgedge] in-browser: offscreen document did not respond:", String(e));
     return null;
