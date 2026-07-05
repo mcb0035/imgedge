@@ -58,7 +58,10 @@ if (runtime && runtime.onMessage) {
     if (!msg || msg.target !== "offscreen" || msg.type !== "inbrowser-classify") return false;
     classifyDataUrl(msg.dataUrl, msg.threshold)
       .then((r) => sendResponse({ ok: true, score: r.score, blocked: r.blocked }))
-      .catch((e) => sendResponse({ ok: false, error: String(e) }));
+      .catch((e) => {
+        console.error("[imgedge] offscreen classify failed:", e);
+        sendResponse({ ok: false, error: String(e) });
+      });
     return true; // keep the channel open for the async response
   });
 }
