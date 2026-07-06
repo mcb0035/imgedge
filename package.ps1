@@ -46,12 +46,22 @@ $include = @(
     "content.css",
     "popup.html",
     "popup.js",
-    "icons"
+    "icons",
+    "_locales",
+    "inbrowser"
 )
 
 # ---- validate sources ------------------------------------------------------
 $missing = $include | Where-Object { -not (Test-Path (Join-Path $src $_)) }
 if ($missing) { throw "Missing extension file(s): $($missing -join ', ')" }
+
+# In-browser Fast mode needs the bundled model + ONNX Runtime under
+# extension/inbrowser/vendor/ (a build artifact produced by
+# tools/bundle_inbrowser.py). Warn rather than fail -- a server-only package is
+# still valid, but Fast mode won't work without it.
+if (-not (Test-Path (Join-Path $src "inbrowser/vendor"))) {
+    Write-Warning "extension/inbrowser/vendor/ is missing -- the packaged in-browser Fast mode won't work. Run: python tools/bundle_inbrowser.py"
+}
 
 try {
     $manifest = Get-Content (Join-Path $src "manifest.json") -Raw | ConvertFrom-Json
