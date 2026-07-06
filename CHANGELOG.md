@@ -62,6 +62,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `<12` ranges — reproducible fuzz builds, consistent with the project's
   exact-pin policy.
 
+### Security
+
+- **Attach Scorecard-recognized signature assets to releases.** The release
+  workflow now also emits a detached `SHA256SUMS.sig` plus the signing
+  certificate `SHA256SUMS.pem` from `cosign sign-blob` (alongside the existing
+  `SHA256SUMS.cosign.bundle`) and uploads them as release assets. Releases were
+  already signed with a keyless Sigstore signature, but OpenSSF Scorecard's
+  Signed-Releases check only name-matches specific extensions (`*.sig`, `*.asc`,
+  …) and does not recognize `*.cosign.bundle`; the `.sig` asset makes the
+  existing signature discoverable. Takes effect on the next tagged release.
+- **Publish SLSA build provenance as a release asset.** A new `provenance` job
+  (the SLSA [generic generator](https://github.com/slsa-framework/slsa-github-generator))
+  produces a signed `*.intoto.jsonl` for the released ZIP/CRX and uploads it to
+  the release. The build already recorded a GitHub-native provenance attestation
+  (kept), but that lives in the attestations API rather than as a release asset,
+  so OpenSSF Scorecard's Signed-Releases check couldn't see it; the
+  `*.intoto.jsonl` asset satisfies the provenance requirement. Takes effect on
+  the next tagged release.
+
 ## [0.4.0] - 2026-07-05
 
 ### Added
