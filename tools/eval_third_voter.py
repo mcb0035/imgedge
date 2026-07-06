@@ -111,12 +111,9 @@ def main():
         raise SystemExit(f'deps missing ({e}). Install: pip install -e ".[voters]"') from e
 
     rep = json.loads(Path(args.report).read_text(encoding="utf-8"))
-    fixed = {}
-    for r in rep.get("records", []):
-        if r.get("inat") is not None and r.get("timm_block") is not None and r.get("timm_contrast") is not None:
-            fixed[r["name"]] = (float(r["inat"]), float(r["timm_block"]), float(r["timm_contrast"]))
-    if not fixed:
-        raise SystemExit(f"{args.report} has no records with iNat + timm scores (need its `records` array)")
+    rep_rows = rep.get("records", [])
+    if not rep_rows:
+        raise SystemExit(f"{args.report} has no `records` array -- rebuild with `eval_filter.py eval --report ...`")
 
     voter = TimmVoter(model_name=args.model)
     print(f"Candidate: {voter.name} on {voter.provider} -- {voter.matched} block / {voter.contrast_matched} contrast")
@@ -129,13 +126,28 @@ def main():
     if pw is None and str(args.dataset).lower().endswith(".zip"):
         pw = getpass.getpass("Dataset password: ")
 
+    # The report's `records` are anonymised (no filename), but `eval_filter.evaluate`
+    # writes one row per image in `iter_samples()` order, so align by position and
+    # use each row's label as an integrity checksum against a mismatched report/zip.
     scores, dumped, skipped = [], [], 0
+    idx = 0
     for label, name, raw in iter_samples(args.dataset, pw):
-        f = fixed.get(name)
-        if f is None:
+        if idx >= len(rep_rows):
+            raise SystemExit(
+                f"dataset has more images than the report has records ({len(rep_rows)}) -- "
+                "report and dataset don't correspond (sampled report or wrong zip?)."
+            )
+        rec = rep_rows[idx]
+        idx += 1
+        if rec.get("label") != label:
+            raise SystemExit(
+                f"record #{idx} label '{rec.get('label')}' != image label '{label}' -- "
+                f"'{args.report}' was not built from this dataset (different order or sample)."
+            )
+        inat, tb, tc = rec.get("inat"), rec.get("timm_block"), rec.get("timm_contrast")
+        if inat is None or tb is None or tc is None:
             skipped += 1
-            continue
-        inat, tb, tc = f
+            continue  # errored / no timm voter in the report -> can't hold it fixed
         try:
             img = Image.open(io.BytesIO(raw))
             d = voter.assess(img)[2]
@@ -143,23 +155,28 @@ def main():
             skipped += 1
             continue
         cb, cc = float(d["block_p"]), float(d["contrast_p"])
-        scores.append((label == "block", inat, tb, tc, cb, cc))
+        scores.append((label == "block", float(inat), float(tb), float(tc), cb, cc))
         if args.out is not None:
             dumped.append(
                 {
                     "name": name,
                     "label": label,
-                    "inat": inat,
-                    "timm_block": tb,
-                    "timm_contrast": tc,
+                    "inat": float(inat),
+                    "timm_block": float(tb),
+                    "timm_contrast": float(tc),
                     "cand_block": cb,
                     "cand_contrast": cc,
                 }
             )
 
+    if idx < len(rep_rows):
+        raise SystemExit(
+            f"dataset yielded {idx} images but the report has {len(rep_rows)} records -- "
+            "they don't correspond (sampled report or wrong zip?)."
+        )
     matched = len(scores)
     if not matched:
-        raise SystemExit("no dataset images matched the report's names -- is this the report's own dataset?")
+        raise SystemExit("no usable rows (every record lacked iNat/timm scores) -- is this a 2-voter report?")
     n_pos = sum(1 for s in scores if s[0])
     print(f"Scored {matched} images ({n_pos} block / {matched - n_pos} allow); {skipped} skipped\n")
 
