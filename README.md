@@ -29,13 +29,13 @@ flowchart LR
 
 ## How it works
 
-1. **Content script** ([content.js](content.js)) runs at `document_start` in
+1. **Content script** ([content.js](extension/content.js)) runs at `document_start` in
    every frame. It finds every visible image surface — `<img>` (incl.
    `<picture>`/`srcset`), `<input type="image">`, SVG `<image>`, `<video poster>`,
    and CSS `background-image` / `list-style-image` — hides each one via CSS until
    a verdict arrives, then reveals it or replaces it with a clickable "blocked"
    placeholder. Tiny/decorative images (icons, tracking pixels) are skipped.
-2. **Background worker** ([background.js](background.js)) owns settings and the
+2. **Background worker** ([background.js](extension/background.js)) owns settings and the
    allow/block lists, draws the toolbar badge + health state, wires the
    right-click menu, and forwards each image URL to the local classifier with a
    shared token.
@@ -222,6 +222,10 @@ server, training assets, and docs are excluded) and builds a store-ready ZIP:
 .\package.ps1          # -> dist\imgedge-<version>.zip  (Chrome Web Store / Edge Add-ons)
 .\package.ps1 -Crx     # also dist\imgedge.crx (+ dist\imgedge.pem on first run)
 ```
+
+> For in-browser **Fast mode** in the packaged build, first build the bundled
+> model + runtime: `python tools/bundle_inbrowser.py` (populates
+> `extension/inbrowser/vendor/`); `package.ps1` warns if it's missing.
 
 Upload the ZIP to the [Chrome Web Store](https://chrome.google.com/webstore/devconsole)
 or [Edge Add-ons](https://partner.microsoft.com/dashboard/microsoftedge). For a

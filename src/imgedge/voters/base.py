@@ -66,7 +66,8 @@ class VoteEnsemble:
         self.threshold = float(threshold)
         self.inat = None  # set by the server for backward-compatible health fields
         # iNat (real-organism) confidence at/above which it blocks outright,
-        # regardless of the contrast voter. >1.0 disables the override.
+        # regardless of the contrast voter. The default (1.01) keeps the override
+        # OFF unless a caller opts in; the server enables it at 0.9. >1.0 disables.
         self.inat_override = float(inat_override)
         # Cascade gate: skip the deferred (expensive) voters when the cheap-voter
         # combined score is below this floor -- they can't realistically rescue

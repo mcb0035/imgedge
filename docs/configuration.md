@@ -36,7 +36,7 @@ machine (see [PRIVACY.md](../PRIVACY.md)).
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `IMGEDGE_TARGET` | `Arachnida` | Taxon to block (any iNaturalist name, e.g. `Araneae` for spiders only) |
-| `IMGEDGE_THRESHOLD` | `0.18` | Block when the (salience-scaled) ensemble score ≥ this |
+| `IMGEDGE_THRESHOLD` | `0.18` | Block when the (salience-scaled) ensemble score ≥ this. The extension popup sends its own **Block threshold** (default `0.15`) as a per-request override, so `0.15` is the effective value for extension traffic. |
 | `IMGEDGE_VOTE` | `evidence` | Ensemble policy: `evidence\|any\|all\|majority\|weighted` |
 | `IMGEDGE_TIMM_MODEL` | `mobilenetv3_large_100.ra_in1k` | timm/HF model id for the second voter |
 | `IMGEDGE_TIMM_EXCLUDE` | arachnid set | ImageNet terms (comma-sep) to **block** |

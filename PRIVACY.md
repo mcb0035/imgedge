@@ -83,6 +83,9 @@ imported file cannot leak a secret or point the classifier off your machine.
   read page text or form input.
 - **`storage`** — to save your settings, lists, and the classifier token.
 - **`contextMenus`** — to add the right-click “Allow/Block this image” actions.
+- **`offscreen`** — to run the bundled classifier in an offscreen document for
+  in-browser “Fast” mode when the local server isn't used. The image data stays
+  on your machine; nothing is sent anywhere.
 
 ## Data sharing and selling
 

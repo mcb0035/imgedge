@@ -8,13 +8,13 @@ can't be turned into a foothold by a web page or another local process.
 ## Supported versions
 
 This is an early-stage personal project. Only the latest `main` (currently
-`0.3.0`) receives security fixes. Pin to a commit if you need stability. There is
+`0.4.0`) receives security fixes. Pin to a commit if you need stability. There is
 no support for older versions — the supported path is to upgrade; see the
 [upgrade guide](docs/development.md#upgrading).
 
 | Version | Supported |
 | ------- | --------- |
-| `main` / `0.3.0` | ✅ |
+| `main` / `0.4.0` | ✅ |
 | older commits | ❌ |
 
 ## Reporting a vulnerability
