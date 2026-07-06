@@ -3,22 +3,24 @@
 """Measure how much the in-browser timm resize (a straight 224x224 stretch)
 changes verdicts vs. the server's Resize + CenterCrop, on the 2-model combo.
 
-The iNat score is held fixed (read from an eval report), and only the timm
-voter is re-run -- once with its normal center-crop transform and once with a
-stretch -- so the difference is purely the resize. Reports recall / FPR under
-each and how many verdicts flip. Needs the voter deps (timm + torch) and the
-encrypted eval dataset:
+The iNat score is computed once per image and held fixed across both timm
+variants, and only the timm voter's transform changes -- its normal center-crop
+vs. a stretch -- so the difference is purely the resize. Reports recall / FPR
+under each and how many verdicts flip. Needs the model
+(`imgedge-download-models`), the voter + eval deps
+(`pip install -e ".[voters,eval]"`), and the encrypted eval dataset:
 
   # password via $IMGEDGE_EVAL_PASSWORD or an interactive prompt
-  python tools/measure_resize.py dataset.eval.zip --report inat_split.json
+  python tools/measure_resize.py dataset.eval.zip
+  python tools/measure_resize.py dataset.eval.zip --sample-per-class 500
+
+iNat dominates the runtime (~215 ms/image); use --sample-per-class for a quick
+pass over a random subset.
 """
 
 import argparse
 import getpass
-import io
-import json
 import os
-from pathlib import Path
 
 
 def _combine(inat, block_p, contrast_p, cw, tw, thr, inat_override=0.9):
@@ -58,29 +60,29 @@ def _metrics(rows):
 def main():
     ap = argparse.ArgumentParser(description="Measure the timm resize (stretch vs center-crop) impact.")
     ap.add_argument("dataset", help="encrypted .eval.zip or a block/ + allow/ directory")
-    ap.add_argument("--report", required=True, help="eval report JSON (source of the recorded iNat scores)")
     ap.add_argument("--threshold", type=float, default=0.15)
     ap.add_argument("--timm-weight", type=float, default=0.5)
+    ap.add_argument("--sample-per-class", type=int, help="score a random N per class for a faster pass")
+    ap.add_argument("--seed", type=int, default=1234, help="random seed for --sample-per-class")
     args = ap.parse_args()
 
-    from eval_filter import iter_samples
+    from eval_filter import _sample_names, iter_samples
 
     try:
-        from PIL import Image
         from timm.data import resolve_model_data_config
         from torchvision import transforms as T
 
+        from imgedge.classifier.server import load_filter
+        from imgedge.inat.inat_filter import open_guarded
+        from imgedge.voters.inat_voter import InatVoter
         from imgedge.voters.timm_voter import TimmVoter
     except Exception as e:
-        raise SystemExit(f"deps missing ({e}). Install: pip install timm torch") from e
+        raise SystemExit(f'deps missing ({e}). Install: pip install -e ".[voters,eval]"') from e
 
-    inat_by_name = {}
-    rep = json.loads(Path(args.report).read_text(encoding="utf-8"))
-    for r in rep.get("records", []):
-        if r.get("inat") is not None:
-            inat_by_name[r["name"]] = float(r["inat"])
-    if not inat_by_name:
-        raise SystemExit(f"no per-image iNat scores in {args.report} (need its `records` array)")
+    inat_model = load_filter()
+    if inat_model is None:
+        raise SystemExit("no iNaturalist model found -- run: imgedge-download-models")
+    inat = InatVoter(inat_model)
 
     voter = TimmVoter()
     cw = voter.contrast_weight
@@ -98,32 +100,32 @@ def main():
     pw = os.environ.get("IMGEDGE_EVAL_PASSWORD")
     if pw is None and str(args.dataset).lower().endswith(".zip"):
         pw = getpass.getpass("Dataset password: ")
+    only = _sample_names(args.dataset, pw, args.sample_per_class, args.seed) if args.sample_per_class else None
 
-    crop_rows, stretch_rows, flips, n = [], [], 0, 0
-    for label, name, raw in iter_samples(args.dataset, pw):
-        inat = inat_by_name.get(name)
-        if inat is None:
-            continue  # need the recorded iNat score to hold it fixed
+    crop_rows, stretch_rows, flips, n, errors = [], [], 0, 0, 0
+    for label, _name, raw in iter_samples(args.dataset, pw, only):
         try:
-            img = Image.open(io.BytesIO(raw))
+            with open_guarded(raw) as img:
+                inat_s = float(inat.score(img))  # computed once, held fixed for both timm variants
+                voter.transform = crop_transform
+                cd = voter.assess(img)[2]
+                voter.transform = stretch_transform
+                sd = voter.assess(img)[2]
         except Exception:
+            errors += 1
             continue
         positive = label == "block"
-        voter.transform = crop_transform
-        cd = voter.assess(img)[2]
-        voter.transform = stretch_transform
-        sd = voter.assess(img)[2]
-        cpred = _combine(inat, cd["block_p"], cd["contrast_p"], cw, args.timm_weight, args.threshold)
-        spred = _combine(inat, sd["block_p"], sd["contrast_p"], cw, args.timm_weight, args.threshold)
+        cpred = _combine(inat_s, cd["block_p"], cd["contrast_p"], cw, args.timm_weight, args.threshold)
+        spred = _combine(inat_s, sd["block_p"], sd["contrast_p"], cw, args.timm_weight, args.threshold)
         crop_rows.append((positive, cpred))
         stretch_rows.append((positive, spred))
         flips += cpred != spred
         n += 1
 
     if not n:
-        raise SystemExit("no samples matched the report's names -- is this the dataset the report was built from?")
+        raise SystemExit("no images scored -- check the dataset path and password")
     cr, sr = _metrics(crop_rows), _metrics(stretch_rows)
-    print(f"Samples: {n}  (threshold={args.threshold}, timm_weight={args.timm_weight}, contrast_weight={cw})")
+    print(f"Samples: {n} ({errors} errors)  threshold={args.threshold}  timm_weight={args.timm_weight}  cw={cw}")
     print(f"  center-crop (server):  recall={cr[0]:.3f} fpr={cr[1]:.3f} prec={cr[2]:.3f}")
     print(f"  stretch (old in-browser): recall={sr[0]:.3f} fpr={sr[1]:.3f} prec={sr[2]:.3f}")
     print(f"  verdict flips: {flips} / {n} ({100 * flips / n:.1f}%)")
