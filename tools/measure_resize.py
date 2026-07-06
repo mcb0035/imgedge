@@ -66,7 +66,7 @@ def main():
     ap.add_argument("--seed", type=int, default=1234, help="random seed for --sample-per-class")
     args = ap.parse_args()
 
-    from eval_filter import _sample_names, iter_samples
+    from eval_filter import _labeled_names, _Progress, _sample_names, iter_samples
 
     try:
         from timm.data import resolve_model_data_config
@@ -101,9 +101,12 @@ def main():
     if pw is None and str(args.dataset).lower().endswith(".zip"):
         pw = getpass.getpass("Dataset password: ")
     only = _sample_names(args.dataset, pw, args.sample_per_class, args.seed) if args.sample_per_class else None
+    total = len(only) if only is not None else sum(1 for _ in _labeled_names(args.dataset, pw))
 
     crop_rows, stretch_rows, flips, n, errors = [], [], 0, 0, 0
+    prog = _Progress(total)
     for label, _name, raw in iter_samples(args.dataset, pw, only):
+        prog.tick()
         try:
             with open_guarded(raw) as img:
                 inat_s = float(inat.score(img))  # computed once, held fixed for both timm variants
@@ -121,6 +124,7 @@ def main():
         stretch_rows.append((positive, spred))
         flips += cpred != spred
         n += 1
+    prog.close()
 
     if not n:
         raise SystemExit("no images scored -- check the dataset path and password")
