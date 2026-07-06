@@ -22,6 +22,8 @@ jobs:
     name: Package, sign + GitHub Release
     runs-on: windows-latest
     timeout-minutes: 20
+    outputs:
+      hashes: ${{ steps.hashes.outputs.hashes }}
     permissions:
       contents: write # create the GitHub Release and upload the assets
       id-token: write # keyless signing: provenance attestation + cosign (OIDC)
@@ -62,6 +64,17 @@ jobs:
           $files | ForEach-Object { "{0}  {1}" -f (Get-FileHash $_ -Algorithm SHA256).Hash.ToLower(), $_.Name } |
             Set-Content dist/SHA256SUMS -Encoding ascii
           Get-Content dist/SHA256SUMS
+
+      - name: Export artifact digests for SLSA provenance
+        id: hashes
+        shell: pwsh
+        run: |
+          # base64(sha256sum-format lines) consumed by the SLSA generic generator.
+          # Get-Content (no -Raw) strips line endings; re-join with LF so the
+          # decoded subjects are clean "<sha256>  <name>" lines.
+          $lines = (Get-Content dist/SHA256SUMS) -join "`n"
+          $b64 = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($lines))
+          "hashes=$b64" | Add-Content -Path $env:GITHUB_OUTPUT -Encoding utf8
 
       - name: Install cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
@@ -120,6 +133,22 @@ jobs:
             dist/SHA256SUMS.sig
             dist/SHA256SUMS.pem
           generate_release_notes: true
+
+  provenance:
+    name: SLSA provenance (release asset)
+    needs: release
+    permissions:
+      actions: read # read the workflow path for the provenance statement
+      id-token: write # keyless signing of the provenance
+      contents: write # attach the .intoto.jsonl to the release
+    # The SLSA generic generator emits a signed <artifact>.intoto.jsonl and
+    # uploads it to the release, which OpenSSF Scorecard's Signed-Releases check
+    # recognizes as provenance. Pin to a semantic version tag: the generator
+    # rejects SHA refs by design, and Scorecard's pinned-deps check exempts it.
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: "${{ needs.release.outputs.hashes }}"
+      upload-assets: true
 
   # ---- Optional store publishing --------------------------------------------
   # Dormant until you opt in: set repo variable PUBLISH_CHROME / PUBLISH_EDGE to
