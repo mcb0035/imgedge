@@ -62,6 +62,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `<12` ranges — reproducible fuzz builds, consistent with the project's
   exact-pin policy.
 
+### Security
+
+- **Attach Scorecard-recognized signature assets to releases.** The release
+  workflow now also emits a detached `SHA256SUMS.sig` plus the signing
+  certificate `SHA256SUMS.pem` from `cosign sign-blob` (alongside the existing
+  `SHA256SUMS.cosign.bundle`) and uploads them as release assets. Releases were
+  already signed with a keyless Sigstore signature, but OpenSSF Scorecard's
+  Signed-Releases check only name-matches specific extensions (`*.sig`, `*.asc`,
+  …) and does not recognize `*.cosign.bundle`; the `.sig` asset makes the
+  existing signature discoverable. Takes effect on the next tagged release.
+
 ## [0.4.0] - 2026-07-05
 
 ### Added

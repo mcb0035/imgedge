@@ -68,7 +68,16 @@ jobs:
 
       - name: Sign checksums (keyless Sigstore)
         shell: pwsh
-        run: cosign sign-blob --yes --bundle dist/SHA256SUMS.cosign.bundle dist/SHA256SUMS
+        # Also emit a detached .sig + .pem next to the bundle: OpenSSF Scorecard's
+        # Signed-Releases check name-matches release assets (*.sig, *.asc, *.sigstore,
+        # *.intoto.jsonl, ...) and does not recognize *.cosign.bundle, so without a
+        # recognized asset it reports the release as "not signed".
+        run: >
+          cosign sign-blob --yes
+          --bundle dist/SHA256SUMS.cosign.bundle
+          --output-signature dist/SHA256SUMS.sig
+          --output-certificate dist/SHA256SUMS.pem
+          dist/SHA256SUMS
 
       - name: Verify the signature (self-check)
         # Fail the release before it attests/publishes if the bundle doesn't
@@ -108,6 +117,8 @@ jobs:
             dist/*.crx
             dist/SHA256SUMS
             dist/SHA256SUMS.cosign.bundle
+            dist/SHA256SUMS.sig
+            dist/SHA256SUMS.pem
           generate_release_notes: true
 
   # ---- Optional store publishing --------------------------------------------
