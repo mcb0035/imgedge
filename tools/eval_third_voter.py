@@ -107,7 +107,7 @@ def main():
     ap.add_argument("--out", help="optional JSON path to dump the per-image scores")
     args = ap.parse_args()
 
-    from eval_filter import _sample_names, iter_samples
+    from eval_filter import _labeled_names, _Progress, _sample_names, iter_samples
 
     try:
         from imgedge.classifier.server import load_filter
@@ -133,13 +133,16 @@ def main():
     if pw is None and str(args.dataset).lower().endswith(".zip"):
         pw = getpass.getpass("Dataset password: ")
     only = _sample_names(args.dataset, pw, args.sample_per_class, args.seed) if args.sample_per_class else None
+    total = len(only) if only is not None else sum(1 for _ in _labeled_names(args.dataset, pw))
 
     # Runs iNat + timm + candidate over each image (no eval report needed): the
     # report's `records` are anonymised and not in dataset order, so there's no
     # key to reuse them. iNat dominates the cost -- use --sample-per-class to
-    # shorten a pass.
+    # shorten a pass. Progress (count / rate / ETA) prints to stderr.
     scores, dumped, errors = [], [], 0
+    prog = _Progress(total)
     for label, name, raw in iter_samples(args.dataset, pw, only):
+        prog.tick()
         try:
             with open_guarded(raw) as img:
                 inat_s = float(inat.score(img))
@@ -163,6 +166,7 @@ def main():
                     "cand_contrast": cc,
                 }
             )
+    prog.close()
 
     matched = len(scores)
     if not matched:
