@@ -62,6 +62,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `<12` ranges — reproducible fuzz builds, consistent with the project's
   exact-pin policy.
 
+### Fixed
+
+- **Packaging now includes `_locales/` and `inbrowser/`.** `package.ps1` staged
+  an allow-list that omitted the localization messages (required by the
+  manifest's `default_locale`, so the packaged ZIP failed to load) and the entire
+  in-browser Fast mode (`inbrowser/`). The store / self-hosted package now ships
+  both, and warns when `inbrowser/vendor/` (the bundled model + ONNX Runtime,
+  built by `tools/bundle_inbrowser.py`) is missing. Loading the unpacked
+  `extension/` folder was unaffected.
+
 ### Security
 
 - **Attach Scorecard-recognized signature assets to releases.** The release
