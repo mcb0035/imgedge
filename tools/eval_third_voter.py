@@ -8,18 +8,21 @@ classifier as a third voter -- reusing the same arachnid-class voting as
 `voters/timm_voter.py` -- lifts recall without spending the FPR budget, *before*
 committing to bundling it.
 
-The iNat and timm scores are held fixed (read from an eval report); only the
-candidate model is run over the dataset. Its signed evidence is folded into the
-in-browser combine (`extension/inbrowser/ensemble.mjs` `combineEvidence`,
-salience deferred = 1.0) and the threshold x candidate-weight grid is swept.
-Candidate weight 0.0 is the current 2-voter baseline, so each row's recall delta
-is the candidate's marginal contribution.
+It runs all three voters (iNat + timm + candidate) over the dataset in one pass
+and folds the candidate's signed evidence into the in-browser combine
+(`extension/inbrowser/ensemble.mjs` `combineEvidence`, salience deferred = 1.0),
+then sweeps the threshold x candidate-weight grid. Candidate weight 0.0 is the
+current 2-voter baseline, so each row's recall delta is the candidate's marginal
+contribution. (iNat is re-run rather than read from an eval report because the
+report's `records` are anonymised and not in dataset order, so there's no key to
+reuse them.)
 
-Needs the voter deps (timm + torch) and the encrypted eval dataset:
+Needs the model (`imgedge-download-models`), the voter + eval deps
+(`pip install -e ".[voters,eval]"`), and the encrypted eval dataset:
 
   # password via $IMGEDGE_EVAL_PASSWORD or an interactive prompt
-  python tools/eval_third_voter.py dataset.eval.zip --report inat_split.json
-  python tools/eval_third_voter.py dataset.eval.zip --report inat_split.json --model tf_efficientnetv2_b0
+  python tools/eval_third_voter.py dataset.eval.zip
+  python tools/eval_third_voter.py dataset.eval.zip --model tf_efficientnetv2_b0 --sample-per-class 500
 
 The candidate is any timm ImageNet-1k model whose class labels match the
 arachnid BLOCK_TERMS (so a different architecture reuses the exact voting). A
@@ -28,11 +31,13 @@ CNN like `efficientnet_b0` is the safest first try; a transformer such as
 checkpoint's licence on its Hugging Face model card before bundling -- timm's
 own `*_in1k` recipes are Apache-2.0, but some ported weights carry their
 upstream licence.
+
+iNat dominates the runtime (~215 ms/image); use --sample-per-class for a quick
+pass over a random subset.
 """
 
 import argparse
 import getpass
-import io
 import json
 import os
 from pathlib import Path
@@ -93,30 +98,32 @@ def best_recall(scores, tw, cw, w3, max_fpr):
 def main():
     ap = argparse.ArgumentParser(description="Measure whether a third ImageNet voter improves recall.")
     ap.add_argument("dataset", help="encrypted .eval.zip or a block/ + allow/ directory")
-    ap.add_argument("--report", required=True, help="eval report JSON (source of the fixed iNat + timm scores)")
     ap.add_argument("--model", default="efficientnet_b0", help="candidate timm model (default: efficientnet_b0)")
     ap.add_argument("--timm-weight", type=float, default=0.5, help="weight of the existing timm voter (default 0.5)")
     ap.add_argument("--contrast-weight", type=float, default=0.0, help="look-alike contrast weight, both voters")
     ap.add_argument("--max-fpr", type=float, default=0.10, help="FPR budget for the recall-max point")
-    ap.add_argument("--out", help="optional JSON path to dump the per-image scores for reuse")
+    ap.add_argument("--sample-per-class", type=int, help="score a random N per class for a faster pass")
+    ap.add_argument("--seed", type=int, default=1234, help="random seed for --sample-per-class")
+    ap.add_argument("--out", help="optional JSON path to dump the per-image scores")
     args = ap.parse_args()
 
-    from eval_filter import iter_samples
+    from eval_filter import _sample_names, iter_samples
 
     try:
-        from PIL import Image
-
+        from imgedge.classifier.server import load_filter
+        from imgedge.inat.inat_filter import open_guarded
+        from imgedge.voters.inat_voter import InatVoter
         from imgedge.voters.timm_voter import TimmVoter
     except Exception as e:  # pragma: no cover - depends on optional extras
-        raise SystemExit(f'deps missing ({e}). Install: pip install -e ".[voters]"') from e
+        raise SystemExit(f'deps missing ({e}). Install: pip install -e ".[voters,eval]"') from e
 
-    rep = json.loads(Path(args.report).read_text(encoding="utf-8"))
-    rep_rows = rep.get("records", [])
-    if not rep_rows:
-        raise SystemExit(f"{args.report} has no `records` array -- rebuild with `eval_filter.py eval --report ...`")
-
-    voter = TimmVoter(model_name=args.model)
-    print(f"Candidate: {voter.name} on {voter.provider} -- {voter.matched} block / {voter.contrast_matched} contrast")
+    inat_model = load_filter()
+    if inat_model is None:
+        raise SystemExit("no iNaturalist model found -- run: imgedge-download-models")
+    inat, timm = InatVoter(inat_model), TimmVoter()
+    voter = TimmVoter(model_name=args.model)  # the candidate 3rd voter
+    info = f"{inat.name} + {timm.name} + candidate {voter.name}"
+    print(f"Voters: {info} ({voter.matched} block / {voter.contrast_matched} contrast classes)")
     if not voter.matched:
         raise SystemExit(
             f"'{args.model}' matched 0 arachnid classes -- not an ImageNet-1k model? (labels vs BLOCK_TERMS)"
@@ -125,60 +132,43 @@ def main():
     pw = os.environ.get("IMGEDGE_EVAL_PASSWORD")
     if pw is None and str(args.dataset).lower().endswith(".zip"):
         pw = getpass.getpass("Dataset password: ")
+    only = _sample_names(args.dataset, pw, args.sample_per_class, args.seed) if args.sample_per_class else None
 
-    # The report's `records` are anonymised (no filename), but `eval_filter.evaluate`
-    # writes one row per image in `iter_samples()` order, so align by position and
-    # use each row's label as an integrity checksum against a mismatched report/zip.
-    scores, dumped, skipped = [], [], 0
-    idx = 0
-    for label, name, raw in iter_samples(args.dataset, pw):
-        if idx >= len(rep_rows):
-            raise SystemExit(
-                f"dataset has more images than the report has records ({len(rep_rows)}) -- "
-                "report and dataset don't correspond (sampled report or wrong zip?)."
-            )
-        rec = rep_rows[idx]
-        idx += 1
-        if rec.get("label") != label:
-            raise SystemExit(
-                f"record #{idx} label '{rec.get('label')}' != image label '{label}' -- "
-                f"'{args.report}' was not built from this dataset (different order or sample)."
-            )
-        inat, tb, tc = rec.get("inat"), rec.get("timm_block"), rec.get("timm_contrast")
-        if inat is None or tb is None or tc is None:
-            skipped += 1
-            continue  # errored / no timm voter in the report -> can't hold it fixed
+    # Runs iNat + timm + candidate over each image (no eval report needed): the
+    # report's `records` are anonymised and not in dataset order, so there's no
+    # key to reuse them. iNat dominates the cost -- use --sample-per-class to
+    # shorten a pass.
+    scores, dumped, errors = [], [], 0
+    for label, name, raw in iter_samples(args.dataset, pw, only):
         try:
-            img = Image.open(io.BytesIO(raw))
-            d = voter.assess(img)[2]
+            with open_guarded(raw) as img:
+                inat_s = float(inat.score(img))
+                td = timm.assess(img)[2]
+                cd = voter.assess(img)[2]
         except Exception:
-            skipped += 1
+            errors += 1
             continue
-        cb, cc = float(d["block_p"]), float(d["contrast_p"])
-        scores.append((label == "block", float(inat), float(tb), float(tc), cb, cc))
+        tb, tc = float(td["block_p"]), float(td["contrast_p"])
+        cb, cc = float(cd["block_p"]), float(cd["contrast_p"])
+        scores.append((label == "block", inat_s, tb, tc, cb, cc))
         if args.out is not None:
             dumped.append(
                 {
                     "name": name,
                     "label": label,
-                    "inat": float(inat),
-                    "timm_block": float(tb),
-                    "timm_contrast": float(tc),
+                    "inat": inat_s,
+                    "timm_block": tb,
+                    "timm_contrast": tc,
                     "cand_block": cb,
                     "cand_contrast": cc,
                 }
             )
 
-    if idx < len(rep_rows):
-        raise SystemExit(
-            f"dataset yielded {idx} images but the report has {len(rep_rows)} records -- "
-            "they don't correspond (sampled report or wrong zip?)."
-        )
     matched = len(scores)
     if not matched:
-        raise SystemExit("no usable rows (every record lacked iNat/timm scores) -- is this a 2-voter report?")
+        raise SystemExit("no images scored -- check the dataset path and password")
     n_pos = sum(1 for s in scores if s[0])
-    print(f"Scored {matched} images ({n_pos} block / {matched - n_pos} allow); {skipped} skipped\n")
+    print(f"Scored {matched} images ({n_pos} block / {matched - n_pos} allow); {errors} decode/infer errors\n")
 
     tw, cw, mf = args.timm_weight, args.contrast_weight, args.max_fpr
     br, bthr, bfpr, bprec = best_recall(scores, tw, cw, 0.0, mf)  # cand weight 0 == current 2-voter combo
