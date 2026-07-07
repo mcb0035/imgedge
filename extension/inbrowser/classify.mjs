@@ -129,13 +129,37 @@ export async function classifyBlob(ort, session, meta, blob, threshold) {
 }
 
 /**
+ * Score one timm-style ImageNet voter (the timm model, the deit3 third voter,
+ * ...) from an already-decoded bitmap into a signed-evidence row. Every such
+ * voter shares the timm.mjs math and differs only in its bundled config
+ * (crop_pct / mean / std / class indices / weight), so this is reused for all.
+ */
+async function timmVoterRow(ort, bitmap, voter) {
+  const m = voter.meta.input;
+  // Match timm's ImageNet eval transform (resize + center-crop) rather than a
+  // straight stretch, so the model sees the framing it was served on.
+  const cropOk = typeof m.crop_pct === "number" && m.crop_pct > 0 && m.crop_pct < 1;
+  const rgba = cropOk ? bitmapToRgbaCropped(bitmap, m.width, m.crop_pct) : bitmapToRgba(bitmap, m.width, m.height);
+  const input = toTimmInput(rgba, m.width, m.height, { mean: m.mean, std: m.std });
+  const logits = await runModel(ort, voter.session, voter.meta, input);
+  const evidence = evidenceFromLogits(
+    logits,
+    voter.meta.block_indices,
+    voter.meta.contrast_indices,
+    voter.meta.contrast_weight,
+  );
+  const weight = typeof voter.meta.weight === "number" ? voter.meta.weight : 0.5;
+  return { weight, evidence };
+}
+
+/**
  * Ensemble pipeline: image bytes -> { score, blocked } from the iNat voter plus
- * the optional timm voter, combined by the evidence policy (ensemble.mjs). The
- * image is decoded once and resized per model. Mirrors the server's two-voter
- * Fast tier (salience deferred; see ensemble.mjs).
+ * the optional timm + deit3 ImageNet voters, combined by the evidence policy
+ * (ensemble.mjs). The image is decoded once and resized per model. Mirrors the
+ * server's multi-voter Fast tier (salience deferred; see ensemble.mjs).
  *
  * @param {object} ort - the ONNX Runtime namespace
- * @param {{inat: {session: object, meta: object}, timm: ?{session: object, meta: object}}} models
+ * @param {{inat: object, timm?: object, deit3?: object}} models - loaded voters
  * @param {Blob} blob - the image bytes
  * @param {number} threshold - block threshold in [0, 1]
  * @returns {Promise<{score: number, blocked: boolean, skipped?: boolean}>}
@@ -164,26 +188,11 @@ export async function classifyBlobEnsemble(ort, models, blob, threshold) {
     const inatScore = targetScore(inatOut, models.inat.meta.arachnida_leaf_indices);
     const rows = [{ weight: 1.0, evidence: inatScore, isInat: true, score: inatScore }];
 
-    // timm voter: signed evidence over ImageNet arachnid/look-alike classes.
-    if (models.timm) {
-      const tm = models.timm.meta.input;
-      // Match timm's ImageNet eval transform (resize + center-crop) rather than
-      // a straight stretch, so the model sees the framing it was served on.
-      const cropOk = typeof tm.crop_pct === "number" && tm.crop_pct > 0 && tm.crop_pct < 1;
-      const timmRgba = cropOk
-        ? bitmapToRgbaCropped(bitmap, tm.width, tm.crop_pct)
-        : bitmapToRgba(bitmap, tm.width, tm.height);
-      const timmInput = toTimmInput(timmRgba, tm.width, tm.height, { mean: tm.mean, std: tm.std });
-      const logits = await runModel(ort, models.timm.session, models.timm.meta, timmInput);
-      const evidence = evidenceFromLogits(
-        logits,
-        models.timm.meta.block_indices,
-        models.timm.meta.contrast_indices,
-        models.timm.meta.contrast_weight,
-      );
-      const weight = typeof models.timm.meta.weight === "number" ? models.timm.meta.weight : 0.5;
-      rows.push({ weight, evidence });
-    }
+    // ImageNet voters: signed evidence over the arachnid / look-alike classes.
+    // The timm mobilenetv3 model and the optional deit3 third voter share the
+    // same math and differ only in their bundled config; run each present one.
+    if (models.timm) rows.push(await timmVoterRow(ort, bitmap, models.timm));
+    if (models.deit3) rows.push(await timmVoterRow(ort, bitmap, models.deit3));
 
     const { score, block } = combineEvidence(rows, { threshold });
     return { score, blocked: block };
