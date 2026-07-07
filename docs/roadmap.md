@@ -87,6 +87,15 @@ the MV3 service worker has no DOM/canvas.
   current 4-model ensemble, then train a small **student** model — a fast, single
   bundle-able classifier that inherits the open-vocab voters' generalization
   (fits the `training/` scaffold). The strongest path to a good in-browser model.
+- **Re-shop the ImageNet voter slot.** The in-browser ensemble's ImageNet
+  voter(s) can be compared against other lightweight, permissively-licensed
+  ImageNet-1k backbones that may decorrelate better, using
+  [`tools/eval_third_voter.py`](../tools/eval_third_voter.py) (holds iNat fixed,
+  sweeps a candidate's weight vs. recall/FPR). Candidates worth a head-to-head:
+  `convnext_nano` / `convnext_tiny`, `tf_efficientnetv2_b0`, `regnety_016`,
+  `resnet26d`, `xcit_tiny_12_p16_224`, `edgenext_small` — all Apache-2.0 / MIT.
+  Avoid the Apple `mobilevit*` / `fastvit*` weights (restricted licence, like
+  MobileCLIP2). Each is a ~40-minute drop-in.
 - **Alt-text as a classification signal.** Fold an image's `alt` / `title` /
   `aria` text into the evidence (a keyword or CLIP-text vote). A logic change —
   weigh evasion and false-positive risk first.
