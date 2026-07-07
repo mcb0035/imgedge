@@ -15,7 +15,7 @@ const DEFAULTS = {
   failClosed: false,
   strict: false,
   scanBackgrounds: true,
-  threshold: 0.15,
+  threshold: 0.19,
   salience: 1.0,
   profile: "balanced", // easy-mode preset: fast | balanced | accurate
 };
