@@ -64,6 +64,85 @@ with it, in the same PR.
 New to the codebase? The [README](README.md#project-layout) project-layout table
 and the [threat model](docs/threat-model.md) are the fastest way in.
 
+## Good first issues
+
+New and casual contributors are welcome, and a contribution **need not add
+functionality** — improving the docs, adding a test, or translating the UI all
+help.
+
+Beginner-friendly issues are tagged
+[`good first issue`](https://github.com/mcb0035/imgedge/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22),
+and larger scoped ones
+[`help wanted`](https://github.com/mcb0035/imgedge/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22);
+GitHub also gathers them on the project's
+[contribute page](https://github.com/mcb0035/imgedge/contribute). If none are
+open right now, pick any of the standing tasks below and **open an issue saying
+you're taking it** so effort isn't duplicated — then follow
+[Make a change](#make-a-change).
+
+### Starter tasks
+
+- **Translate the extension UI into another language.** The interface strings
+  live in [`extension/_locales/en/messages.json`](extension/_locales/en/messages.json)
+  (Chrome's `i18n` format — each entry has a `message` and a `description`). Add
+  `extension/_locales/<code>/messages.json` for a new
+  [locale code](https://developer.chrome.com/docs/extensions/reference/api/i18n#locales)
+  (e.g. `es`, `de`, `fr`, `ja`), copy the English file, and translate **only the
+  `message` values** — leave the keys and any `$1` / `$NAME$` placeholders
+  unchanged. Verify with `npm test` (the
+  [`i18n`](tests/js/i18n.test.mjs) test asserts every locale carries the same
+  keys as English), then load the unpacked extension, switch your browser's
+  display language to the new locale, and eyeball the popup. No coding needed
+  beyond editing JSON.
+- **Improve the documentation.** Add a troubleshooting entry, clarify a setup
+  step, add a popup screenshot, expand the
+  [accessibility notes](docs/accessibility.md), or fix typos across
+  [`README.md`](README.md) and [`docs/`](docs/). Keep links valid and wrap prose
+  like the surrounding text.
+- **Add a test case.** Pick an edge case that isn't covered yet — a pure helper
+  in [`extension/inbrowser/`](extension/inbrowser/) (`node:test`) or a function
+  in [`src/imgedge/`](src/imgedge/) (`pytest`) — and add a focused test beside
+  the existing ones in [`tests/`](tests/). It's the fastest way to learn a
+  corner of the code. Run `npm test` / `pytest` to confirm it passes.
+- **Benchmark the classifier on your hardware.** Run the suite in
+  [`benchmark/`](benchmark/) (see [`benchmark/README.md`](benchmark/README.md))
+  and report per-image decode + inference latency along with your CPU/GPU, OS,
+  and browser. Real numbers across devices help us size the in-browser "Fast"
+  mode. Paste them into an issue — no code change required.
+- **Evaluate one of the saved candidate voter models.** The roadmap's
+  [re-shop the ImageNet voter slot](docs/roadmap.md) task keeps an offline
+  harness, [`tools/eval_third_voter.py`](tools/eval_third_voter.py), that scores
+  whether an extra ImageNet voter lifts arachnid recall. Pick a candidate
+  (`convnext_nano`, `tf_efficientnetv2_b0`, `regnety_016`, `resnet26d`,
+  `xcit_tiny_12_p16_224`, `edgenext_small` — all Apache-2.0 / MIT) and run:
+
+  ```powershell
+  python tools/eval_third_voter.py <dataset.eval.zip> --model <name> --sample-per-class 2000 --threads 4
+  ```
+
+  Report the recall / FPR it prints against the iNat + timm baseline. You'll
+  need an evaluation dataset — an **AES-encrypted zip** (see **Handling the
+  arachnid datasets** below); without one, build a small set from public image
+  URLs via `python -m tools.eval_filter build-urls …`
+  ([docs/evaluation.md](docs/evaluation.md)). **Share the JSON report, never
+  images.**
+
+### Bigger tasks (open an issue to coordinate first)
+
+- **Train or fine-tune a model to better recognize the blocked category.**
+  Improve arachnid recall at a low false-positive rate with a model that stays
+  **small and WASM-viable** (int8 ONNX, roughly ≤ 25 MB, runs under ONNX Runtime
+  Web) and **permissively licensed**. Starting points: the voters in
+  [`src/imgedge/voters/`](src/imgedge/voters/), the export / quantize tools in
+  [`tools/`](tools/), and [`training/`](training/). Validate with
+  `tools/eval_third_voter.py` and `tools/tune_inbrowser.py`, and share JSON
+  reports, not images.
+- **Curate a public evaluation set.** Assemble a small, correctly-licensed set
+  of arachnid vs non-arachnid **image URLs** (plus a builder that uses
+  [`tools/eval_filter.py`](tools/eval_filter.py)) so contributors without the
+  private dataset can run evals. Per the dataset rules, contribute a **URL list
+  and builder — never the images themselves**.
+
 ## Developer Certificate of Origin (DCO)
 
 ImgEdge uses the [Developer Certificate of Origin](https://developercertificate.org/)

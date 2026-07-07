@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Good-first-issues guide.** [CONTRIBUTING.md](CONTRIBUTING.md#good-first-issues)
+  now identifies detailed starter tasks for new and casual contributors —
+  localization, documentation, tests, hardware benchmarking, and
+  candidate-model evaluation — plus larger `help wanted` tasks, and points to
+  the `good first issue` / `help wanted` labels and the GitHub contribute page.
 - **Roadmap** ([docs/roadmap.md](docs/roadmap.md)) capturing the in-browser
   "Fast" mode epic (Phases 0–3) and unscheduled improvement ideas, plus a Phase 0
   feasibility spike under `spike/inbrowser-fast/` that times the iNat ONNX model
