@@ -1,9 +1,10 @@
 # In-browser "Fast" mode
 
 The client-side classifier for the [in-browser Fast mode](../../docs/roadmap.md):
-it runs the two small voters (iNat + timm) **in the extension** so images are
-filtered with **zero install**, keeping the local server optional for the
-heavier tiers. It mirrors the server's **Fast** preset (iNat + timm) via
+it runs the small voters (iNat + timm, plus an optional deit3 third voter) **in
+the extension** so images are filtered with **zero install**, keeping the local
+server optional for the heavier tiers. It mirrors the server's **Fast** preset
+(iNat + timm) via
 [ONNX Runtime Web](https://onnxruntime.ai/docs/tutorials/web/) in an offscreen
 document.
 
@@ -12,10 +13,10 @@ document.
 | [`inat.mjs`](inat.mjs) | Pure iNat preprocess / score functions, in numeric parity with `imgedge.inat.inat_filter`. No DOM / ONNX — unit-testable in Node. |
 | [`timm.mjs`](timm.mjs) | Pure timm (ImageNet) voter: ImageNet-normalized NCHW input, softmax, and signed arachnid evidence. Mirrors `imgedge.voters.timm_voter`. |
 | [`ensemble.mjs`](ensemble.mjs) | Pure evidence combiner (`combineEvidence`): weighted signed evidence + the iNat-confidence override. Mirrors `imgedge.voters.base` (salience deferred). |
-| [`classify.mjs`](classify.mjs) | Browser glue: decode + resize (canvas) → run each model (ORT injected, not imported) → combine. `classifyBlobEnsemble` runs iNat + timm; validated end-to-end in a real browser. |
-| [`inat_web.json`](inat_web.json) / [`timm_web.json`](timm_web.json) | Generated metadata (input config + class indices) so the extension never ships the taxonomy or ImageNet labels. |
+| [`classify.mjs`](classify.mjs) | Browser glue: decode + resize (canvas) → run each model (ORT injected, not imported) → combine. `classifyBlobEnsemble` runs iNat + timm + the optional deit3 voter; validated end-to-end in a real browser. |
+| [`inat_web.json`](inat_web.json) / [`timm_web.json`](timm_web.json) / [`deit3_web.json`](deit3_web.json) | Generated metadata (input config + class indices) so the extension never ships the taxonomy or ImageNet labels. `deit3_web.json` configures the optional third voter. |
 | [`offscreen.mjs`](offscreen.mjs) + [`offscreen.html`](offscreen.html) | The offscreen document: hosts the ORT sessions (WASM, multi-threaded when cross-origin isolated) and answers classify requests from the service worker. MV3 workers can't keep a model warm; this does. |
-| `vendor/` | The bundled `inat.onnx` + `timm.onnx` + ONNX Runtime Web, populated by `tools/bundle_inbrowser.py`. Git-ignored — not committed. |
+| `vendor/` | The bundled `inat.onnx` + `timm.onnx` (+ optional `deit3.onnx`) + ONNX Runtime Web, populated by `tools/bundle_inbrowser.py`. Git-ignored — not committed. |
 
 **How it's wired:** when the server is unreachable (`inBrowserFallback`, on by
 default) or `inBrowserOnly` is set, `background.js` creates the
@@ -30,6 +31,7 @@ make the offscreen document cross-origin isolated so WASM threads engage.
 ```
 python src/imgedge/inat/convert_to_onnx.py   # iNat -> ONNX
 python tools/convert_timm_to_onnx.py         # timm -> int8 ONNX (needs timm + torch)
+python tools/convert_timm_to_onnx.py --model deit3_small_patch16_224 --out src/imgedge/voters/models/deit3.onnx  # optional 3rd voter
 python tools/bundle_inbrowser.py             # copy models + ORT Web into vendor/
 ```
 

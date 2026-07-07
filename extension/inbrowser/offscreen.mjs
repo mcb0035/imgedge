@@ -60,7 +60,17 @@ function ensureReady() {
       } catch (e) {
         console.warn("[imgedge] offscreen: timm voter unavailable, using iNat only:", String(e));
       }
-      return { ort, inat, timm };
+      // Optional third voter (deit3 ImageNet model). Same story as timm: if it
+      // isn't bundled, the ensemble simply runs without it.
+      let deit3 = null;
+      try {
+        const deit3Meta = await (await fetch(resource("deit3_web.json"))).json();
+        const deit3Session = await ort.InferenceSession.create(resource("vendor/deit3.onnx"), providers);
+        deit3 = { session: deit3Session, meta: deit3Meta };
+      } catch (e) {
+        console.warn("[imgedge] offscreen: deit3 voter unavailable, skipping it:", String(e));
+      }
+      return { ort, inat, timm, deit3 };
     })().catch((e) => {
       ready = null; // let a later request retry a failed load
       throw e;
@@ -72,8 +82,8 @@ function ensureReady() {
 /** Classify an image given as a data URL; returns { score, blocked }. */
 export async function classifyDataUrl(dataUrl, threshold = 0.5) {
   const blob = await (await fetch(dataUrl)).blob();
-  const { ort, inat, timm } = await ensureReady();
-  return classifyBlobEnsemble(ort, { inat, timm }, blob, threshold);
+  const { ort, inat, timm, deit3 } = await ensureReady();
+  return classifyBlobEnsemble(ort, { inat, timm, deit3 }, blob, threshold);
 }
 
 // Wire the background <-> offscreen message channel (only in the extension).

@@ -48,6 +48,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the Python voter and are parity-tested (Node + pytest); the model is exported
   and int8-quantized (~5.4 MB) by `tools/convert_timm_to_onnx.py` and bundled by
   `tools/bundle_inbrowser.py`.
+- **In-browser third voter (deit3), opt-in.** Fast mode can now run an optional
+  **third voter — the `deit3_small_patch16_224` ImageNet model** — alongside iNat
+  + timm. In an offline sweep (`tools/eval_third_voter.py`) deit3 lifted arachnid
+  recall from ≈0.80 to **≈0.89** at the same false-positive budget, and it's
+  WASM-viable (int8 ~21.7 MB, ~47 ms/image). The wiring is in place —
+  [`classify.mjs`](extension/inbrowser/classify.mjs) and the offscreen document
+  run every present timm-style voter, `deit3_web.json` (via
+  `tools/export_timm_web.py --model`) mirrors the Python voter, and
+  `tools/convert_timm_to_onnx.py --model` + `tools/bundle_inbrowser.py` produce
+  and bundle `deit3.onnx`. It stays **inert until `deit3.onnx` is bundled**, so
+  there is no behavior change until the model ships and the 3-voter threshold is
+  re-tuned.
 - **Tuned the in-browser block threshold.** The default drops from `0.5` to
   `0.15`, tuned for the 2-model in-browser ensemble with a new
   `tools/tune_inbrowser.py` sweep over the saved eval

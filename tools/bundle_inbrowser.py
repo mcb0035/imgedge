@@ -11,6 +11,8 @@ Sources:
     (produce it first with: python src/imgedge/inat/convert_to_onnx.py)
   * timm ONNX model (optional 2nd voter): src/imgedge/voters/models/timm.onnx
     (produce it with: python tools/convert_timm_to_onnx.py)
+  * deit3 ONNX model (optional 3rd voter): src/imgedge/voters/models/deit3.onnx
+    (produce it with: python tools/convert_timm_to_onnx.py --model deit3_small_patch16_224 --out ...)
   * ONNX Runtime Web: the onnxruntime-web npm package's dist/ folder
     (npm install onnxruntime-web). Auto-discovered under node_modules/, or pass
     --ort-dist to point at it.
@@ -26,6 +28,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MODEL = ROOT / "src" / "imgedge" / "inat" / "models" / "INatVision_Small_2_fact256_8bit.onnx"
 TIMM_MODEL = ROOT / "src" / "imgedge" / "voters" / "models" / "timm.onnx"
+DEIT3_MODEL = ROOT / "src" / "imgedge" / "voters" / "models" / "deit3.onnx"
 VENDOR = ROOT / "extension" / "inbrowser" / "vendor"
 ORT_CANDIDATES = [
     ROOT / "node_modules" / "onnxruntime-web" / "dist",
@@ -67,7 +70,7 @@ def main():
 
     # Clear stale vendored model + ORT builds so a lean rebuild doesn't leave old
     # variants behind (the .gitignore is preserved).
-    for old in [*VENDOR.glob("ort*"), VENDOR / "inat.onnx", VENDOR / "timm.onnx"]:
+    for old in [*VENDOR.glob("ort*"), VENDOR / "inat.onnx", VENDOR / "timm.onnx", VENDOR / "deit3.onnx"]:
         old.unlink(missing_ok=True)
 
     shutil.copy2(MODEL, VENDOR / "inat.onnx")
@@ -79,6 +82,12 @@ def main():
     else:
         print(f"note: {TIMM_MODEL} not found -- timm voter not bundled (iNat only).")
         print("      produce it with: python tools/convert_timm_to_onnx.py")
+    # Optional third voter (deit3): likewise only bundled once it's been exported.
+    if DEIT3_MODEL.exists():
+        shutil.copy2(DEIT3_MODEL, VENDOR / "deit3.onnx")
+        copied.append("deit3.onnx")
+    else:
+        print(f"note: {DEIT3_MODEL} not found -- deit3 third voter not bundled (optional).")
     for pattern in ALL_PATTERNS if args.all else LEAN_PATTERNS:
         for f in sorted(ort_dist.glob(pattern)):
             shutil.copy2(f, VENDOR / f.name)

@@ -9,6 +9,12 @@ deps:
 
   pip install timm torch onnxruntime
   python tools/convert_timm_to_onnx.py
+
+Model-agnostic: pass --model (with --out) to export another ImageNet-1k
+backbone -- e.g. the deit3 third voter:
+
+  python tools/convert_timm_to_onnx.py --model deit3_small_patch16_224 \\
+      --out src/imgedge/voters/models/deit3.onnx
 """
 
 import argparse
@@ -20,7 +26,17 @@ DEFAULT_OUT = ROOT / "src" / "imgedge" / "voters" / "models" / "timm.onnx"
 
 def main():
     ap = argparse.ArgumentParser(description="Export + quantize the timm voter model to int8 ONNX.")
-    ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    ap.add_argument(
+        "--model",
+        default=None,
+        help="timm model to export (default: the timm voter's DEFAULT_MODEL)",
+    )
+    ap.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="output .onnx (default: timm.onnx; required for a non-default --model)",
+    )
     ap.add_argument("--opset", type=int, default=17)
     args = ap.parse_args()
 
@@ -34,11 +50,19 @@ def main():
     except Exception as e:
         raise SystemExit(f"deps missing ({e}). Install: pip install timm torch onnxruntime") from e
 
-    model = timm.create_model(DEFAULT_MODEL, pretrained=True).eval()
-    size = int(resolve_model_data_config(model)["input_size"][-1])
-    args.out.parent.mkdir(parents=True, exist_ok=True)
+    model_name = args.model or DEFAULT_MODEL
+    if args.out is not None:
+        out = args.out
+    elif model_name == DEFAULT_MODEL:
+        out = DEFAULT_OUT
+    else:
+        ap.error(f"--out is required for a non-default --model ({model_name})")
 
-    fp32 = args.out.with_suffix(".fp32.onnx")
+    model = timm.create_model(model_name, pretrained=True).eval()
+    size = int(resolve_model_data_config(model)["input_size"][-1])
+    out.parent.mkdir(parents=True, exist_ok=True)
+
+    fp32 = out.with_suffix(".fp32.onnx")
     dummy = torch.randn(1, 3, size, size)
     torch.onnx.export(
         model,
@@ -50,9 +74,9 @@ def main():
         opset_version=args.opset,
         dynamo=False,
     )
-    quantize_dynamic(str(fp32), str(args.out), weight_type=QuantType.QInt8)
+    quantize_dynamic(str(fp32), str(out), weight_type=QuantType.QInt8)
     fp32.unlink(missing_ok=True)
-    print(f"Wrote {args.out} ({args.out.stat().st_size // 1024} KiB) from {DEFAULT_MODEL} @ {size}px.")
+    print(f"Wrote {out} ({out.stat().st_size // 1024} KiB) from {model_name} @ {size}px.")
 
 
 if __name__ == "__main__":
