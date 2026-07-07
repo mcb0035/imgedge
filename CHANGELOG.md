@@ -62,9 +62,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   run every present timm-style voter, `deit3_web.json` (via
   `tools/export_timm_web.py --model`) mirrors the Python voter, and
   `tools/convert_timm_to_onnx.py --model` + `tools/bundle_inbrowser.py` produce
-  and bundle `deit3.onnx`. It stays **inert until `deit3.onnx` is bundled**, so
-  there is no behavior change until the model ships and the 3-voter threshold is
-  re-tuned.
+  and bundle `deit3.onnx`. It stays **inert until `deit3.onnx` is bundled**
+  (`tools/bundle_inbrowser.py`), so there is no behavior change until the model
+  ships.
 - **Tuned the in-browser block threshold.** The default drops from `0.5` to
   `0.15`, tuned for the 2-model in-browser ensemble with a new
   `tools/tune_inbrowser.py` sweep over the saved eval
@@ -73,6 +73,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Re-tuned the in-browser block threshold for the deit3 third voter.** With
+  deit3 bundled, the default moves `0.15 → 0.19` — the best-F1 operating point
+  for the iNat + timm + deit3 ensemble from `tools/tune_inbrowser.py` (now
+  extended to sweep the deit3 voter). On the pooled eval sample this lifts
+  arachnid recall `0.799 → 0.856` at a slightly *lower* false-positive rate
+  (`0.022 → 0.019`). Takes effect once `deit3.onnx` is bundled; existing users
+  keep any saved threshold.
 - **Pinned the ClusterFuzzLite fuzz image's numpy / Pillow exactly.** The
   decode-fuzzer build installs `numpy==2.2.6` + `pillow==11.3.0` (the last
   Python-3.11-compatible releases the OSS-Fuzz base needs) instead of `<2.3` /
