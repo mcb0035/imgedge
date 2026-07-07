@@ -33,7 +33,8 @@ own `*_in1k` recipes are Apache-2.0, but some ported weights carry their
 upstream licence.
 
 iNat dominates the runtime (~215 ms/image); use --sample-per-class for a quick
-pass over a random subset.
+pass over a random subset, and --threads N to cap CPU threads (often faster on
+many-core boxes, where the tiny models otherwise thrash).
 """
 
 import argparse
@@ -105,9 +106,12 @@ def main():
     ap.add_argument("--sample-per-class", type=int, help="score a random N per class for a faster pass")
     ap.add_argument("--seed", type=int, default=1234, help="random seed for --sample-per-class")
     ap.add_argument("--out", help="optional JSON path to dump the per-image scores")
+    ap.add_argument("--threads", type=int, help="cap CPU threads for the models (torch + OMP/MKL)")
     args = ap.parse_args()
 
-    from eval_filter import _labeled_names, _Progress, _sample_names, iter_samples
+    from eval_filter import _labeled_names, _Progress, _sample_names, cap_threads, iter_samples
+
+    cap_threads(args.threads)  # cap torch threads before the voters (and torch) import
 
     try:
         from imgedge.classifier.server import load_filter

@@ -921,6 +921,24 @@ def _get_password(required=True):
     return getpass.getpass("Dataset password: ")
 
 
+def cap_threads(n):
+    """Cap CPU threads for the model libraries -- on a many-core box the tiny
+    models can spend more time in thread overhead than compute. Sets the BLAS /
+    OpenMP env (best-effort, before import) and torch's intra-op thread count.
+    No-op when `n` is falsy."""
+    if not n:
+        return
+    n = str(int(n))
+    for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+        os.environ[var] = n
+    try:
+        import torch
+
+        torch.set_num_threads(int(n))
+    except Exception:
+        pass  # torch not installed (iNat-only) -- the env vars still apply
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="eval_filter",
@@ -941,6 +959,7 @@ def main(argv=None):
     pe.add_argument(
         "--mobileclip", action="store_true", help="enable the MobileCLIP voter (needs the mobileclip extra)"
     )
+    pe.add_argument("--threads", type=int, default=None, help="cap CPU threads for the models (torch + OMP/MKL)")
 
     pd = sub.add_parser("build-dir", help="encrypt a block/+allow/ folder into an AES zip")
     pd.add_argument("src_dir")
@@ -980,6 +999,7 @@ def main(argv=None):
         # regardless of leftover shell state.
         os.environ["IMGEDGE_SIGLIP"] = "1" if args.siglip else "0"
         os.environ["IMGEDGE_MOBILECLIP"] = "1" if args.mobileclip else "0"
+        cap_threads(args.threads)  # before the ensemble (and torch) loads
         password = _get_password(required=str(args.dataset).lower().endswith(".zip"))
         records = evaluate(
             args.dataset,
