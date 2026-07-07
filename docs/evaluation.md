@@ -60,7 +60,8 @@ Useful flags: `--siglip` / `--mobileclip` (pick the voters, above), `--report
 <json>` (full machine-readable results; a bare name is written under `reports/`,
 kept out of the repo root and gitignored), `--sample-per-class N` (+ `--seed`,
 score a random N per class for a faster pass), `--threshold` / `--salience`
-(override the operating point), `--no-sweep` (skip the threshold / salience
+(override the operating point), `--threads N` (cap CPU threads for the models --
+often faster on many-core boxes), `--no-sweep` (skip the threshold / salience
 sweeps).
 
 A progress meter (count, rate, ETA) prints to `stderr` during the run — useful
