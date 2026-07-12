@@ -29,11 +29,15 @@ make the offscreen document cross-origin isolated so WASM threads engage.
 **Building the bundle** (models are git-ignored, not committed):
 
 ```
-python src/imgedge/inat/convert_to_onnx.py   # iNat -> ONNX
+python -m imgedge.inat.download_models --inbrowser  # iNat ONNX (pinned fetch; or build via convert_to_onnx.py if you have TensorFlow)
 python tools/convert_timm_to_onnx.py         # timm -> int8 ONNX (needs timm + torch)
 python tools/convert_timm_to_onnx.py --model deit3_small_patch16_224 --out src/imgedge/voters/models/deit3.onnx  # optional 3rd voter
 python tools/bundle_inbrowser.py             # copy models + ORT Web into vendor/
 ```
+
+The tagged-release workflow ([`.github/workflows/release.yml`](../../.github/workflows/release.yml))
+runs these same steps automatically, so a published release ships a populated
+`vendor/`.
 
 **Deferred** (see the [roadmap follow-ups](../../docs/roadmap.md)): the salience
 multiplier (currently `1.0` in `ensemble.mjs`) and timm center-crop parity
@@ -64,7 +68,7 @@ The offscreen document loads `inat.onnx` + ONNX Runtime Web from `vendor/`
 (git-ignored). Populate it before loading or packaging the extension:
 
 ```powershell
-python src/imgedge/inat/convert_to_onnx.py   # once: produce the ONNX model
+python -m imgedge.inat.download_models --inbrowser  # once: fetch the pinned ONNX model
 npm install onnxruntime-web                  # once: fetch the ORT Web dist
 python tools/bundle_inbrowser.py             # copy model + runtime into vendor/
 ```
