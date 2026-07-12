@@ -73,6 +73,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **The packaged extension now ships its license + third-party notices.**
+  `package.ps1` includes `LICENSE`, `NOTICE`, and `THIRD-PARTY-NOTICES.md` in the
+  ZIP, and the notices now cover the models + ONNX Runtime Web the extension
+  **bundles** (redistributes) rather than only downloads — including the deit3
+  third voter (Apache-2.0) and ONNX Runtime Web (MIT). Satisfies the MIT /
+  Apache-2.0 attribution terms.
 - **The tagged release now builds the in-browser model bundle.**
   [`release.yml`](.github/workflows/release.yml) fetches the pinned iNat ONNX
   (`download_models.py --inbrowser`, hosted as a SHA-verified asset on the

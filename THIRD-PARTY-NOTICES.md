@@ -11,20 +11,67 @@ license-clean as it grows.
 
 ---
 
-## Models used (downloaded at runtime — NOT redistributed in this repo)
+## Models & runtime — bundled and/or downloaded
 
-The model files live under a git-ignored `models/` directory; the server fetches
-them over HTTPS and verifies a pinned SHA-256. Each remains under its own license.
+These files live under git-ignored `models/` and `vendor/` directories (never
+committed to this repo) and reach users two ways, each under its own license:
 
-| Model | Source | License | Copyright |
+- the local **server** downloads the iNaturalist vision model + taxonomy over
+  HTTPS at runtime (SHA-256 pinned); and
+- the **packaged browser extension** *bundles* — i.e. redistributes — the ONNX
+  conversions of the models plus ONNX Runtime Web in
+  `extension/inbrowser/vendor/`, and the iNaturalist ONNX is re-hosted as a
+  SHA-pinned asset on the imgedge releases.
+
+| Component | Source | License | Copyright |
 |---|---|---|---|
 | iNaturalist vision model + taxonomy (`INatVision_Small_*`, `taxonomy.*`) | [github.com/inaturalist/model-files](https://github.com/inaturalist/model-files) (release `v25.01.15`) | **MIT** | © iNaturalist |
-| timm MobileNetV3 (`mobilenetv3_large_100.ra_in1k`) — optional voter | [huggingface.co/timm/mobilenetv3_large_100.ra_in1k](https://huggingface.co/timm/mobilenetv3_large_100.ra_in1k) | **Apache-2.0** | © Ross Wightman / Hugging Face |
+| timm MobileNetV3 (`mobilenetv3_large_100.ra_in1k`) — ImageNet voter | [huggingface.co/timm/mobilenetv3_large_100.ra_in1k](https://huggingface.co/timm/mobilenetv3_large_100.ra_in1k) | **Apache-2.0** | © Ross Wightman / Hugging Face |
+| timm DeiT III (`deit3_small_patch16_224.fb_in1k`) — optional 3rd voter | [huggingface.co/timm/deit3_small_patch16_224.fb_in1k](https://huggingface.co/timm/deit3_small_patch16_224.fb_in1k) | **Apache-2.0** | © Meta AI (DeiT III authors) / Ross Wightman / Hugging Face |
+| ONNX Runtime Web (bundled in `vendor/`) | [github.com/microsoft/onnxruntime](https://github.com/microsoft/onnxruntime) | **MIT** | © Microsoft |
 
-Training-data note: the timm model is trained on **ImageNet-1k**, whose *dataset*
-terms lean research/non-commercial. The *weights* are Apache-2.0 and fine for
-personal/open-source use — but flag this before any commercial deployment (see
-"weights ≠ training data" below).
+Training-data note: the timm **and DeiT III** models are trained on
+**ImageNet-1k** (whose *dataset* terms lean research/non-commercial) and the
+iNaturalist model on iNaturalist data. The *weights* are Apache-2.0 / MIT and
+fine for personal / open-source use — but flag this before any commercial
+deployment (see "weights ≠ training data" below).
+
+## Bundled component notices (shipped in the packaged extension)
+
+Because the packaged extension redistributes the files above, their attribution
+notices travel with it — the ZIP ships `LICENSE`, `NOTICE`, and this file.
+
+**Apache-2.0 components** — the timm MobileNetV3 and DeiT III weights are licensed
+under the Apache License, Version 2.0; a full copy is the [`LICENSE`](LICENSE)
+file shipped alongside (ImgEdge is itself Apache-2.0), and their attribution is
+the "Copyright" column above.
+
+**MIT components** — the iNaturalist vision model and ONNX Runtime Web are
+licensed under the MIT License:
+
+```
+MIT License
+
+Copyright (c) iNaturalist
+Copyright (c) Microsoft Corporation
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
 
 ## Python libraries (all permissive)
 

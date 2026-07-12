@@ -7,8 +7,9 @@
 .DESCRIPTION
   Stages ONLY the extension front-end files (an explicit allow-list, so the local
   Python classifier in classifier/ inat/ voters/ training/ and the docs are never
-  shipped) into dist\imgedge, then produces a store-ready ZIP with manifest.json
-  at the archive root. Optionally also builds a self-hosted .crx.
+  shipped) plus the LICENSE / NOTICE / third-party notices into dist\imgedge, then
+  produces a store-ready ZIP with manifest.json at the archive root. Optionally
+  also builds a self-hosted .crx.
 
 .PARAMETER Crx
   Also pack a .crx (self-hosted / Edge / enterprise installs). Reuses
@@ -77,6 +78,15 @@ $stage = Join-Path $dist "imgedge"
 Remove-Item $stage -Recurse -Force -ErrorAction Ignore
 New-Item -ItemType Directory $stage -Force | Out-Null
 Copy-Item ($include | ForEach-Object { Join-Path $src $_ }) -Destination $stage -Recurse -Force
+
+# Ship the license + third-party attributions alongside the extension: the
+# bundled models (iNaturalist MIT; timm / deit3 Apache-2.0) and ONNX Runtime Web
+# (MIT) require their notices to travel with the redistributed files.
+Copy-Item -Path @(
+    (Join-Path $PSScriptRoot "LICENSE"),
+    (Join-Path $PSScriptRoot "NOTICE"),
+    (Join-Path $PSScriptRoot "THIRD-PARTY-NOTICES.md")
+) -Destination $stage -Force
 
 # ---- zip (store-ready: manifest.json at the archive root) -------------------
 $zip = Join-Path $dist "imgedge-$ver.zip"
