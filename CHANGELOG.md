@@ -6,6 +6,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Report-only dependency audit of the optional voters no longer errors.** On
+  the Linux CI runner `pip-audit` auto-enables `--require-hashes` and tried to
+  resolve torch's CUDA stack (`nvidia-*`, `triton`, `cuda-toolkit`), which is not
+  pinned in the Windows-generated `src/imgedge/voters/requirements.lock`; the
+  audit now runs with `--no-deps` and scans the pinned packages directly.
+
+### Security
+
+- **Release signature published as `SHA256SUMS.sigstore.json`.** cosign v4
+  defaults to `--new-bundle-format`, which writes a Sigstore bundle and ignores
+  the legacy `--output-signature` / `--output-certificate` flags — so v0.5.0
+  shipped only `SHA256SUMS.cosign.bundle` (no `.sig` / `.pem`). The release
+  workflow now names the bundle `SHA256SUMS.sigstore.json`, which OpenSSF
+  Scorecard's Signed-Releases check recognizes; verify it with `cosign
+  verify-blob --bundle SHA256SUMS.sigstore.json …`. (The `*.intoto.jsonl` SLSA
+  provenance asset already satisfied the check independently.)
+
 ## [0.5.0] - 2026-07-12
 
 ### Added

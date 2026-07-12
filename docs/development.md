@@ -277,7 +277,7 @@ bump first, merge, then tag.
    writes a `SHA256SUMS` and signs it with a **keyless Sigstore signature**
    (`cosign sign-blob`, OIDC — no stored key), attaches a **SLSA build-provenance
    attestation**, and creates the GitHub Release with auto-generated notes and the
-   `imgedge-<version>.zip`, `SHA256SUMS`, and `SHA256SUMS.cosign.bundle` assets
+   `imgedge-<version>.zip`, `SHA256SUMS`, and `SHA256SUMS.sigstore.json` assets
    (plus a signed `imgedge.crx` when a key is configured — see below).
 
 If the tag and `manifest.json` disagree the release job fails fast — a guard

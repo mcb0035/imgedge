@@ -111,15 +111,14 @@ jobs:
 
       - name: Sign checksums (keyless Sigstore)
         shell: pwsh
-        # Also emit a detached .sig + .pem next to the bundle: OpenSSF Scorecard's
-        # Signed-Releases check name-matches release assets (*.sig, *.asc, *.sigstore,
-        # *.intoto.jsonl, ...) and does not recognize *.cosign.bundle, so without a
-        # recognized asset it reports the release as "not signed".
+        # Write the signature as a Sigstore bundle named *.sigstore.json: OpenSSF
+        # Scorecard's Signed-Releases check name-matches release assets (*.sig,
+        # *.sigstore, *.sigstore.json, *.intoto.jsonl, ...) and does NOT recognize
+        # *.cosign.bundle. cosign v4 defaults to --new-bundle-format (a Sigstore
+        # bundle) and ignores the legacy --output-signature/--output-certificate.
         run: >
           cosign sign-blob --yes
-          --bundle dist/SHA256SUMS.cosign.bundle
-          --output-signature dist/SHA256SUMS.sig
-          --output-certificate dist/SHA256SUMS.pem
+          --bundle dist/SHA256SUMS.sigstore.json
           dist/SHA256SUMS
 
       - name: Verify the signature (self-check)
@@ -128,7 +127,7 @@ jobs:
         shell: pwsh
         run: >
           cosign verify-blob
-          --bundle dist/SHA256SUMS.cosign.bundle
+          --bundle dist/SHA256SUMS.sigstore.json
           --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}"
           --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
           dist/SHA256SUMS
@@ -159,9 +158,7 @@ jobs:
             dist/imgedge-*.zip
             dist/*.crx
             dist/SHA256SUMS
-            dist/SHA256SUMS.cosign.bundle
-            dist/SHA256SUMS.sig
-            dist/SHA256SUMS.pem
+            dist/SHA256SUMS.sigstore.json
           generate_release_notes: true
 
   provenance:

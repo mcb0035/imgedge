@@ -248,7 +248,7 @@ logged in the public Sigstore transparency log. Replace `<ver>` with the version
 
    ```bash
    cosign verify-blob \
-     --bundle SHA256SUMS.cosign.bundle \
+     --bundle SHA256SUMS.sigstore.json \
      --certificate-identity-regexp '^https://github.com/mcb0035/imgedge/\.github/workflows/release\.yml@refs/tags/v' \
      --certificate-oidc-issuer https://token.actions.githubusercontent.com \
      SHA256SUMS
