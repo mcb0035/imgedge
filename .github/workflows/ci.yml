@@ -76,7 +76,12 @@ jobs:
       - name: Audit required runtime (gating)
         run: pip-audit --requirement src/imgedge/inat/requirements.lock
       - name: Audit optional voters (report-only)
-        run: pip-audit --requirement src/imgedge/voters/requirements.lock
+        # --no-deps audits the packages pinned in this lock as-is, without
+        # resolving/installing the full tree. torch's Linux CUDA deps
+        # (nvidia-*, triton, cuda-toolkit) aren't in this Windows-generated lock,
+        # so a full resolve trips pip's auto --require-hashes on the CI runner;
+        # the lock is fully pinned, so --no-deps still audits every entry.
+        run: pip-audit --no-deps --requirement src/imgedge/voters/requirements.lock
         continue-on-error: true
 
   dependency-review:
