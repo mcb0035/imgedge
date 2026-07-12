@@ -1,6 +1,6 @@
 # Roadmap
 
-Aspirational, **non-binding** direction for ImgEdge (current release: 0.4.0).
+Aspirational, **non-binding** direction for ImgEdge (current release: 0.5.0).
 These are ideas and plans, not commitments or dates — [CHANGELOG.md](../CHANGELOG.md)
 is the record of what has actually shipped. Discussion and PRs welcome; see
 [CONTRIBUTING.md](../CONTRIBUTING.md).
