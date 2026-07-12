@@ -73,6 +73,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **The tagged release now builds the in-browser model bundle.**
+  [`release.yml`](.github/workflows/release.yml) fetches the pinned iNat ONNX
+  (`download_models.py --inbrowser`, hosted as a SHA-verified asset on the
+  imgedge `models-v25.01.15` release) and exports the timm + deit3 voters with
+  torch, then bundles + packages — so a published release actually ships a
+  working Fast mode instead of an empty `vendor/`.
 - **Re-tuned the in-browser block threshold for the deit3 third voter.** With
   deit3 bundled, the default moves `0.15 → 0.19` — the best-F1 operating point
   for the iNat + timm + deit3 ensemble from `tools/tune_inbrowser.py` (now

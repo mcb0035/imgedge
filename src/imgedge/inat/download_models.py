@@ -18,6 +18,7 @@ Example:
   python download_models.py --verify        # only re-check on-disk files vs. pins
   python download_models.py --print-hashes  # show on-disk SHA-256s (to re-pin)
   python download_models.py --all           # also geomodel + common names (unpinned)
+  python download_models.py --inbrowser     # also the in-browser Fast-mode ONNX (pinned)
 """
 
 import argparse
@@ -47,6 +48,16 @@ CHECKSUMS = {
     "INatVision_Small_2_fact256_8bit.tflite": "eae277b24efa629b998d5f9c091da0576162cb1aad498786087acd001dc86d2c",
     "taxonomy.csv": "bd18483667d8a0ce7c1676ad4160a61589390ef090b0fb8092da50832dcecb69",
     "taxonomy.json": "7df72a7a05afe53f20344339552b6c980423e1bd25e5cc69587f4f4619edc0e8",
+}
+
+# The in-browser "Fast" mode ONNX is *derived* from the vision TFLite by
+# tools/convert_to_onnx.py, which needs TensorFlow / tf2onnx on Python <= 3.12.
+# Rather than run that legacy toolchain in the (Python 3.13) release build, the
+# ONNX is published as a pinned asset on the imgedge releases and fetched with
+# `--inbrowser`. Re-pin (and re-upload) whenever the vision model changes.
+INBROWSER_RELEASE = "https://github.com/mcb0035/imgedge/releases/download/models-v25.01.15"
+INBROWSER_CHECKSUMS = {
+    "INatVision_Small_2_fact256_8bit.onnx": "916e0e9e2529d0e286efb3921f9a606ade37e8ddc2c9db26cb41169c094853ab",
 }
 
 MAX_BYTES = 256 * 1024 * 1024  # cap so a hostile/oversized response can't fill the disk
@@ -134,6 +145,11 @@ def main():
         help="output directory (default: <this script>/models, where the classifier server looks)",
     )
     p.add_argument("--all", action="store_true", help="also fetch geomodel + common names")
+    p.add_argument(
+        "--inbrowser",
+        action="store_true",
+        help="also fetch the in-browser Fast-mode ONNX (imgedge-hosted, pinned)",
+    )
     p.add_argument("--verify", action="store_true", help="only check on-disk files against the pinned SHA-256s")
     p.add_argument(
         "--allow-unverified",
@@ -150,19 +166,21 @@ def main():
     # Default next to this script (inat/models) so the server finds the files
     # regardless of the current working directory.
     out_dir = Path(args.out) if args.out else Path(__file__).resolve().parent / "models"
-    selected = [fn for fn, default in ASSETS.values() if default or args.all]
+    # (filename, base URL, pinned digest) for every selected asset.
+    items = [(fn, RELEASE, CHECKSUMS.get(fn)) for fn, default in ASSETS.values() if default or args.all]
+    if args.inbrowser:
+        items += [(fn, INBROWSER_RELEASE, digest) for fn, digest in INBROWSER_CHECKSUMS.items()]
 
     if args.print_hashes:
-        for fn in selected:
+        for fn, _base, _expected in items:
             path = out_dir / fn
             print(f"{(sha256_of(path) if path.exists() else '(missing)'):<64}  {fn}")
         return
 
     if args.verify:
         bad = 0
-        for fn in selected:
+        for fn, _base, expected in items:
             path = out_dir / fn
-            expected = CHECKSUMS.get(fn)
             if expected is None:
                 print(f"NO-PIN   {fn}")
             elif not path.exists():
@@ -179,8 +197,8 @@ def main():
         return
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    for fn in selected:
-        download(f"{RELEASE}/{fn}", out_dir / fn, CHECKSUMS.get(fn), args.allow_unverified)
+    for fn, base, expected in items:
+        download(f"{base}/{fn}", out_dir / fn, expected, args.allow_unverified)
 
     model = out_dir / "INatVision_Small_2_fact256_8bit.tflite"
     taxonomy = out_dir / "taxonomy.csv"
