@@ -3,7 +3,13 @@ Copyright 2026 Matthew Bedford
 
 This product is licensed under the Apache License, Version 2.0 (see LICENSE).
 
-This product uses, but does not redistribute, third-party machine-learning
-models that are downloaded at runtime and remain under their own licenses
-(the iNaturalist vision model — MIT; the timm MobileNetV3 model — Apache-2.0).
-See THIRD-PARTY-NOTICES.md for attributions and licensing details.
+The local server downloads third-party machine-learning models at runtime, and
+the packaged browser extension redistributes (bundles) ONNX conversions of them
+together with ONNX Runtime Web. Each remains under its own license:
+
+  * iNaturalist vision model + taxonomy — MIT (© iNaturalist)
+  * timm MobileNetV3 (mobilenetv3_large_100.ra_in1k) — Apache-2.0 (© Ross Wightman / Hugging Face)
+  * timm DeiT III (deit3_small_patch16_224.fb_in1k) — Apache-2.0 (© Meta AI / Ross Wightman / Hugging Face)
+  * ONNX Runtime Web — MIT (© Microsoft)
+
+See THIRD-PARTY-NOTICES.md for the full attributions and license texts.
