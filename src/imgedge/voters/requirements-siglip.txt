@@ -8,5 +8,5 @@
 #
 # Supply chain: pin exact versions and install with --require-hashes for a
 # verified, reproducible env (see src/imgedge/inat/requirements.txt for the recipe).
-transformers==5.13.0
-sentencepiece==0.2.1
+transformers==5.14.1
+sentencepiece==0.2.2
