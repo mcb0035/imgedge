@@ -10,6 +10,6 @@
 # Supply chain: pin exact versions and install with --require-hashes for a
 # verified, reproducible env (see src/imgedge/inat/requirements.txt for the recipe).
 timm==1.0.27
-torch==2.12.1
+torch==2.13.0
 numpy==2.5.1
 pillow==12.3.0
