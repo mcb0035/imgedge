@@ -24,6 +24,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Scorecard's Signed-Releases check recognizes; verify it with `cosign
   verify-blob --bundle SHA256SUMS.sigstore.json …`. (The `*.intoto.jsonl` SLSA
   provenance asset already satisfied the check independently.)
+- **Bumped `torch` 2.12.1 → 2.13.0 (CVE-2025-3000).** PyTorch ≤ 2.12.1 has a
+  memory-corruption flaw in `torch.jit.script` (GHSA-rrmf-rvhw-rf47, low
+  severity), fixed in 2.13.0. Updated the pin in `pyproject.toml` (`voters`
+  extra), `src/imgedge/voters/requirements.txt`, and `training/requirements.txt`
+  (with `torchvision` 0.27.1 → 0.28.0 to match), and re-hashed the `torch` /
+  `torchvision` blocks in `src/imgedge/voters/requirements.lock`. Resolves the
+  two Dependabot alerts.
+- **Bumped `pillow` 12.2.0 → 12.3.0 and `setuptools` 81.0.0 → 83.0.0 in the
+  requirement locks.** The `inat` and `voters` locks still pinned
+  `pillow==12.2.0` (CVE-2026-54058, CVE-2026-59197 / 59198 / 59200 / 59204,
+  PYSEC-2026-3451 / 3452 / 3453) and the `voters` lock pinned `setuptools==81.0.0`
+  (PYSEC-2026-3447), even though the project core already ships `pillow==12.3.0`.
+  Re-hashed both blocks so the locks match the shipped versions and the gating
+  dependency audit stays green.
 
 ## [0.5.0] - 2026-07-12
 
