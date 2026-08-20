@@ -13,4 +13,4 @@ torchvision==0.28.0
 onnx==1.22.0
 onnxruntime==1.28.0
 pillow==12.3.0
-numpy==2.5.1
+numpy==2.5.2
