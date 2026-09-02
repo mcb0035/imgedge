@@ -18,9 +18,9 @@ dependencies = ["numpy==2.5.2", "pillow==12.3.0", "ai-edge-litert==2.2.0"]
 voters = ["timm==1.0.28", "torch==2.13.0"]
 onnx = ["onnxruntime==1.29.0"]
 eval = ["pyzipper==0.4.0"]
-siglip = ["transformers==5.15.1", "sentencepiece==0.2.2"]
+siglip = ["transformers==5.16.1", "sentencepiece==0.2.2"]
 mobileclip = ["open_clip_torch==3.3.0"]
-dev = ["pytest==9.1.1", "ruff==0.16.4", "pip-audit==2.10.1", "pre-commit==4.6.2", "pytest-codspeed==5.0.3", "pytest-cov==7.1.0"]
+dev = ["pytest==9.1.1", "ruff==0.16.5", "pip-audit==2.10.1", "pre-commit==4.6.2", "pytest-codspeed==5.0.3", "pytest-cov==7.1.0"]
 
 [project.scripts]
 imgedge-server = "imgedge.classifier.server:main"
