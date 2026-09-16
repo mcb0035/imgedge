@@ -152,7 +152,7 @@ jobs:
           retention-days: 5
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           files: |
             dist/imgedge-*.zip
@@ -199,7 +199,7 @@ jobs:
         id: zip
         run: echo "path=$(ls dist/*.zip)" >> "$GITHUB_OUTPUT"
       - name: Upload + publish
-        uses: mnao305/chrome-extension-upload@fdfe79400af990f5145a319e834aee64907ccff4 # v6.0.0
+        uses: mnao305/chrome-extension-upload@f549d5d654694a7722d6abfa64c97409ad5e64c1 # v7.0.0
         with:
           file-path: ${{ steps.zip.outputs.path }}
           extension-id: ${{ secrets.CWS_EXTENSION_ID }}
