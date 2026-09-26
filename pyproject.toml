@@ -20,7 +20,7 @@ onnx = ["onnxruntime==1.30.0"]
 eval = ["pyzipper==0.4.0"]
 siglip = ["transformers==5.17.0", "sentencepiece==0.2.2"]
 mobileclip = ["open_clip_torch==3.3.0"]
-dev = ["pytest==9.1.1", "ruff==0.16.7", "pip-audit==2.10.1", "pre-commit==4.6.2", "pytest-codspeed==5.0.3", "pytest-cov==7.1.0"]
+dev = ["pytest==9.1.1", "ruff==0.16.8", "pip-audit==2.10.1", "pre-commit==4.6.2", "pytest-codspeed==5.0.3", "pytest-cov==7.1.0"]
 
 [project.scripts]
 imgedge-server = "imgedge.classifier.server:main"
