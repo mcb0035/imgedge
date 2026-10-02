@@ -10,7 +10,7 @@
 # when refreshing (these match the shipped voter/core pins).
 torch==2.14.0
 torchvision==0.29.0
-onnx==1.22.0
+onnx==1.23.0
 onnxruntime==1.30.0
 pillow==12.3.0
 numpy==2.5.3
