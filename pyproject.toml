@@ -12,7 +12,7 @@ authors = [{ name = "Matthew Bedford" }]
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.13"
-dependencies = ["numpy==2.5.3", "pillow==12.3.0", "ai-edge-litert==2.3.0"]
+dependencies = ["numpy==2.5.3", "pillow==13.0.0", "ai-edge-litert==2.3.0"]
 
 [project.optional-dependencies]
 voters = ["timm==1.0.30", "torch==2.14.1"]
