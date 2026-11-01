@@ -8,9 +8,9 @@
 # Versions are pinned (==) for reproducibility and so OSV/Scorecard doesn't flag
 # the old floor versions a `>=` range would otherwise resolve to. Bump together
 # when refreshing (these match the shipped voter/core pins).
-torch==2.14.1
-torchvision==0.29.1
+torch==2.15.0
+torchvision==0.29.2
 onnx==1.23.2
-onnxruntime==1.30.0
+onnxruntime==1.31.1
 pillow==13.0.0
-numpy==2.5.3
+numpy==2.5.4
