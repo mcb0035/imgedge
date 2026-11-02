@@ -18,7 +18,7 @@ dependencies = ["numpy==2.5.4", "pillow==13.0.0", "ai-edge-litert==2.3.0"]
 voters = ["timm==1.0.30", "torch==2.15.0"]
 onnx = ["onnxruntime==1.31.1"]
 eval = ["pyzipper==0.4.0"]
-siglip = ["transformers==5.21.1", "sentencepiece==0.2.2"]
+siglip = ["transformers==5.22.0", "sentencepiece==0.2.2"]
 mobileclip = ["open_clip_torch==3.3.0"]
 dev = ["pytest==9.2.0", "ruff==0.17.3", "pip-audit==2.10.1", "pre-commit==4.7.0", "pytest-codspeed==5.0.3", "pytest-cov==7.1.0"]
 
