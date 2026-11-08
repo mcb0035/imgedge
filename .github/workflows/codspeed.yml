@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip && pip install -e . "pytest-codspeed==5.0.3"
       - name: Run benchmarks
-        uses: CodSpeedHQ/action@78102a468f96d8e0ccb92d0ec49425753fc42062 # v5.6.0
+        uses: CodSpeedHQ/action@af75f77f17a054769abefaa42fe8dc2975469b5f # v5.6.3
         with:
           mode: simulation
           run: pytest benchmark/ --codspeed
