@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      - uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip && pip install -e . "pytest-codspeed==5.0.3"
       - name: Run benchmarks
-        uses: CodSpeedHQ/action@78102a468f96d8e0ccb92d0ec49425753fc42062 # v5.6.0
+        uses: CodSpeedHQ/action@af75f77f17a054769abefaa42fe8dc2975469b5f # v5.6.3
         with:
           mode: simulation
           run: pytest benchmark/ --codspeed
